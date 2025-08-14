@@ -295,9 +295,8 @@
                 <button onclick="sendCommand(0x14, 'BMS Data')" disabled>🔋 BMS Data</button>
                 <button onclick="sendCommand(0x1A, 'Config Data')" disabled>⚙️ Config Data</button>
                 <button onclick="sendCommand(0x1C, 'Event Log')" disabled>📝 Event Log</button>
-                <button onclick="sendCommand(0x21, 'Meter IP')" disabled>🌐 Meter IP</button>
-                <button onclick="sendCommand(0x21, 'Meter IP (0x0B)', [0x0B])" disabled>🌐 Meter IP (0x0B)</button>
-                <button onclick="sendCommand(0x21, 'Meter IP (0x01)', [0x01])" disabled>🌐 Meter IP (0x01)</button>
+                <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled>🌐 Read Meter IP</button>
+                <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled>🌐 Write Test IP</button>
                 <button onclick="sendCommand(0x24, 'Network Info')" disabled>🔗 Network Info</button>
             </div>
 
@@ -849,9 +848,7 @@
                 { cmd: 0x14, name: 'BMS Data' },
                 { cmd: 0x1A, name: 'Config Data' },
                 { cmd: 0x1C, name: 'Event Log' },
-                { cmd: 0x21, name: 'Meter IP' },
-                { cmd: 0x21, name: 'Meter IP (0x0B)', payload: [0x0B] },
-                { cmd: 0x21, name: 'Meter IP (0x01)', payload: [0x01] },
+                { cmd: 0x21, name: 'Read Meter IP', payload: [0x0B] },
                 { cmd: 0x24, name: 'Network Info' }
             ];
             
