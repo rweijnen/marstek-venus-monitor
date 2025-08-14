@@ -376,7 +376,7 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        function updateStatus(connected) {
+        function updateStatus(connected, deviceName = null) {
             const statusEl = document.getElementById('status');
             const connectBtn = document.getElementById('connectBtn');
             const disconnectBtn = document.getElementById('disconnectBtn');
@@ -384,7 +384,11 @@
             
             if (!statusEl) return;
             
-            statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            if (connected && deviceName) {
+                statusEl.textContent = `Connected to ${deviceName}`;
+            } else {
+                statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            }
             statusEl.className = connected ? 'connected' : 'disconnected';
             connectBtn.disabled = connected;
             disconnectBtn.disabled = !connected;
@@ -792,8 +796,9 @@
                     updateStatus(false);
                 });
 
-                updateStatus(true);
+                updateStatus(true, device.name);
                 log(`✅ Connected to ${device.name}!`);
+                log(`📱 Device Info: ${device.name} (${device.id || 'Unknown ID'})`);
 
             } catch (error) {
                 log(`❌ Connection failed: ${error.message}`);
