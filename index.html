@@ -418,13 +418,18 @@
             
             const view = new DataView(payload.buffer, payload.byteOffset);
             
+            // Looking at hex dump, actual offsets appear to be:
+            // Offset 2-3: In1 Power (little endian)
+            // Offset 4-5: In2 Power raw value  
+            // Offset 24-25: Out2 Power raw value
             return {
-                in1Power: view.getUint16(6, true),
-                in2Power: (view.getUint16(8, true) / 100).toFixed(2),
-                unknownValue: view.getUint16(10, true), // This is NOT SOC - maybe runtime hours or cycles
-                devVersion: view.getUint8(12),
-                out1Power: view.getUint16(24, true),
-                out2Power: (view.getUint16(26, true) / 10).toFixed(1),
+                in1Power: view.getUint16(2, true),  // Bytes 2-3 of payload
+                in2Power: (view.getUint16(4, true) / 100).toFixed(2),  // Bytes 4-5
+                unknownValue1: view.getUint16(6, true),  // Bytes 6-7
+                unknownValue2: view.getUint16(8, true),  // Bytes 8-9
+                devVersion: view.getUint8(10),  // Byte 10
+                out1Power: view.getUint16(20, true),  // Bytes 20-21
+                out2Power: (view.getUint16(24, true) / 10).toFixed(1),  // Bytes 24-25
                 temperatureLow: (view.getInt16(33, true) / 10).toFixed(1),
                 temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1),
                 wifiConnected: !!(view.getUint8(15) & 0x01),
@@ -619,11 +624,11 @@
             // Log hex dump for all commands
             log('📊 Hex dump:\n' + formatHexDump(bytes));
             
-            // Add offset annotations for known fields
+            // Add offset annotations for known fields (in payload, not full message)
             if (command === 0x03) {
-                log('Known offsets: [6-7]=In1Power, [8-9]=In2Power, [10-11]=Unknown(1612.9), [24-25]=Out1Power, [26-27]=Out2Power');
+                log('Payload offsets: [2-3]=In1Power, [4-5]=In2Power÷100, [20-21]=Out1Power, [24-25]=Out2Power÷10');
             } else if (command === 0x14) {
-                log('Known offsets: [8-9]=RemainCapacity%, [10-11]=TotalCapacity%, [50+]=CellVoltages');
+                log('Payload offsets: [8-9]=RemainCapacity%, [10-11]=TotalCapacity%, [46+]=CellVoltages');
             }
             
             switch (command) {
