@@ -73,6 +73,107 @@
 | `0x21` | Meter IP | Safe |
 | `0x24` | Network Info | Safe |
 
+### **Protocol Analysis (from hex dumps):**
+
+#### **Runtime Info (0x03) - 101 bytes response**
+```
+Payload Offset | Bytes | Description | Scaling | Example
+---------------|-------|-------------|---------|--------
+[2-3]          | 2     | In1 Power   | None    | 78W
+[4-5]          | 2     | In2 Power   | ÷100    | 259 → 2.59W
+[6-7]          | 2     | Unknown 1   | ?       | 
+[8-9]          | 2     | Unknown 2   | ?       |
+[10]           | 1     | Dev Version | None    | 151
+[15]           | 1     | Status Flags| Bitmap  | Bit0=WiFi, Bit1=MQTT
+[20-21]        | 2     | Out1 Power  | None    | 2W
+[24-25]        | 2     | Out2 Power  | ÷10     | 3913 → 391.3W
+[33-34]        | 2     | Temp Low    | ÷10     | °C
+[35-36]        | 2     | Temp High   | ÷10     | °C
+```
+
+#### **BMS Data (0x14) - 80 bytes response**
+```
+Payload Offset | Bytes | Description | Scaling | Example
+---------------|-------|-------------|---------|--------
+[0-1]          | 2     | Unknown     | ?       | 212
+[2-3]          | 2     | Battery Voltage | ÷10 | 571 → 57.1V
+[4-5]          | 2     | Battery Current | ÷10 | 1000 → 100.0A
+[6-7]          | 2     | Unknown     | ?       |
+[8-9]          | 2     | SOC (%)     | None    | 62%
+[10-11]        | 2     | Total Capacity | None | 99%
+[12-13]        | 2     | Cycle Count | None    | 5120 cycles
+[38]           | 1     | Temperature 1 | None  | 32°C
+[39]           | 1     | Temperature 2 | None  | 0°C
+[46-77]        | 32    | Cell Voltages | ÷1000 | 16 cells × 2 bytes
+```
+
+#### **Device Info (0x04) - Variable length text response**
+Returns comma-separated key=value pairs:
+- `type`: Device model (e.g., HMG-50)
+- `id`: Device serial number
+- `mac`: Bluetooth MAC address
+- `dev_ver`: Device firmware version
+- `bms_ver`: BMS firmware version
+- `fc_ver`: FC firmware version/date
+
+#### **Network Info (0x24) - Variable length text response**
+Returns comma-separated network configuration:
+- `ip`: Device IP address
+- `gate`: Gateway IP
+- `mask`: Subnet mask
+- `dns`: DNS server
+
+#### **WiFi Info (0x08) - Variable length text response**
+Returns the connected WiFi network name (SSID)
+
+#### **System Data (0x0D) - 19 bytes response**
+```
+Payload Offset | Bytes | Description | Notes
+---------------|-------|-------------|-------
+[0]            | 1     | System Status | 1 = Normal
+[1-2]          | 2     | Value 1     | Unknown
+[3-4]          | 2     | Value 2     | Unknown
+[5-6]          | 2     | Value 3     | Unknown
+[7-8]          | 2     | Value 4     | Unknown
+[9-10]         | 2     | Value 5     | Unknown
+```
+
+#### **Event Log (0x1C) - 180 bytes response**
+8-byte records with timestamp and event codes:
+```
+Offset | Bytes | Description
+-------|-------|------------
+[0-1]  | 2     | Year (little-endian)
+[2]    | 1     | Month
+[3]    | 1     | Day
+[4]    | 1     | Hour
+[5]    | 1     | Minute
+[6]    | 1     | Event Type
+[7]    | 1     | Event Code
+```
+Common event codes: 0x94, 0x95, 0x99, 0x9a
+
+#### **Error Codes (0x13) - 280 bytes response**
+14-byte records with timestamp and error information:
+```
+Offset | Bytes | Description
+-------|-------|------------
+[0-1]  | 2     | Year (little-endian)
+[2]    | 1     | Month
+[3]    | 1     | Day
+[4]    | 1     | Hour
+[5]    | 1     | Minute
+[6]    | 1     | Error Code (0x80 common)
+[7-13] | 7     | Additional error data
+```
+
+#### **Meter IP (0x21) - 16 bytes response**
+- All 0xFF = No meter configured
+- Otherwise returns IP address string
+
+#### **Config Data (0x1A) - 18 bytes response**
+Configuration parameters (needs further analysis)
+
 ### **Data Parsing:**
 - **Power Values:** Scaled appropriately (some ÷10 for decimals)
 - **SOC:** Percentage (÷100)
