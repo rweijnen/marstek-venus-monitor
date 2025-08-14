@@ -562,6 +562,33 @@
             }
         }
 
+        function formatHexDump(bytes) {
+            let hexDump = '';
+            for (let i = 0; i < bytes.length; i += 16) {
+                // Address
+                hexDump += i.toString(16).padStart(4, '0') + ': ';
+                
+                // Hex bytes
+                let hexPart = '';
+                let asciiPart = '';
+                for (let j = 0; j < 16; j++) {
+                    if (i + j < bytes.length) {
+                        const byte = bytes[i + j];
+                        hexPart += byte.toString(16).padStart(2, '0') + ' ';
+                        // ASCII representation (printable chars only)
+                        asciiPart += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+                    } else {
+                        hexPart += '   ';
+                    }
+                    // Add extra space in middle
+                    if (j === 7) hexPart += ' ';
+                }
+                
+                hexDump += hexPart + ' |' + asciiPart + '|\n';
+            }
+            return hexDump;
+        }
+        
         function parseResponse(data, commandName) {
             const bytes = new Uint8Array(data.buffer);
             
@@ -574,6 +601,18 @@
             const payload = bytes.slice(4, -1);
             
             log(`✅ ${commandName} response: ${payload.length} bytes`);
+            
+            // Log hex dump for debugging
+            if (command === 0x03 || command === 0x14) { // Runtime Info or BMS Data
+                log('📊 Hex dump:\n' + formatHexDump(bytes));
+                
+                // Add offset annotations for known fields
+                if (command === 0x03) {
+                    log('Known offsets: [6-7]=In1Power, [8-9]=In2Power, [10-11]=Unknown(1612.9), [24-25]=Out1Power, [26-27]=Out2Power');
+                } else if (command === 0x14) {
+                    log('Known offsets: [8-9]=RemainCapacity%, [10-11]=TotalCapacity%, [50+]=CellVoltages');
+                }
+            }
             
             switch (command) {
                 case 0x03:
