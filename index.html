@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marstek Venus E Battery Monitor</title>
+    <meta name="description" content="Web-based battery monitoring tool for Marstek Venus E batteries via Bluetooth Low Energy">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; text-align: center; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        
+        /* Disclaimer Modal Styles */
+        .modal {
+            display: block;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            color: #dc3545;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .disclaimer-text {
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            color: #856404;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            font-weight: 500;
+        }
+        .checkbox-container input {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        .btn-accept {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .btn-decline {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .btn-accept:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Main Interface Styles */
+        .main-interface {
+            display: none;
+        }
+        .status {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .connected { color: #28a745; font-weight: bold; }
+        .disconnected { color: #dc3545; font-weight: bold; }
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover { transform: translateY(-1px); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .btn-connect { background: #28a745; padding: 12px 24px; font-size: 16px; }
+        .data-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .data-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .data-item:last-child { border-bottom: none; }
+        .data-label { font-weight: 500; color: #666; }
+        .data-value { font-weight: bold; color: #333; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            margin-top: 20px;
+            border-radius: 6px;
+        }
+        .event-log {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .error-entry {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 8px;
+            margin: 3px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 15px;
+            color: #666;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+        }
+        .github-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .github-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Disclaimer Modal -->
+    <div id="disclaimerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">⚠️ EXPERIMENTAL SOFTWARE WARNING ⚠️</div>
+            
+            <div class="disclaimer-text">
+                <p><strong>This is highly experimental testing software for Marstek Venus E batteries.</strong></p>
+                
+                <div class="warning-box">
+                    <strong>IMPORTANT WARNINGS:</strong>
+                    <ul>
+                        <li>This software can send commands to your battery system</li>
+                        <li>Some commands may modify battery settings or behavior</li>
+                        <li>Improper use could potentially damage your equipment</li>
+                        <li>This tool is for advanced users and developers only</li>
+                        <li>Use in a controlled environment with proper safety precautions</li>
+                    </ul>
+                </div>
+                
+                <p><strong>By continuing, you acknowledge that:</strong></p>
+                <ul>
+                    <li>You understand the experimental nature of this software</li>
+                    <li>You accept full responsibility for any consequences</li>
+                    <li>You will not hold the developers liable for any damages</li>
+                    <li>You have proper knowledge of battery systems and safety</li>
+                    <li>You will use this tool at your own risk</li>
+                </ul>
+                
+                <p><strong>Supported Equipment:</strong> Marstek Venus E batteries with "MST_ACCP" and "MST-TPM" Bluetooth names.</p>
+                
+                <p><strong>Browser Requirements:</strong> Chrome, Edge, or Opera with Web Bluetooth support.</p>
+            </div>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="acceptRisk"> 
+                <label for="acceptRisk">I understand the risks and agree to proceed at my own responsibility</label>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-decline" onclick="declineAndExit()">❌ Exit Safely</button>
+                <button class="btn-accept" id="acceptBtn" disabled onclick="acceptAndContinue()">✅ Accept Risk & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Interface -->
+    <div class="main-interface" id="mainInterface">
+        <div class="container">
+            <h1>🔋 Marstek Venus E Battery Monitor</h1>
+            <p class="subtitle">Advanced BLE monitoring and diagnostics for Marstek battery systems</p>
+            
+            <div class="status">
+                <span>Status: <span id="status" class="disconnected">Disconnected</span></span>
+                <div>
+                    <button onclick="connect()" id="connectBtn" class="btn-connect">Connect to Marstek</button>
+                    <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+                    <button onclick="clearAll()">Clear All</button>
+                </div>
+            </div>
+
+            <div class="command-grid">
+                <button onclick="sendCommand(0x03, 'Runtime Info')" disabled>⚡ Runtime Info</button>
+                <button onclick="sendCommand(0x04, 'Device Info')" disabled>📱 Device Info</button>
+                <button onclick="sendCommand(0x08, 'WiFi Info')" disabled>📶 WiFi Info</button>
+                <button onclick="sendCommand(0x0D, 'System Data')" disabled>🔧 System Data</button>
+                <button onclick="sendCommand(0x13, 'Error Codes')" disabled>🚨 Error Codes</button>
+                <button onclick="sendCommand(0x14, 'BMS Data')" disabled>🔋 BMS Data</button>
+                <button onclick="sendCommand(0x1A, 'Config Data')" disabled>⚙️ Config Data</button>
+                <button onclick="sendCommand(0x1C, 'Event Log')" disabled>📝 Event Log</button>
+                <button onclick="sendCommand(0x21, 'Meter IP', [0x0B])" disabled>🌐 Meter IP</button>
+                <button onclick="sendCommand(0x24, 'Network Info')" disabled>🔗 Network Info</button>
+            </div>
+
+            <div id="dataDisplay"></div>
+            <div id="log" class="log"></div>
+            
+            <div class="footer">
+                <p>
+                    <strong>Marstek Venus E Monitor</strong> - Experimental BLE Battery Diagnostics<br>
+                    <a href="https://github.com/yourusername/marstek-venus-monitor" class="github-link" target="_blank">
+                        View on GitHub
+                    </a> | 
+                    <a href="https://github.com/tomquist/hmjs" class="github-link" target="_blank">
+                        Original HMJS Project
+                    </a>
+                </p>
+                <p><small>⚠️ Use at your own risk - Experimental software</small></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Disclaimer handling
+        document.getElementById('acceptRisk').addEventListener('change', function() {
+            document.getElementById('acceptBtn').disabled = !this.checked;
+        });
+
+        function declineAndExit() {
+            window.close();
+            // If window.close() fails (most browsers), redirect to a safe page
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 100);
+        }
+
+        function acceptAndContinue() {
+            document.getElementById('disclaimerModal').style.display = 'none';
+            document.getElementById('mainInterface').style.display = 'block';
+            
+            // Store acceptance in localStorage
+            localStorage.setItem('marstek-disclaimer-accepted', new Date().toISOString());
+            
+            log('✅ Disclaimer accepted - Marstek Venus E Monitor ready');
+            log('⚠️ Remember: This is experimental software - use with caution');
+        }
+
+        // Check if disclaimer was already accepted (within last 24 hours)
+        const lastAccepted = localStorage.getItem('marstek-disclaimer-accepted');
+        if (lastAccepted) {
+            const acceptedDate = new Date(lastAccepted);
+            const now = new Date();
+            const hoursSinceAccepted = (now - acceptedDate) / (1000 * 60 * 60);
+            
+            // Require re-acceptance after 24 hours
+            if (hoursSinceAccepted < 24) {
+                document.getElementById('disclaimerModal').style.display = 'none';
+                document.getElementById('mainInterface').style.display = 'block';
+            }
+        }
+
+        // Main application code
+        const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
+        const START_BYTE = 0x73;
+        const IDENTIFIER_BYTE = 0x23;
+        
+        let device = null;
+        let server = null;
+        let characteristics = {};
+        let isConnected = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            if (!logDiv) return;
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
+            if (!statusEl) return;
+            
+            statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            statusEl.className = connected ? 'connected' : 'disconnected';
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            
+            const buttons = document.querySelectorAll('button[onclick*="sendCommand"]');
+            buttons.forEach(btn => btn.disabled = !connected);
+            
+            isConnected = connected;
+        }
+
+        function createCommandMessage(commandType, payload = null) {
+            const header = [START_BYTE, 0, IDENTIFIER_BYTE, commandType];
+            const payloadArray = payload ? Array.from(payload) : [];
+            const messageLength = header.length + payloadArray.length + 1;
+            header[1] = messageLength;
+            const message = [...header, ...payloadArray];
+            const checksum = message.reduce((xor, byte) => xor ^ byte, 0);
+            message.push(checksum);
+            return new Uint8Array(message);
+        }
+
+        function formatBytes(data) {
+            return Array.from(new Uint8Array(data.buffer || data))
+                .map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        }
+
+        function parseRuntimeInfo(payload) {
+            if (payload.length < 40) return null;
+            
+            const view = new DataView(payload.buffer, payload.byteOffset);
+            
+            return {
+                in1Power: view.getUint16(6, true),
+                in2Power: (view.getUint16(8, true) / 10).toFixed(1),
+                soc: (view.getUint16(10, true) / 100).toFixed(1),
+                devVersion: view.getUint8(12),
+                out1Power: view.getUint16(24, true),
+                out2Power: (view.getUint16(26, true) / 10).toFixed(1),
+                temperatureLow: (view.getInt16(33, true) / 10).toFixed(1),
+                temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1),
+                wifiConnected: !!(view.getUint8(15) & 0x01),
+                mqttConnected: !!(view.getUint8(15) & 0x02),
+            };
+        }
+
+        function parseBMSData(payload) {
+            if (payload.length < 80) return null;
+            
+            const view = new DataView(payload.buffer, payload.byteOffset);
+            const cellVoltages = [];
+            
+            for (let i = 50; i < 82 && i < payload.length - 1; i += 2) {
+                const voltage = view.getUint16(i, true);
+                if (voltage > 0 && voltage < 5000) {
+                    cellVoltages.push((voltage / 1000).toFixed(3));
+                }
+            }
+            
+            return {
+                totalVoltage: (view.getUint16(4, true) / 10).toFixed(1),
+                current: (view.getInt16(6, true) / 10).toFixed(1),
+                remainingCapacity: view.getUint16(8, true) + '%',
+                totalCapacity: view.getUint16(10, true) + '%',
+                cycleCount: view.getUint16(12, true),
+                temperature1: view.getInt8(38),
+                temperature2: view.getInt8(39),
+                cellVoltages: cellVoltages
+            };
+        }
+
+        function parseEventLog(payload) {
+            const events = [];
+            let offset = 0;
+            
+            while (offset + 8 <= payload.length) {
+                const view = new DataView(payload.buffer, payload.byteOffset + offset);
+                
+                const year = view.getUint16(0, true);
+                const month = view.getUint8(2);
+                const day = view.getUint8(3);
+                const hour = view.getUint8(4);
+                const minute = view.getUint8(5);
+                const eventType = view.getUint8(6);
+                const eventCode = view.getUint8(7);
+                
+                if (year > 2000 && year < 2100 && month >= 1 && month <= 12) {
+                    events.push({
+                        timestamp: `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`,
+                        type: `0x${eventType.toString(16).padStart(2,'0')}`,
+                        code: `0x${eventCode.toString(16).padStart(2,'0')}`
+                    });
+                }
+                
+                offset += 8;
+                if (events.length > 20) break;
+            }
+            
+            return events;
+        }
+
+        function parseErrorCodes(payload) {
+            const errors = [];
+            let offset = 0;
+            
+            while (offset + 14 <= payload.length) {
+                const view = new DataView(payload.buffer, payload.byteOffset + offset);
+                
+                const year = view.getUint16(0, true);
+                const month = view.getUint8(2);
+                const day = view.getUint8(3);
+                const hour = view.getUint8(4);
+                const minute = view.getUint8(5);
+                const errorCode = view.getUint8(6);
+                
+                if (year > 2000 && year < 2100 && month >= 1 && month <= 12 && errorCode !== 0) {
+                    errors.push({
+                        timestamp: `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`,
+                        code: `0x${errorCode.toString(16).padStart(2,'0')} (${errorCode})`
+                    });
+                }
+                
+                offset += 14;
+                if (errors.length > 15) break;
+            }
+            
+            return errors;
+        }
+
+        function displayData(title, data) {
+            const displayDiv = document.getElementById('dataDisplay');
+            if (!displayDiv) return;
+            
+            const card = document.createElement('div');
+            card.className = 'data-card';
+            
+            let html = `<h3>${title}</h3>`;
+            
+            if (typeof data === 'object' && !Array.isArray(data)) {
+                html += '<div class="data-grid"><div>';
+                for (const [key, value] of Object.entries(data)) {
+                    if (key === 'cellVoltages' && Array.isArray(value)) {
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">Cell Voltages:</span>
+                                <span class="data-value">${value.map(v => v + 'V').join(', ')}</span>
+                            </div>
+                        `;
+                    } else {
+                        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : 
+                                           typeof value === 'string' && value.includes('W') ? value :
+                                           typeof value === 'string' && value.includes('°C') ? value :
+                                           typeof value === 'string' && value.includes('%') ? value :
+                                           typeof value === 'string' && value.includes('V') ? value :
+                                           typeof value === 'number' && key.includes('ower') ? value + 'W' :
+                                           typeof value === 'number' && key.includes('emperature') ? value + '°C' :
+                                           typeof value === 'number' && key.includes('oltage') && !key.includes('ell') ? value + 'V' :
+                                           typeof value === 'number' && key === 'soc' ? value + '%' :
+                                           value;
+                        
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</span>
+                                <span class="data-value">${displayValue}</span>
+                            </div>
+                        `;
+                    }
+                }
+                html += '</div></div>';
+            } else if (Array.isArray(data)) {
+                if (data.length > 0 && data[0].timestamp) {
+                    data.forEach(item => {
+                        const className = title.includes('Error') ? 'error-entry' : 'event-log';
+                        html += `<div class="${className}">${item.timestamp} - Type: ${item.type || item.code}${item.code && item.type ? ', Code: ' + item.code : ''}</div>`;
+                    });
+                } else {
+                    html += `<div class="data-item"><span class="data-value">${data.join(', ')}</span></div>`;
+                }
+            } else {
+                html += `<div class="data-item"><span class="data-value">${data}</span></div>`;
+            }
+            
+            card.innerHTML = html;
+            displayDiv.appendChild(card);
+            
+            while (displayDiv.children.length > 10) {
+                displayDiv.removeChild(displayDiv.firstChild);
+            }
+        }
+
+        function parseResponse(data, commandName) {
+            const bytes = new Uint8Array(data.buffer);
+            
+            if (bytes.length < 5 || bytes[0] !== START_BYTE || bytes[2] !== IDENTIFIER_BYTE) {
+                log('⚠️ Invalid response format');
+                return;
+            }
+            
+            const command = bytes[3];
+            const payload = bytes.slice(4, -1);
+            
+            log(`✅ ${commandName} response: ${payload.length} bytes`);
+            
+            switch (command) {
+                case 0x03:
+                    const runtime = parseRuntimeInfo(payload);
+                    if (runtime) {
+                        displayData('⚡ Runtime Information', runtime);
+                    }
+                    break;
+                    
+                case 0x04:
+                    try {
+                        const deviceStr = new TextDecoder().decode(payload);
+                        const pairs = deviceStr.split(',');
+                        const info = {};
+                        pairs.forEach(pair => {
+                            const [key, value] = pair.split('=');
+                            if (key && value) info[key.trim()] = value.trim();
+                        });
+                        displayData('📱 Device Information', info);
+                    } catch (e) {
+                        log('❌ Error parsing device info');
+                    }
+                    break;
+                    
+                case 0x08:
+                    try {
+                        const wifiName = new TextDecoder().decode(payload);
+                        displayData('📶 WiFi Information', { 'Connected Network': wifiName });
+                    } catch (e) {
+                        displayData('📶 WiFi Information', { 'Raw Data': formatBytes(payload) });
+                    }
+                    break;
+                    
+                case 0x0D:
+                    const view0D = new DataView(payload.buffer, payload.byteOffset);
+                    const systemData = {
+                        'System Status': view0D.getUint8(0),
+                        'Value 1': view0D.getUint16(1, true),
+                        'Value 2': view0D.getUint16(3, true),
+                        'Value 3': view0D.getUint16(5, true),
+                        'Value 4': view0D.getUint16(7, true),
+                        'Value 5': view0D.getUint16(9, true),
+                    };
+                    displayData('🔧 System Data', systemData);
+                    break;
+                    
+                case 0x13:
+                    const errors = parseErrorCodes(payload);
+                    if (errors.length > 0) {
+                        displayData('🚨 Error Codes', errors);
+                    } else {
+                        displayData('🚨 Error Codes', { 'Status': 'No active errors found' });
+                    }
+                    break;
+                    
+                case 0x14:
+                    const bms = parseBMSData(payload);
+                    if (bms) {
+                        displayData('🔋 BMS Data', bms);
+                    }
+                    break;
+                    
+                case 0x1A:
+                    const view1A = new DataView(payload.buffer, payload.byteOffset);
+                    const config = {
+                        'Config 1': view1A.getInt32(0, true),
+                        'Config 2': view1A.getUint32(4, true),
+                        'Config 3': view1A.getUint32(8, true),
+                        'Config 4': view1A.getUint32(12, true),
+                        'Config 5': view1A.getUint16(16, true)
+                    };
+                    displayData('⚙️ Configuration Data', config);
+                    break;
+                    
+                case 0x1C:
+                    const events = parseEventLog(payload);
+                    if (events.length > 0) {
+                        displayData('📝 Event Log', events);
+                    } else {
+                        displayData('📝 Event Log', { 'Status': 'No recent events' });
+                    }
+                    break;
+                    
+                case 0x21:
+                    const allFF = payload.every(byte => byte === 0xFF);
+                    if (allFF) {
+                        displayData('🌐 Meter IP', { 'Status': 'No meter IP configured' });
+                    } else {
+                        try {
+                            const ip = new TextDecoder().decode(payload.filter(b => b !== 0));
+                            displayData('🌐 Meter IP', { 'IP Address': ip });
+                        } catch (e) {
+                            displayData('🌐 Meter IP', { 'Raw Data': formatBytes(payload) });
+                        }
+                    }
+                    break;
+                    
+                case 0x24:
+                    try {
+                        const networkStr = new TextDecoder().decode(payload.filter(b => b !== 0));
+                        const networkInfo = {};
+                        networkStr.split(',').forEach(item => {
+                            const [key, value] = item.split(':');
+                            if (key && value) networkInfo[key.trim()] = value.trim();
+                        });
+                        displayData('🔗 Network Information', networkInfo);
+                    } catch (e) {
+                        displayData('🔗 Network Information', { 'Raw Data': formatBytes(payload) });
+                    }
+                    break;
+                    
+                default:
+                    displayData(`📊 Command 0x${command.toString(16).padStart(2,'0')}`, { 'Raw Data': formatBytes(payload) });
+            }
+        }
+
+        function createNotificationHandler(charUuid) {
+            return function(event) {
+                const data = event.target.value;
+                if (window.currentCommand) {
+                    parseResponse(data, window.currentCommand);
+                    window.currentCommand = null;
+                }
+            };
+        }
+
+        async function connect() {
+            try {
+                log('🔍 Connecting to Marstek device...');
+                
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'MST' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                
+                const chars = await service.getCharacteristics();
+                characteristics = {};
+                
+                for (const char of chars) {
+                    characteristics[char.uuid] = char;
+                    
+                    if (char.properties.notify) {
+                        await char.startNotifications();
+                        char.addEventListener('characteristicvaluechanged', 
+                            createNotificationHandler(char.uuid));
+                    }
+                }
+
+                device.addEventListener('gattserverdisconnected', () => {
+                    log('❌ Device disconnected');
+                    updateStatus(false);
+                });
+
+                updateStatus(true);
+                log(`✅ Connected to ${device.name}!`);
+
+            } catch (error) {
+                log(`❌ Connection failed: ${error.message}`);
+            }
+        }
+
+        async function sendCommand(commandType, commandName, payload = null) {
+            if (!isConnected) return;
+            
+            try {
+                const command = createCommandMessage(commandType, payload);
+                window.currentCommand = commandName;
+                
+                log(`📤 Sending ${commandName}...`);
+                
+                const writeChars = Object.values(characteristics).filter(char => 
+                    char.properties.write || char.properties.writeWithoutResponse
+                );
+                
+                if (writeChars.length === 0) {
+                    log('❌ No writable characteristics found');
+                    return;
+                }
+                
+                const writeChar = writeChars[0];
+                await writeChar.writeValueWithoutResponse(command);
+                
+            } catch (error) {
+                log(`❌ Failed to send ${commandName}: ${error.message}`);
+            }
+        }
+
+        function disconnect() {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+            }
+            updateStatus(false);
+        }
+
+        function clearAll() {
+            const logDiv = document.getElementById('log');
+            const displayDiv = document.getElementById('dataDisplay');
+            if (logDiv) logDiv.textContent = '';
+            if (displayDiv) displayDiv.innerHTML = '';
+        }
+
+        // Check browser compatibility
+        if (!navigator.bluetooth) {
+            log('❌ Web Bluetooth not supported');
+        }
+    </script>
+</body>
+</html>
