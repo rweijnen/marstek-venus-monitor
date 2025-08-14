@@ -284,7 +284,9 @@
                 <button onclick="sendCommand(0x14, 'BMS Data')" disabled>🔋 BMS Data</button>
                 <button onclick="sendCommand(0x1A, 'Config Data')" disabled>⚙️ Config Data</button>
                 <button onclick="sendCommand(0x1C, 'Event Log')" disabled>📝 Event Log</button>
-                <button onclick="sendCommand(0x21, 'Meter IP', [0x0B])" disabled>🌐 Meter IP</button>
+                <button onclick="sendCommand(0x21, 'Meter IP')" disabled>🌐 Meter IP</button>
+                <button onclick="sendCommand(0x21, 'Meter IP (0x0B)', [0x0B])" disabled>🌐 Meter IP (0x0B)</button>
+                <button onclick="sendCommand(0x21, 'Meter IP (0x01)', [0x01])" disabled>🌐 Meter IP (0x01)</button>
                 <button onclick="sendCommand(0x24, 'Network Info')" disabled>🔗 Network Info</button>
             </div>
 
