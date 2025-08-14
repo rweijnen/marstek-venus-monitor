@@ -172,7 +172,22 @@ Offset | Bytes | Description
 - Otherwise returns IP address string
 
 #### **Config Data (0x1A) - 18 bytes response**
-Configuration parameters (needs further analysis)
+```
+Payload Offset | Bytes | Description | Example Value
+---------------|-------|-------------|---------------
+[0]            | 1     | Config Mode | 0x61 (97)
+[1]            | 1     | Config Flags| 0x00
+[2-3]          | 2     | Reserved    | 0x0000
+[4]            | 1     | Config Status | 0x9F (-97 signed)
+[5-7]          | 3     | Status Bytes | 0xFF FF FF
+[8]            | 1     | Enable Flag 1 | 0x01 (enabled)
+[9-11]         | 3     | Reserved    | 0x00 00 00
+[12]           | 1     | Enable Flag 2 | 0x01 (enabled)
+[13-15]        | 3     | Reserved    | 0x00 00 00
+[16]           | 1     | Config Value | 0x51 (81)
+[17]           | 1     | Reserved    | 0x00
+```
+Note: The 0xFF FF FF pattern and signed -97 status suggest error state or unconfigured parameters
 
 ### **Data Parsing:**
 - **Power Values:** Scaled appropriately (some ÷10 for decimals)

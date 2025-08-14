@@ -693,12 +693,19 @@
                     
                 case 0x1A:
                     const view1A = new DataView(payload.buffer, payload.byteOffset);
+                    // Parse as individual bytes/words based on hex: 61 00 00 00 9f ff ff ff 01 00 00 00 01 00 00 00 51 00
                     const config = {
-                        'Config 1': view1A.getInt32(0, true),
-                        'Config 2': view1A.getUint32(4, true),
-                        'Config 3': view1A.getUint32(8, true),
-                        'Config 4': view1A.getUint32(12, true),
-                        'Config 5': view1A.getUint16(16, true)
+                        'Config Mode': view1A.getUint8(0),  // 0x61 = 97
+                        'Config Flags': '0x' + view1A.getUint8(1).toString(16).padStart(2, '0'),  // 0x00
+                        'Reserved1': view1A.getUint16(2, true),  // 0x0000
+                        'Config Status': view1A.getInt8(4),  // 0x9F = -97 (signed)
+                        'Status Bytes': '0xFF FF FF',  // bytes 5-7 all 0xFF
+                        'Enable Flag 1': view1A.getUint8(8),  // 0x01 = 1
+                        'Reserved2': view1A.getUint8(9) + ',' + view1A.getUint8(10) + ',' + view1A.getUint8(11),  // 0,0,0
+                        'Enable Flag 2': view1A.getUint8(12),  // 0x01 = 1  
+                        'Reserved3': view1A.getUint8(13) + ',' + view1A.getUint8(14) + ',' + view1A.getUint8(15),  // 0,0,0
+                        'Config Value': view1A.getUint8(16),  // 0x51 = 81
+                        'Reserved4': view1A.getUint8(17)  // 0x00
                     };
                     displayData('⚙️ Configuration Data', config);
                     break;
