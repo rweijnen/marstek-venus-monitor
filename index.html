@@ -407,7 +407,7 @@
             return {
                 in1Power: view.getUint16(6, true),
                 in2Power: (view.getUint16(8, true) / 100).toFixed(2),
-                soc: (view.getUint16(10, true) / 10).toFixed(1),
+                unknownValue: view.getUint16(10, true), // This is NOT SOC - maybe runtime hours or cycles
                 devVersion: view.getUint8(12),
                 out1Power: view.getUint16(24, true),
                 out2Power: (view.getUint16(26, true) / 10).toFixed(1),
@@ -529,7 +529,7 @@
                                            typeof value === 'number' && key.includes('ower') ? value + 'W' :
                                            typeof value === 'number' && key.includes('emperature') ? value + '°C' :
                                            typeof value === 'number' && key.includes('oltage') && !key.includes('ell') ? value + 'V' :
-                                           typeof value === 'number' && key === 'soc' ? value + '%' :
+                                           typeof value === 'number' && key === 'unknownValue' ? value + ' (counter?)' :
                                            value;
                         
                         html += `
