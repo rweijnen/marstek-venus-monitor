@@ -367,6 +367,7 @@
         let server = null;
         let characteristics = {};
         let isConnected = false;
+        let deviceType = 'unknown'; // 'battery', 'meter', or 'unknown'
 
         function log(message) {
             const logDiv = document.getElementById('log');
@@ -417,30 +418,53 @@
         }
 
         function parseRuntimeInfo(payload) {
-            if (payload.length < 40) return null;
-            
             const view = new DataView(payload.buffer, payload.byteOffset);
             
-            // Looking at hex dump, actual offsets appear to be:
-            // Offset 2-3: In1 Power (little endian)
-            // Offset 4-5: In2 Power raw value  
-            // Offset 24-25: Out2 Power raw value
-            return {
-                in1Power: view.getUint16(2, true),  // Bytes 2-3 of payload
-                in2Power: (view.getUint16(4, true) / 100).toFixed(2),  // Bytes 4-5
-                unknownValue1: view.getUint16(6, true),  // Bytes 6-7
-                unknownValue2: view.getUint16(8, true),  // Bytes 8-9
-                devVersion: view.getUint8(10),  // Byte 10
-                out1Power: view.getUint16(20, true),  // Bytes 20-21
-                out2Power: (view.getUint16(24, true) / 10).toFixed(1),  // Bytes 24-25
-                temperatureLow: (view.getInt16(33, true) / 10).toFixed(1),
-                temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1),
-                wifiConnected: !!(view.getUint8(15) & 0x01),
-                mqttConnected: !!(view.getUint8(15) & 0x02),
-            };
+            if (deviceType === 'meter') {
+                // CT002 Meter - shorter response, different scaling
+                if (payload.length < 15) return null;
+                
+                return {
+                    totalPower: (view.getUint16(2, true) / 100).toFixed(2) + 'W',  // ÷100 scaling
+                    current: (view.getUint16(4, true) / 100).toFixed(2) + 'A',     // ÷100 scaling  
+                    phasePower: (view.getUint16(6, true) / 100).toFixed(2) + 'W',   // ÷100 scaling
+                    voltage: view.getUint16(8, true) + 'V',                        // Raw voltage
+                    unknownValue1: view.getUint16(10, true),
+                    unknownValue2: view.getUint16(12, true),
+                    deviceType: 'CT002 Power Meter'
+                };
+            } else {
+                // Battery - full response with battery-specific data
+                if (payload.length < 40) return null;
+                
+                return {
+                    in1Power: view.getUint16(2, true) + 'W',                       // Raw watts
+                    in2Power: (view.getUint16(4, true) / 100).toFixed(2) + 'W',   // ÷100 scaling
+                    unknownValue1: view.getUint16(6, true),
+                    unknownValue2: view.getUint16(8, true),
+                    devVersion: view.getUint8(10),
+                    out1Power: view.getUint16(20, true) + 'W',                     // Raw watts
+                    out2Power: (view.getUint16(24, true) / 10).toFixed(1) + 'W',  // ÷10 scaling
+                    temperatureLow: (view.getInt16(33, true) / 10).toFixed(1) + '°C',
+                    temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1) + '°C',
+                    wifiConnected: !!(view.getUint8(15) & 0x01),
+                    mqttConnected: !!(view.getUint8(15) & 0x02),
+                    deviceType: 'Battery System'
+                };
+            }
         }
 
         function parseBMSData(payload) {
+            if (deviceType === 'meter') {
+                // Meter has minimal BMS data - just basic status
+                if (payload.length < 3) return null;
+                const view = new DataView(payload.buffer, payload.byteOffset);
+                return {
+                    status: 'Meter - No Battery Management',
+                    rawData: Array.from(payload).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+                };
+            }
+            
             if (payload.length < 80) return null;
             
             const view = new DataView(payload.buffer, payload.byteOffset);
@@ -651,6 +675,21 @@
                             const [key, value] = pair.split('=');
                             if (key && value) info[key.trim()] = value.trim();
                         });
+                        
+                        // Detect device type based on 'type' field
+                        if (info.type) {
+                            if (info.type.startsWith('HME')) {
+                                deviceType = 'meter';
+                                log(`🔍 Detected device type: CT002 Meter (${info.type})`);
+                            } else if (info.type.startsWith('HMG') || info.type.startsWith('HM')) {
+                                deviceType = 'battery';
+                                log(`🔍 Detected device type: Battery System (${info.type})`);
+                            } else {
+                                deviceType = 'unknown';
+                                log(`🔍 Unknown device type: ${info.type}`);
+                            }
+                        }
+                        
                         displayData('📱 Device Information', info);
                     } catch (e) {
                         log('❌ Error parsing device info');
@@ -835,6 +874,7 @@
             if (device && device.gatt.connected) {
                 device.gatt.disconnect();
             }
+            deviceType = 'unknown'; // Reset device type on disconnect
             updateStatus(false);
         }
 
