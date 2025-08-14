@@ -2,7 +2,7 @@
 
 🔋 **Web-based monitoring tool for Marstek Venus E batteries via Bluetooth Low Energy**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://yourusername.github.io/marstek-venus-monitor/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://rweijnen.github.io/marstek-venus-monitor/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Experimental](https://img.shields.io/badge/Status-Experimental-orange.svg)](#warning)
 
@@ -18,7 +18,7 @@
 
 ## 🚀 **Quick Start**
 
-1. **Open in Browser:** [https://yourusername.github.io/marstek-venus-monitor/](https://yourusername.github.io/marstek-venus-monitor/)
+1. **Open in Browser:** [https://rweijnen.github.io/marstek-venus-monitor/](https://rweijnen.github.io/marstek-venus-monitor/)
 2. **Browser Requirements:** Chrome, Edge, or Opera with Web Bluetooth support
 3. **Hardware:** Marstek Venus E battery with "MST_ACCP" or "MST-TPM" Bluetooth name
 4. **Accept Disclaimer** and connect to your device
@@ -126,8 +126,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🆘 **Support**
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/marstek-venus-monitor/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/marstek-venus-monitor/discussions)
+- **Issues:** [GitHub Issues](https://github.com/rweijnen/marstek-venus-monitor/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/rweijnen/marstek-venus-monitor/discussions)
 - **Safety Concerns:** Please report immediately
 
 ---
