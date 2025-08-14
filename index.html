@@ -281,6 +281,7 @@
                 <div>
                     <button onclick="connect()" id="connectBtn" class="btn-connect">Connect to Marstek</button>
                     <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+                    <button onclick="runAllTests()" id="runAllBtn" disabled>🧪 Run All Tests</button>
                     <button onclick="clearAll()">Clear All</button>
                 </div>
             </div>
@@ -380,6 +381,7 @@
             const statusEl = document.getElementById('status');
             const connectBtn = document.getElementById('connectBtn');
             const disconnectBtn = document.getElementById('disconnectBtn');
+            const runAllBtn = document.getElementById('runAllBtn');
             
             if (!statusEl) return;
             
@@ -387,6 +389,7 @@
             statusEl.className = connected ? 'connected' : 'disconnected';
             connectBtn.disabled = connected;
             disconnectBtn.disabled = !connected;
+            runAllBtn.disabled = !connected;
             
             const buttons = document.querySelectorAll('button[onclick*="sendCommand"]');
             buttons.forEach(btn => btn.disabled = !connected);
@@ -613,16 +616,14 @@
             
             log(`✅ ${commandName} response: ${payload.length} bytes`);
             
-            // Log hex dump for debugging
-            if (command === 0x03 || command === 0x14) { // Runtime Info or BMS Data
-                log('📊 Hex dump:\n' + formatHexDump(bytes));
-                
-                // Add offset annotations for known fields
-                if (command === 0x03) {
-                    log('Known offsets: [6-7]=In1Power, [8-9]=In2Power, [10-11]=Unknown(1612.9), [24-25]=Out1Power, [26-27]=Out2Power');
-                } else if (command === 0x14) {
-                    log('Known offsets: [8-9]=RemainCapacity%, [10-11]=TotalCapacity%, [50+]=CellVoltages');
-                }
+            // Log hex dump for all commands
+            log('📊 Hex dump:\n' + formatHexDump(bytes));
+            
+            // Add offset annotations for known fields
+            if (command === 0x03) {
+                log('Known offsets: [6-7]=In1Power, [8-9]=In2Power, [10-11]=Unknown(1612.9), [24-25]=Out1Power, [26-27]=Out2Power');
+            } else if (command === 0x14) {
+                log('Known offsets: [8-9]=RemainCapacity%, [10-11]=TotalCapacity%, [50+]=CellVoltages');
             }
             
             switch (command) {
@@ -826,6 +827,37 @@
             const displayDiv = document.getElementById('dataDisplay');
             if (logDiv) logDiv.textContent = '';
             if (displayDiv) displayDiv.innerHTML = '';
+        }
+        
+        async function runAllTests() {
+            if (!isConnected) return;
+            
+            log('🧪 Starting comprehensive test sequence...');
+            clearAll();
+            
+            const commands = [
+                { cmd: 0x03, name: 'Runtime Info' },
+                { cmd: 0x04, name: 'Device Info' },
+                { cmd: 0x08, name: 'WiFi Info' },
+                { cmd: 0x0D, name: 'System Data' },
+                { cmd: 0x13, name: 'Error Codes' },
+                { cmd: 0x14, name: 'BMS Data' },
+                { cmd: 0x1A, name: 'Config Data' },
+                { cmd: 0x1C, name: 'Event Log' },
+                { cmd: 0x21, name: 'Meter IP' },
+                { cmd: 0x21, name: 'Meter IP (0x0B)', payload: [0x0B] },
+                { cmd: 0x21, name: 'Meter IP (0x01)', payload: [0x01] },
+                { cmd: 0x24, name: 'Network Info' }
+            ];
+            
+            for (const test of commands) {
+                log(`\n📋 Running test: ${test.name}`);
+                await sendCommand(test.cmd, test.name, test.payload);
+                // Wait 1 second between commands to avoid overwhelming the device
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            log('\n✅ All tests completed! Check the hex dumps above for analysis.');
         }
 
         // Check browser compatibility
