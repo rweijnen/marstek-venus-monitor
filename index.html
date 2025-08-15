@@ -298,9 +298,144 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
         }
+        
+        /* Command info styles */
+        .command-btn-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+        .info-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            padding: 0;
+        }
+        .info-btn:hover {
+            background: #138496;
+            transform: scale(1.1);
+        }
+        .command-btn {
+            position: relative;
+            padding-right: 30px;
+        }
+        
+        /* Command info modal */
+        .info-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+        .info-modal-content {
+            background-color: #fefefe;
+            margin: 50px auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 700px;
+            position: relative;
+        }
+        .info-modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .info-modal-close:hover {
+            color: #000;
+        }
+        .command-details h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .command-details .detail-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .command-details code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .command-details pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        
+        /* Tooltip styles */
+        [data-tooltip] {
+            position: relative;
+        }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            white-space: nowrap;
+            font-size: 12px;
+            z-index: 10;
+            pointer-events: none;
+            margin-bottom: 5px;
+            max-width: 300px;
+            white-space: normal;
+            text-align: center;
+        }
+        [data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #333;
+            z-index: 10;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Command Info Modal -->
+    <div id="infoModal" class="info-modal">
+        <div class="info-modal-content">
+            <span class="info-modal-close" onclick="closeInfoModal()">&times;</span>
+            <div id="commandDetails" class="command-details"></div>
+        </div>
+    </div>
+
     <!-- Disclaimer Modal -->
     <div id="disclaimerModal" class="modal">
         <div class="modal-content">
@@ -363,17 +498,50 @@
             </div>
 
             <div class="command-grid">
-                <button onclick="sendCommand(0x03, 'Runtime Info')" disabled>⚡ Runtime Info</button>
-                <button onclick="sendCommand(0x04, 'Device Info')" disabled>📱 Device Info</button>
-                <button onclick="sendCommand(0x08, 'WiFi Info')" disabled>📶 WiFi Info</button>
-                <button onclick="sendCommand(0x0D, 'System Data')" disabled>🔧 System Data</button>
-                <button onclick="sendCommand(0x13, 'Error Codes')" disabled>🚨 Error Codes</button>
-                <button onclick="sendCommand(0x14, 'BMS Data')" disabled>🔋 BMS Data</button>
-                <button onclick="sendCommand(0x1A, 'Config Data')" disabled>⚙️ Config Data</button>
-                <button onclick="sendCommand(0x1C, 'Event Log')" disabled>📝 Event Log</button>
-                <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled>🌐 Read Meter IP</button>
-                <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled>🌐 Write Test IP</button>
-                <button onclick="sendCommand(0x24, 'Network Info')" disabled>🔗 Network Info</button>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="command-btn">⚡ Runtime Info</button>
+                    <button class="info-btn" onclick="showCommandInfo('runtime')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x04, 'Device Info')" disabled data-tooltip="Device model, MAC address, and firmware versions" class="command-btn">📱 Device Info</button>
+                    <button class="info-btn" onclick="showCommandInfo('device')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x08, 'WiFi Info')" disabled data-tooltip="Connected WiFi network name (SSID)" class="command-btn">📶 WiFi Info</button>
+                    <button class="info-btn" onclick="showCommandInfo('wifi')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x0D, 'System Data')" disabled data-tooltip="System operational parameters" class="command-btn">🔧 System Data</button>
+                    <button class="info-btn" onclick="showCommandInfo('system')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x13, 'Error Codes')" disabled data-tooltip="Historical error codes with timestamps" class="command-btn">🚨 Error Codes</button>
+                    <button class="info-btn" onclick="showCommandInfo('errors')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x14, 'BMS Data')" disabled data-tooltip="Battery voltages, current, SOC, and cell data" class="command-btn">🔋 BMS Data</button>
+                    <button class="info-btn" onclick="showCommandInfo('bms')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x1A, 'Config Data')" disabled data-tooltip="System configuration parameters" class="command-btn">⚙️ Config Data</button>
+                    <button class="info-btn" onclick="showCommandInfo('config')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x1C, 'Event Log')" disabled data-tooltip="System event history with timestamps" class="command-btn">📝 Event Log</button>
+                    <button class="info-btn" onclick="showCommandInfo('events')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled data-tooltip="Read configured meter IP address" class="command-btn">🌐 Read Meter IP</button>
+                    <button class="info-btn" onclick="showCommandInfo('meterip')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled data-tooltip="Write test IP 192.168.1.1 to meter config" class="command-btn btn-warning">🌐 Write Test IP</button>
+                    <button class="info-btn" onclick="showCommandInfo('writemeter')" title="Details">i</button>
+                </div>
+                <div class="command-btn-wrapper">
+                    <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="command-btn">🔗 Network Info</button>
+                    <button class="info-btn" onclick="showCommandInfo('network')" title="Details">i</button>
+                </div>
             </div>
 
             <!-- Power Management Commands -->
@@ -1085,6 +1253,185 @@
             } catch (error) {
                 document.getElementById('versionInfo').innerHTML = 
                     '<small>Version: ' + window.location.hostname + '</small>';
+            }
+        }
+        
+        // Command information data
+        const commandInfo = {
+            runtime: {
+                title: '⚡ Runtime Information (0x03)',
+                description: 'Retrieves real-time operational data from the device',
+                command: '0x73 0x06 0x23 0x03 0x6B',
+                response: 'Variable length response containing power flow, temperatures, and status',
+                sampleData: `Battery Response (~101 bytes):
+  In1 Power: 78W
+  In2 Power: 2.59W
+  Out1 Power: 2W
+  Out2 Power: 391.3W
+  Temperature Low: 25.3°C
+  Temperature High: 26.1°C
+  WiFi Connected: Yes
+  MQTT Connected: No
+
+Meter Response (~19 bytes):
+  Total Power: 304.39W
+  Current: 2.32A
+  Phase Power: 2.27W
+  Voltage: 31V`,
+                notes: 'Scaling varies by device type: Battery uses raw/÷10/÷100, Meter uses ÷100 for power/current'
+            },
+            device: {
+                title: '📱 Device Information (0x04)',
+                description: 'Gets device identification and firmware versions',
+                command: '0x73 0x06 0x23 0x04 0x68',
+                response: 'Comma-separated key=value pairs in ASCII text',
+                sampleData: `type=HMG-50,id=XX9cXXcXXXXX,mac=XX:9c:XX:cX:XX:XX,dev_ver=151,bms_ver=120,fc_ver=2024-03-15`,
+                notes: 'Device type HMG=Battery, HME=Meter. IDs are anonymized for privacy.'
+            },
+            wifi: {
+                title: '📶 WiFi Information (0x08)',
+                description: 'Returns the connected WiFi network name',
+                command: '0x73 0x06 0x23 0x08 0x64',
+                response: 'ASCII text string containing SSID',
+                sampleData: 'WiFi-IoT-24-5G',
+                notes: 'Returns empty if not connected to WiFi'
+            },
+            system: {
+                title: '🔧 System Data (0x0D)',
+                description: 'Retrieves system operational parameters',
+                command: '0x73 0x06 0x23 0x0D 0x61',
+                response: '19 bytes of system status data',
+                sampleData: `System Status: 1 (Normal)
+Value 1: 1234
+Value 2: 5678
+Value 3: 9012
+Value 4: 3456
+Value 5: 7890`,
+                notes: 'Values are internal system parameters, exact meaning varies by firmware version'
+            },
+            errors: {
+                title: '🚨 Error Codes (0x13)',
+                description: 'Retrieves historical error codes with timestamps',
+                command: '0x73 0x06 0x23 0x13 0x77',
+                response: '280 bytes containing up to 20 error records (14 bytes each)',
+                sampleData: `2024-12-15 14:32 - Code: 0x80 (128)
+2024-12-14 09:15 - Code: 0x94 (148)
+2024-12-13 22:47 - Code: 0x95 (149)`,
+                notes: 'Common codes: 0x80=General fault, 0x94=Overload, 0x95=Temperature warning'
+            },
+            bms: {
+                title: '🔋 Battery Management System Data (0x14)',
+                description: 'Comprehensive battery status including cell voltages',
+                command: '0x73 0x06 0x23 0x14 0x76',
+                response: '80 bytes for battery, 3 bytes for meter',
+                sampleData: `Battery Response:
+  Total Voltage: 57.1V
+  Current: 100.0A
+  Remaining Capacity: 62%
+  Total Capacity: 99%
+  Cycle Count: 5120
+  Temperature 1: 32°C
+  Temperature 2: 25°C
+  Cell Voltages: 3.325V, 3.324V, 3.326V... (16 cells)
+
+Meter Response:
+  Status: Meter - No Battery Management`,
+                notes: 'Cell voltages scaled by ÷1000, temperatures in Celsius'
+            },
+            config: {
+                title: '⚙️ Configuration Data (0x1A)',
+                description: 'System configuration parameters',
+                command: '0x73 0x06 0x23 0x1A 0x7C',
+                response: '18 bytes of configuration data',
+                sampleData: `Config Mode: 0x61 (97)
+Config Flags: 0x00
+Config Status: 0x9F (-97)
+Enable Flag 1: 0x01 (enabled)
+Enable Flag 2: 0x01 (enabled)
+Config Value: 0x51 (81)`,
+                notes: '0xFF values typically indicate unconfigured parameters'
+            },
+            events: {
+                title: '📝 Event Log (0x1C)',
+                description: 'System event history with timestamps',
+                command: '0x73 0x06 0x23 0x1C 0x7E',
+                response: '180 bytes containing event records (8 bytes each)',
+                sampleData: `2024-12-15 16:45 - Type: 0x94, Code: 0x01
+2024-12-15 12:30 - Type: 0x95, Code: 0x02
+2024-12-14 08:15 - Type: 0x99, Code: 0x00
+2024-12-13 19:22 - Type: 0x9a, Code: 0x03`,
+                notes: 'Event types: 0x94=Power event, 0x95=Temperature event, 0x99=System event, 0x9a=Network event'
+            },
+            meterip: {
+                title: '🌐 Read Meter IP (0x21)',
+                description: 'Reads the configured meter IP address',
+                command: '0x73 0x07 0x23 0x21 0x0B 0x4A',
+                response: '16 bytes containing IP address or 0xFF if not configured',
+                sampleData: '192.168.1.100 or "No meter IP configured" (all 0xFF)',
+                notes: 'Payload[0]=0x0B for READ operation'
+            },
+            writemeter: {
+                title: '🌐 Write Test IP (0x21)',
+                description: 'Writes a test IP address to meter configuration',
+                command: '0x73 0x12 0x23 0x21 0x0A 0x31 0x39 0x32 0x2E 0x31 0x36 0x38 0x2E 0x31 0x2E 0x31 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Writing: 192.168.1.1 (ASCII encoded in hex)',
+                notes: '⚠️ WARNING: Modifies meter network configuration. Payload[0]=0x0A for WRITE operation.'
+            },
+            network: {
+                title: '🔗 Network Information (0x24)',
+                description: 'Retrieves complete network configuration',
+                command: '0x73 0x06 0x23 0x24 0x4A',
+                response: 'Comma-separated network parameters in ASCII',
+                sampleData: 'ip:192.168.1.50,gate:192.168.1.1,mask:255.255.255.0,dns:8.8.8.8',
+                notes: 'Returns device\'s current network configuration'
+            }
+        };
+        
+        function showCommandInfo(cmdKey) {
+            const info = commandInfo[cmdKey];
+            if (!info) return;
+            
+            const modal = document.getElementById('infoModal');
+            const details = document.getElementById('commandDetails');
+            
+            details.innerHTML = `
+                <h3>${info.title}</h3>
+                <div class="detail-section">
+                    <strong>Description:</strong><br>
+                    ${info.description}
+                </div>
+                <div class="detail-section">
+                    <strong>Command Sent:</strong><br>
+                    <code>${info.command}</code>
+                </div>
+                <div class="detail-section">
+                    <strong>Response Format:</strong><br>
+                    ${info.response}
+                </div>
+                <div class="detail-section">
+                    <strong>Sample Data:</strong>
+                    <pre>${info.sampleData}</pre>
+                </div>
+                ${info.notes ? `
+                <div class="detail-section">
+                    <strong>Notes:</strong><br>
+                    ${info.notes}
+                </div>` : ''}
+            `;
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeInfoModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const infoModal = document.getElementById('infoModal');
+            if (event.target == infoModal) {
+                infoModal.style.display = 'none';
             }
         }
         
