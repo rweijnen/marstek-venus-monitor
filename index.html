@@ -300,36 +300,43 @@
         }
         
         /* Command info styles */
-        .command-btn-wrapper {
+        .cmd-button {
             position: relative;
-            display: inline-block;
             width: 100%;
-        }
-        .info-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #17a2b8;
-            color: white;
-            border: none;
-            font-size: 12px;
-            cursor: pointer;
+            text-align: left;
+            padding: 12px 16px;
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cmd-button-text {
+            flex-grow: 1;
+        }
+        .info-icon {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            z-index: 2;
-            padding: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+            cursor: help;
         }
-        .info-btn:hover {
-            background: #138496;
-            transform: scale(1.1);
+        .info-icon:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
-        .command-btn {
-            position: relative;
-            padding-right: 30px;
+        .section-caption {
+            margin: 10px 0;
+            padding: 8px 12px;
+            background: #e7f3ff;
+            border-left: 3px solid #667eea;
+            font-size: 14px;
+            color: #495057;
+            border-radius: 4px;
         }
         
         /* Command info modal */
@@ -497,95 +504,157 @@
                 </div>
             </div>
 
+            <div class="section-caption">
+                📖 <strong>Read Commands:</strong> These commands safely read information from your device including power status, battery data, network configuration, and system logs. No settings are modified.
+            </div>
             <div class="command-grid">
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="command-btn">⚡ Runtime Info</button>
-                    <button class="info-btn" onclick="showCommandInfo('runtime')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x04, 'Device Info')" disabled data-tooltip="Device model, MAC address, and firmware versions" class="command-btn">📱 Device Info</button>
-                    <button class="info-btn" onclick="showCommandInfo('device')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x08, 'WiFi Info')" disabled data-tooltip="Connected WiFi network name (SSID)" class="command-btn">📶 WiFi Info</button>
-                    <button class="info-btn" onclick="showCommandInfo('wifi')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x0D, 'System Data')" disabled data-tooltip="System operational parameters" class="command-btn">🔧 System Data</button>
-                    <button class="info-btn" onclick="showCommandInfo('system')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x13, 'Error Codes')" disabled data-tooltip="Historical error codes with timestamps" class="command-btn">🚨 Error Codes</button>
-                    <button class="info-btn" onclick="showCommandInfo('errors')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x14, 'BMS Data')" disabled data-tooltip="Battery voltages, current, SOC, and cell data" class="command-btn">🔋 BMS Data</button>
-                    <button class="info-btn" onclick="showCommandInfo('bms')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x1A, 'Config Data')" disabled data-tooltip="System configuration parameters" class="command-btn">⚙️ Config Data</button>
-                    <button class="info-btn" onclick="showCommandInfo('config')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x1C, 'Event Log')" disabled data-tooltip="System event history with timestamps" class="command-btn">📝 Event Log</button>
-                    <button class="info-btn" onclick="showCommandInfo('events')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled data-tooltip="Read configured meter IP address" class="command-btn">🌐 Read Meter IP</button>
-                    <button class="info-btn" onclick="showCommandInfo('meterip')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled data-tooltip="Write test IP 192.168.1.1 to meter config" class="command-btn btn-warning">🌐 Write Test IP</button>
-                    <button class="info-btn" onclick="showCommandInfo('writemeter')" title="Details">i</button>
-                </div>
-                <div class="command-btn-wrapper">
-                    <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="command-btn">🔗 Network Info</button>
-                    <button class="info-btn" onclick="showCommandInfo('network')" title="Details">i</button>
-                </div>
+                <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="cmd-button">
+                    <span class="cmd-button-text">⚡ Runtime Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('runtime')">i</span>
+                </button>
+                <button onclick="sendCommand(0x04, 'Device Info')" disabled data-tooltip="Device model, MAC address, and firmware versions" class="cmd-button">
+                    <span class="cmd-button-text">📱 Device Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('device')">i</span>
+                </button>
+                <button onclick="sendCommand(0x08, 'WiFi Info')" disabled data-tooltip="Connected WiFi network name (SSID)" class="cmd-button">
+                    <span class="cmd-button-text">📶 WiFi Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wifi')">i</span>
+                </button>
+                <button onclick="sendCommand(0x0D, 'System Data')" disabled data-tooltip="System operational parameters" class="cmd-button">
+                    <span class="cmd-button-text">🔧 System Data</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('system')">i</span>
+                </button>
+                <button onclick="sendCommand(0x13, 'Error Codes')" disabled data-tooltip="Historical error codes with timestamps" class="cmd-button">
+                    <span class="cmd-button-text">🚨 Error Codes</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('errors')">i</span>
+                </button>
+                <button onclick="sendCommand(0x14, 'BMS Data')" disabled data-tooltip="Battery voltages, current, SOC, and cell data" class="cmd-button">
+                    <span class="cmd-button-text">🔋 BMS Data</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('bms')">i</span>
+                </button>
+                <button onclick="sendCommand(0x1A, 'Config Data')" disabled data-tooltip="System configuration parameters" class="cmd-button">
+                    <span class="cmd-button-text">⚙️ Config Data</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('config')">i</span>
+                </button>
+                <button onclick="sendCommand(0x1C, 'Event Log')" disabled data-tooltip="System event history with timestamps" class="cmd-button">
+                    <span class="cmd-button-text">📝 Event Log</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
+                </button>
+                <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled data-tooltip="Read configured meter IP address" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Meter IP</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
+                </button>
+                <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="cmd-button">
+                    <span class="cmd-button-text">🔗 Network Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('network')">i</span>
+                </button>
             </div>
 
             <!-- Power Management Commands -->
             <div class="command-section">
                 <h3>⚡ Power Management (Modify Settings)</h3>
+                <div class="section-caption">
+                    ⚠️ <strong>Power Settings:</strong> These commands modify power output limits and operating modes. Changes take effect immediately and may affect connected loads.
+                </div>
                 <div class="command-grid">
-                    <button onclick="sendCommand(0x15, 'Set 800W Mode', [0x20, 0x03])" disabled class="btn-warning">Set 800W Mode</button>
-                    <button onclick="sendCommand(0x15, 'Set 2500W Mode', [0xC4, 0x09])" disabled class="btn-warning">Set 2500W Mode</button>
-                    <button onclick="sendCommand(0x16, 'Set AC Power 2500W', [0xC4, 0x09])" disabled class="btn-warning">Set AC Power 2500W</button>
-                    <button onclick="sendCommand(0x17, 'Set Total Power 2500W', [0xC4, 0x09])" disabled class="btn-warning">Set Total Power 2500W</button>
+                    <button onclick="sendCommand(0x15, 'Set 800W Mode', [0x20, 0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 800W">
+                        <span class="cmd-button-text">Set 800W Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('power800')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x15, 'Set 2500W Mode', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 2500W">
+                        <span class="cmd-button-text">Set 2500W Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('power2500')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x16, 'Set AC Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input power limit">
+                        <span class="cmd-button-text">Set AC Power 2500W</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acpower')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x17, 'Set Total Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set total system power limit">
+                        <span class="cmd-button-text">Set Total Power 2500W</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('totalpower')">i</span>
+                    </button>
                 </div>
             </div>
 
             <!-- System Configuration Commands -->
             <div class="command-section">
                 <h3>⚙️ System Configuration (Modify Settings)</h3>
+                <div class="section-caption">
+                    ⚠️ <strong>System Settings:</strong> These commands change operational modes including EPS (Emergency Power Supply), AC input behavior, and generator control. Settings persist after power cycle.
+                </div>
                 <div class="command-grid">
-                    <button onclick="sendCommand(0x02, 'Set Server Type 0', [0x00])" disabled class="btn-warning">Set Server Type 0</button>
-                    <button onclick="sendCommand(0x0F, 'Enable EPS', [0x01])" disabled class="btn-warning">Enable EPS</button>
-                    <button onclick="sendCommand(0x0F, 'Disable EPS', [0x00])" disabled class="btn-warning">Disable EPS</button>
-                    <button onclick="sendCommand(0x19, 'AC Mode 0', [0x00])" disabled class="btn-warning">AC Input Mode 0</button>
-                    <button onclick="sendCommand(0x19, 'AC Mode 1', [0x01])" disabled class="btn-warning">AC Input Mode 1</button>
-                    <button onclick="sendCommand(0x1E, 'Set Working Mode', [0x01])" disabled class="btn-warning">Set Working Mode</button>
-                    <button onclick="sendCommand(0x23, 'Enable Generator', [0x01])" disabled class="btn-warning">Enable Generator</button>
-                    <button onclick="sendCommand(0x23, 'Disable Generator', [0x00])" disabled class="btn-warning">Disable Generator</button>
+                    <button onclick="sendCommand(0x02, 'Set Server Type 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Configure server connection type">
+                        <span class="cmd-button-text">Set Server Type 0</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('servertype')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x0F, 'Enable EPS', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable Emergency Power Supply mode">
+                        <span class="cmd-button-text">Enable EPS</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsenable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x0F, 'Disable EPS', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable Emergency Power Supply mode">
+                        <span class="cmd-button-text">Disable EPS</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsdisable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x19, 'AC Mode 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input to mode 0">
+                        <span class="cmd-button-text">AC Input Mode 0</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acmode0')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x19, 'AC Mode 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input to mode 1">
+                        <span class="cmd-button-text">AC Input Mode 1</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acmode1')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x1E, 'Set Working Mode', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Configure device operating mode">
+                        <span class="cmd-button-text">Set Working Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x23, 'Enable Generator', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable generator input">
+                        <span class="cmd-button-text">Enable Generator</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('genenable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x23, 'Disable Generator', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable generator input">
+                        <span class="cmd-button-text">Disable Generator</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('gendisable')">i</span>
+                    </button>
                 </div>
             </div>
 
             <!-- Time/Network Commands -->
             <div class="command-section">
                 <h3>🕰 Time & Network (Modify Settings)</h3>
+                <div class="section-caption">
+                    ⚠️ <strong>Time & Network:</strong> These commands update device clock and network configuration. IP changes may affect remote monitoring.
+                </div>
                 <div class="command-grid">
-                    <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled class="btn-warning">🌐 Write Test IP</button>
-                    <button onclick="setCurrentDateTime()" disabled class="btn-warning">Set Current Time</button>
+                    <button onclick="setCurrentDateTime()" disabled class="btn-warning cmd-button" data-tooltip="Sync device clock with browser time">
+                        <span class="cmd-button-text">Set Current Time</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settime')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled class="btn-warning cmd-button" data-tooltip="Write test IP 192.168.1.1 to meter config">
+                        <span class="cmd-button-text">🌐 Write Test IP</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('writemeter')">i</span>
+                    </button>
                 </div>
             </div>
 
             <!-- Advanced/Dangerous Commands -->
             <div class="command-section">
                 <h3>🔧 Advanced Commands (Use with Extreme Caution)</h3>
+                <div class="section-caption" style="background: #f8d7da; border-left-color: #dc3545;">
+                    🚫 <strong>DANGER ZONE:</strong> These commands can reset the device, enable firmware updates, or configure parallel operation. May cause data loss or require physical access to recover.
+                </div>
                 <div class="command-grid">
-                    <button onclick="sendCommand(0x0C, 'System Reset', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger">⚠️ System Reset</button>
-                    <button onclick="sendCommand(0x1F, 'Upgrade Mode', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger">⚠️ Upgrade Mode</button>
-                    <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger">⚠️ Parallel Ready</button>
+                    <button onclick="sendCommand(0x0C, 'System Reset', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Restart the device immediately">
+                        <span class="cmd-button-text">⚠️ System Reset</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('reset')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x1F, 'Upgrade Mode', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Enter firmware upgrade mode">
+                        <span class="cmd-button-text">⚠️ Upgrade Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('upgrade')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Configure for parallel operation">
+                        <span class="cmd-button-text">⚠️ Parallel Ready</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallel')">i</span>
+                    </button>
                 </div>
             </div>
 
@@ -1385,6 +1454,138 @@ Config Value: 0x51 (81)`,
                 response: 'Comma-separated network parameters in ASCII',
                 sampleData: 'ip:192.168.1.50,gate:192.168.1.1,mask:255.255.255.0,dns:8.8.8.8',
                 notes: 'Returns device\'s current network configuration'
+            },
+            // Power Management Commands
+            power800: {
+                title: '⚡ Set 800W Mode (0x15)',
+                description: 'Sets maximum power output to 800W (low power mode)',
+                command: '0x73 0x08 0x23 0x15 0x20 0x03 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Device power limit set to 800W',
+                notes: '⚠️ WARNING: Reduces maximum output power. May affect connected loads.'
+            },
+            power2500: {
+                title: '⚡ Set 2500W Mode (0x15)',
+                description: 'Sets maximum power output to 2500W (high power mode)',
+                command: '0x73 0x08 0x23 0x15 0xC4 0x09 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Device power limit set to 2500W',
+                notes: '⚠️ WARNING: Increases maximum output power. Ensure wiring and loads can handle increased power.'
+            },
+            acpower: {
+                title: '⚡ Set AC Power Limit (0x16)',
+                description: 'Sets AC input power limit to 2500W',
+                command: '0x73 0x08 0x23 0x16 0xC4 0x09 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'AC input power limit set to 2500W',
+                notes: '⚠️ WARNING: Modifies AC input power consumption limit.'
+            },
+            totalpower: {
+                title: '⚡ Set Total Power Limit (0x17)',
+                description: 'Sets total system power limit to 2500W',
+                command: '0x73 0x08 0x23 0x17 0xC4 0x09 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Total system power limit set to 2500W',
+                notes: '⚠️ WARNING: Limits combined power from all sources.'
+            },
+            // System Configuration Commands
+            servertype: {
+                title: '🌐 Set Server Type (0x02)',
+                description: 'Configures server connection type (0 = default)',
+                command: '0x73 0x07 0x23 0x02 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Server type set to 0',
+                notes: '⚠️ WARNING: May affect cloud connectivity and monitoring.'
+            },
+            epsenable: {
+                title: '🔌 Enable EPS (0x0F)',
+                description: 'Enables Emergency Power Supply mode for backup power',
+                command: '0x73 0x07 0x23 0x0F 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'EPS mode enabled - device will provide backup power during outages',
+                notes: '⚠️ WARNING: Changes backup power behavior. Battery will reserve capacity for emergency use.'
+            },
+            epsdisable: {
+                title: '🔌 Disable EPS (0x0F)',
+                description: 'Disables Emergency Power Supply mode',
+                command: '0x73 0x07 0x23 0x0F 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'EPS mode disabled - full battery capacity available',
+                notes: '⚠️ WARNING: Disables backup power function during grid outages.'
+            },
+            acmode0: {
+                title: '🔌 AC Input Mode 0 (0x19)',
+                description: 'Sets AC input to mode 0 (standard grid connection)',
+                command: '0x73 0x07 0x23 0x19 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'AC input mode set to 0',
+                notes: '⚠️ WARNING: Changes how device handles AC input power.'
+            },
+            acmode1: {
+                title: '🔌 AC Input Mode 1 (0x19)',
+                description: 'Sets AC input to mode 1 (alternative AC handling)',
+                command: '0x73 0x07 0x23 0x19 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'AC input mode set to 1',
+                notes: '⚠️ WARNING: Alternative AC input handling mode.'
+            },
+            workmode: {
+                title: '⚙️ Set Working Mode (0x1E)',
+                description: 'Configures device operational mode',
+                command: '0x73 0x07 0x23 0x1E 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Working mode set to 1',
+                notes: '⚠️ WARNING: Changes fundamental device operation.'
+            },
+            genenable: {
+                title: '⛽ Enable Generator (0x23)',
+                description: 'Enables generator input for charging',
+                command: '0x73 0x07 0x23 0x23 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Generator input enabled',
+                notes: '⚠️ WARNING: Allows charging from generator source.'
+            },
+            gendisable: {
+                title: '⛽ Disable Generator (0x23)',
+                description: 'Disables generator input',
+                command: '0x73 0x07 0x23 0x23 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Generator input disabled',
+                notes: '⚠️ WARNING: Prevents charging from generator source.'
+            },
+            // Time & Network Commands
+            settime: {
+                title: '🕰 Set Date/Time (0x0B)',
+                description: 'Synchronizes device clock with browser time',
+                command: '0x73 0x0D 0x23 0x0B [year_low] [year_high] [month] [day] [hour] [minute] [second] [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Time set to 2024-12-15 14:30:45',
+                notes: '⚠️ WARNING: Changes device clock. May affect scheduled operations and logging.'
+            },
+            // Advanced/Dangerous Commands
+            reset: {
+                title: '🚫 System Reset (0x0C)',
+                description: 'Forces immediate device restart',
+                command: '0x73 0x09 0x23 0x0C 0x0A 0x0B 0x0C 0x01 [checksum]',
+                response: 'Device will restart immediately',
+                sampleData: 'System reset initiated...',
+                notes: '🚫 DANGER: Device will restart immediately. All connections will be lost. Unsaved data may be lost.'
+            },
+            upgrade: {
+                title: '🚫 Upgrade Mode (0x1F)',
+                description: 'Enters firmware upgrade mode',
+                command: '0x73 0x08 0x23 0x1F 0x0A 0x0B 0x0C [checksum]',
+                response: 'Device enters upgrade mode',
+                sampleData: 'Entering firmware upgrade mode...',
+                notes: '🚫 DANGER: Device enters special mode for firmware updates. May require physical access to recover if interrupted.'
+            },
+            parallel: {
+                title: '🚫 Parallel Ready (0x20)',
+                description: 'Configures device for parallel operation with other units',
+                command: '0x73 0x09 0x23 0x20 0x0A 0x0B 0x0C 0x01 [checksum]',
+                response: 'Parallel mode configuration',
+                sampleData: 'Device configured for parallel operation',
+                notes: '🚫 DANGER: Changes multi-unit operation. Incorrect configuration may damage equipment.'
             }
         };
         
