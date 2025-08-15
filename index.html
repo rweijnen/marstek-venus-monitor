@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marstek Venus E Battery Monitor</title>
+    <title>Marstek Venus E - BLE Test Tool</title>
     <meta name="description" content="Web-based battery monitoring tool for Marstek Venus E batteries via Bluetooth Low Energy">
     <style>
         body {
@@ -78,6 +78,59 @@
             justify-content: center;
             gap: 15px;
             margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .modal-content {
+                margin: 2vh auto;
+                padding: 15px;
+                width: 95%;
+                max-height: 95vh;
+                border-radius: 8px;
+            }
+            .modal-header {
+                font-size: 20px;
+                margin-bottom: 15px;
+            }
+            .disclaimer-text {
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            .modal-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .modal-buttons button {
+                width: 100%;
+                padding: 15px;
+                font-size: 16px;
+            }
+            .checkbox-container {
+                font-size: 14px;
+                align-items: flex-start;
+                margin: 15px 0;
+            }
+            .checkbox-container input {
+                margin-top: 2px;
+                flex-shrink: 0;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .modal-content {
+                margin: 1vh auto;
+                max-height: 98vh;
+                padding: 10px;
+            }
+            .modal-header {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+            .disclaimer-text {
+                font-size: 13px;
+            }
         }
         .btn-accept {
             background: #28a745;
@@ -138,6 +191,21 @@
         button:hover { transform: translateY(-1px); }
         button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
         .btn-connect { background: #28a745; padding: 12px 24px; font-size: 16px; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .command-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .command-section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
         .data-card {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -273,7 +341,7 @@
     <!-- Main Interface -->
     <div class="main-interface" id="mainInterface">
         <div class="container">
-            <h1>🔋 Marstek Venus E Battery Monitor</h1>
+            <h1>🔋 Marstek Venus E - BLE Test Tool</h1>
             <p class="subtitle">Advanced BLE monitoring and diagnostics for Marstek battery systems</p>
             
             <div class="status">
@@ -298,6 +366,51 @@
                 <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled>🌐 Read Meter IP</button>
                 <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled>🌐 Write Test IP</button>
                 <button onclick="sendCommand(0x24, 'Network Info')" disabled>🔗 Network Info</button>
+            </div>
+
+            <!-- Power Management Commands -->
+            <div class="command-section">
+                <h3>⚡ Power Management (Modify Settings)</h3>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x15, 'Set 800W Mode', [0x20, 0x03])" disabled class="btn-warning">Set 800W Mode</button>
+                    <button onclick="sendCommand(0x15, 'Set 2500W Mode', [0xC4, 0x09])" disabled class="btn-warning">Set 2500W Mode</button>
+                    <button onclick="sendCommand(0x16, 'Set AC Power 2500W', [0xC4, 0x09])" disabled class="btn-warning">Set AC Power 2500W</button>
+                    <button onclick="sendCommand(0x17, 'Set Total Power 2500W', [0xC4, 0x09])" disabled class="btn-warning">Set Total Power 2500W</button>
+                </div>
+            </div>
+
+            <!-- System Configuration Commands -->
+            <div class="command-section">
+                <h3>⚙️ System Configuration (Modify Settings)</h3>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x02, 'Set Server Type 0', [0x00])" disabled class="btn-warning">Set Server Type 0</button>
+                    <button onclick="sendCommand(0x0F, 'Enable EPS', [0x01])" disabled class="btn-warning">Enable EPS</button>
+                    <button onclick="sendCommand(0x0F, 'Disable EPS', [0x00])" disabled class="btn-warning">Disable EPS</button>
+                    <button onclick="sendCommand(0x19, 'AC Mode 0', [0x00])" disabled class="btn-warning">AC Input Mode 0</button>
+                    <button onclick="sendCommand(0x19, 'AC Mode 1', [0x01])" disabled class="btn-warning">AC Input Mode 1</button>
+                    <button onclick="sendCommand(0x1E, 'Set Working Mode', [0x01])" disabled class="btn-warning">Set Working Mode</button>
+                    <button onclick="sendCommand(0x23, 'Enable Generator', [0x01])" disabled class="btn-warning">Enable Generator</button>
+                    <button onclick="sendCommand(0x23, 'Disable Generator', [0x00])" disabled class="btn-warning">Disable Generator</button>
+                </div>
+            </div>
+
+            <!-- Time/Network Commands -->
+            <div class="command-section">
+                <h3>🕰 Time & Network (Modify Settings)</h3>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled class="btn-warning">🌐 Write Test IP</button>
+                    <button onclick="setCurrentDateTime()" disabled class="btn-warning">Set Current Time</button>
+                </div>
+            </div>
+
+            <!-- Advanced/Dangerous Commands -->
+            <div class="command-section">
+                <h3>🔧 Advanced Commands (Use with Extreme Caution)</h3>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x0C, 'System Reset', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger">⚠️ System Reset</button>
+                    <button onclick="sendCommand(0x1F, 'Upgrade Mode', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger">⚠️ Upgrade Mode</button>
+                    <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger">⚠️ Parallel Ready</button>
+                </div>
             </div>
 
             <div id="dataDisplay"></div>
@@ -883,6 +996,32 @@
             const displayDiv = document.getElementById('dataDisplay');
             if (logDiv) logDiv.textContent = '';
             if (displayDiv) displayDiv.innerHTML = '';
+        }
+        
+        function setCurrentDateTime() {
+            if (!isConnected) return;
+            
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            const second = now.getSeconds();
+            
+            // Format: [year_low, year_high, month, day, hour, minute, second]
+            const payload = [
+                year & 0xFF,           // Year low byte
+                (year >> 8) & 0xFF,    // Year high byte  
+                month,
+                day,
+                hour,
+                minute,
+                second
+            ];
+            
+            log(`🕐 Setting time to ${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}:${second.toString().padStart(2,'0')}`);
+            sendCommand(0x0B, 'Set Date/Time', payload);
         }
         
         async function runAllTests() {
