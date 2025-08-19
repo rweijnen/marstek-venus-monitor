@@ -837,14 +837,27 @@
             
             return {
                 bmsVersion: (view.getUint16(0, true)),
-                voltageLimit: (view.getUint16(2, true) / 10).toFixed(1),
+                voltageLimit: (view.getUint16(2, true) / 10).toFixed(1) + 'V',
                 chargeCurrentLimit: (view.getUint16(4, true) / 10).toFixed(1),
                 dischargeCurrentLimit: (view.getInt16(6, true) / 10).toFixed(1),
                 remainingCapacity: view.getUint16(8, true) + '%',
                 stateOfHealth: view.getUint16(10, true) + '%',
                 designCapacity: view.getUint16(12, true) + 'Wh',
-                temperature1: view.getInt8(38),
-                temperature2: view.getInt8(39),
+                voltage: (view.getUint16(14, true) / 100).toFixed(2) + 'V',
+                batteryCurrent: (view.getInt16(16, true) / 10).toFixed(1) + 'A',
+                batteryTemperature: view.getUint16(18, true) + '°C',
+                b_chf: view.getUint16(20, true),
+                b_slf: view.getUint16(22, true),
+                b_cpc: view.getUint16(24, true),
+                errorCode: view.getUint16(26, true), // Probable not really an integer
+                warningCode: view.getUint32(28, true), // Probable not really an integer
+                runtime: view.getUint32(32, true) + 'ms',
+                b_ent: view.getUint16(36, true),
+                mosfetTemperature: view.getUint16(38, true) + '°C',
+                temperature1: view.getUint16(40, true) + '°C',
+                temperature2: view.getUint16(42, true) + '°C',
+                temperature3: view.getUint16(44, true) + '°C',
+                temperature4: view.getUint16(46, true) + '°C',
                 cellVoltages: cellVoltages
             };
         }
