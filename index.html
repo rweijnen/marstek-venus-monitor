@@ -828,7 +828,7 @@
             const view = new DataView(payload.buffer, payload.byteOffset);
             const cellVoltages = [];
             
-            for (let i = 50; i < 82 && i < payload.length - 1; i += 2) {
+            for (let i = 48; i < 82 && i < payload.length - 1; i += 2) {
                 const voltage = view.getUint16(i, true);
                 if (voltage > 0 && voltage < 5000) {
                     cellVoltages.push((voltage / 1000).toFixed(3));
@@ -836,11 +836,13 @@
             }
             
             return {
-                totalVoltage: (view.getUint16(4, true) / 10).toFixed(1),
-                current: (view.getInt16(6, true) / 10).toFixed(1),
+                bmsVersion: (view.getUint16(0, true)),
+                voltageLimit: (view.getUint16(2, true) / 10).toFixed(1),
+                chargeCurrentLimit: (view.getUint16(4, true) / 10).toFixed(1),
+                dischargeCurrentLimit: (view.getInt16(6, true) / 10).toFixed(1),
                 remainingCapacity: view.getUint16(8, true) + '%',
-                totalCapacity: view.getUint16(10, true) + '%',
-                designCapacity: view.getUint16(12, true) + 'Wh,
+                stateOfHealth: view.getUint16(10, true) + '%',
+                designCapacity: view.getUint16(12, true) + 'Wh',
                 temperature1: view.getInt8(38),
                 temperature2: view.getInt8(39),
                 cellVoltages: cellVoltages
