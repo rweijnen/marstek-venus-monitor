@@ -840,7 +840,7 @@
                 current: (view.getInt16(6, true) / 10).toFixed(1),
                 remainingCapacity: view.getUint16(8, true) + '%',
                 totalCapacity: view.getUint16(10, true) + '%',
-                cycleCount: view.getUint16(12, true),
+                designCapacity: view.getUint16(12, true) + 'Wh,
                 temperature1: view.getInt8(38),
                 temperature2: view.getInt8(39),
                 cellVoltages: cellVoltages
@@ -1398,7 +1398,7 @@ Value 5: 7890`,
   Current: 100.0A
   Remaining Capacity: 62%
   Total Capacity: 99%
-  Cycle Count: 5120
+  Design Capacity: 5120Wh
   Temperature 1: 32°C
   Temperature 2: 25°C
   Cell Voltages: 3.325V, 3.324V, 3.326V... (16 cells)
