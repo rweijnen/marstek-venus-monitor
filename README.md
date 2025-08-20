@@ -16,6 +16,18 @@
 - For advanced users and developers only
 - Use in controlled environments with proper safety precautions
 
+## 📊 **Recent Updates**
+
+### **Version Updates (August 2025)**
+- **Fixed BMS Data Parsing** (PR #7): Corrected field mappings to match actual Modbus registers
+  - Fixed offset issues that were causing incorrect voltage readings (was always showing 571)
+  - Added proper State of Health (SOH) field at bytes [10-11]
+  - Expanded temperature readings to include 4 sensors plus MOSFET temperature
+  - Cell voltage parsing now correctly handles up to 17 cells starting at byte 48
+- **Design Capacity Fix** (PR #2): Changed mislabeled 'cycleCount' field to 'designCapacity' (5120Wh typical)
+- **BMS Version Field**: First 2 bytes now correctly identified as BMS version number (e.g., 215)
+- **Additional BMS Fields**: Added runtime, error codes, warning codes, and various temperature sensors
+
 ## 🚀 **Quick Start**
 
 1. **Open in Browser:** [https://rweijnen.github.io/marstek-venus-monitor/](https://rweijnen.github.io/marstek-venus-monitor/)
@@ -95,16 +107,29 @@ Payload Offset | Bytes | Description | Scaling | Example
 ```
 Payload Offset | Bytes | Description | Scaling | Example
 ---------------|-------|-------------|---------|--------
-[0-1]          | 2     | Unknown     | ?       | 212
-[2-3]          | 2     | Battery Voltage | ÷10 | 571 → 57.1V
-[4-5]          | 2     | Battery Current | ÷10 | 1000 → 100.0A
-[6-7]          | 2     | Unknown     | ?       |
-[8-9]          | 2     | SOC (%)     | None    | 62%
-[10-11]        | 2     | Total Capacity | None | 99%
-[12-13]        | 2     | Cycle Count | None    | 5120 cycles
-[38]           | 1     | Temperature 1 | None  | 32°C
-[39]           | 1     | Temperature 2 | None  | 0°C
-[46-77]        | 32    | Cell Voltages | ÷1000 | 16 cells × 2 bytes
+[0-1]          | 2     | BMS Version | None    | 215
+[2-3]          | 2     | Voltage Limit | ÷10  | 571 → 57.1V
+[4-5]          | 2     | Charge Current Limit | ÷10 | 1000 → 100.0A
+[6-7]          | 2     | Discharge Current Limit | ÷10 | -500 → -50.0A
+[8-9]          | 2     | Remaining Capacity (SOC) | None | 62%
+[10-11]        | 2     | State of Health (SOH) | None | 98%
+[12-13]        | 2     | Design Capacity | None | 5120Wh
+[14-15]        | 2     | Battery Voltage | ÷100 | 5312 → 53.12V
+[16-17]        | 2     | Battery Current | ÷10 | -123 → -12.3A
+[18-19]        | 2     | Battery Temperature | None | 25°C
+[20-21]        | 2     | b_chf | None | Unknown flags
+[22-23]        | 2     | b_slf | None | Unknown flags
+[24-25]        | 2     | b_cpc | None | Unknown counter
+[26-27]        | 2     | Error Code | None | Error status
+[28-31]        | 4     | Warning Code | None | Warning flags
+[32-35]        | 4     | Runtime | None | Milliseconds
+[36-37]        | 2     | b_ent | None | Unknown value
+[38-39]        | 2     | MOSFET Temperature | None | 28°C
+[40-41]        | 2     | Temperature 1 | None | 25°C
+[42-43]        | 2     | Temperature 2 | None | 26°C
+[44-45]        | 2     | Temperature 3 | None | 25°C
+[46-47]        | 2     | Temperature 4 | None | 24°C
+[48-81]        | 34    | Cell Voltages | ÷1000 | 17 cells × 2 bytes (3.019V, 3.023V, etc.)
 ```
 
 #### **Device Info (0x04) - Variable length text response**
