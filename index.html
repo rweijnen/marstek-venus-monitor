@@ -615,6 +615,18 @@
                         <span class="cmd-button-text">Disable Generator</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('gendisable')">i</span>
                     </button>
+                    <button onclick="sendCommand(0x28, 'Enable Local API', [0x01, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Enable local API access">
+                        <span class="cmd-button-text">Enable Local API</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apienable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x28, 'Disable Local API', [0x00, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable local API access">
+                        <span class="cmd-button-text">Disable Local API</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apidisable')">i</span>
+                    </button>
+                    <button onclick="setLocalApiPort()" disabled class="btn-warning cmd-button" data-tooltip="Set local API port number">
+                        <span class="cmd-button-text">Set Local API Port</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiport')">i</span>
+                    </button>
                 </div>
             </div>
 
@@ -1163,6 +1175,21 @@
                     }
                     break;
                     
+                case 0x28:
+                    // Local API configuration response
+                    if (payload.length >= 3) {
+                        const view = new DataView(payload.buffer, payload.byteOffset);
+                        const apiEnabled = view.getUint8(0);
+                        const apiPort = view.getUint16(1, true); // Little-endian
+                        displayData('🌐 Local API Configuration', {
+                            'API Enabled': apiEnabled === 1 ? 'Yes' : 'No',
+                            'API Port': apiPort
+                        });
+                    } else {
+                        displayData('🌐 Local API Configuration', { 'Status': 'Configuration updated' });
+                    }
+                    break;
+                    
                 default:
                     displayData(`📊 Command 0x${command.toString(16).padStart(2,'0')}`, { 'Raw Data': formatBytes(payload) });
             }
@@ -1282,6 +1309,29 @@
             
             log(`🕐 Setting time to ${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}:${second.toString().padStart(2,'0')}`);
             sendCommand(0x0B, 'Set Date/Time', payload);
+        }
+        
+        function setLocalApiPort() {
+            if (!isConnected) return;
+            
+            const portInput = prompt('Enter the local API port number (1-65535):', '8080');
+            if (!portInput) return;
+            
+            const port = parseInt(portInput);
+            if (isNaN(port) || port < 1 || port > 65535) {
+                log('❌ Invalid port number. Must be between 1 and 65535.');
+                return;
+            }
+            
+            // Format: [enable_flag, port_low, port_high]
+            const payload = [
+                0x01,                  // Enable flag (1 = enable with port)
+                port & 0xFF,           // Port low byte
+                (port >> 8) & 0xFF     // Port high byte
+            ];
+            
+            log(`🌐 Setting local API port to ${port}`);
+            sendCommand(0x28, `Set Local API Port ${port}`, payload);
         }
         
         async function runAllTests() {

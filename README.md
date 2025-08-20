@@ -27,6 +27,10 @@
 - **Design Capacity Fix** (PR #2): Changed mislabeled 'cycleCount' field to 'designCapacity' (5120Wh typical)
 - **BMS Version Field**: First 2 bytes now correctly identified as BMS version number (e.g., 215)
 - **Additional BMS Fields**: Added runtime, error codes, warning codes, and various temperature sensors
+- **New Local API Commands**: Added commands to enable/disable and configure the local API (command 0x28)
+  - Enable/disable local API access for home automation integration
+  - Set custom port number for API access
+  - Link to [official API documentation](https://drive.google.com/file/d/1GJ5ylxR4QdOEI8Syn4Hf3AxrPJWUa5Iw/view)
 
 ## 🚀 **Quick Start**
 
@@ -84,6 +88,7 @@
 | `0x1C` | Event Log | Safe |
 | `0x21` | Meter IP | Safe |
 | `0x24` | Network Info | Safe |
+| `0x28` | Local API Config | Configuration |
 
 ### **Protocol Analysis (from hex dumps):**
 
@@ -147,6 +152,19 @@ Returns comma-separated network configuration:
 - `gate`: Gateway IP
 - `mask`: Subnet mask
 - `dns`: DNS server
+
+#### **Local API Configuration (0x28) - Enable/Disable Local API**
+Controls the device's local API access for integration with home automation systems.
+```
+Payload Format:
+[0] - Enable flag (0x00=disable, 0x01=enable)
+[1-2] - Port number (little-endian, only used when enabling)
+
+Response Format:
+[0] - Current status (0x00=disabled, 0x01=enabled)
+[1-2] - Current port number (little-endian)
+```
+For more information about the Local API, see the [Marstek Local API Documentation](https://drive.google.com/file/d/1GJ5ylxR4QdOEI8Syn4Hf3AxrPJWUa5Iw/view)
 
 #### **WiFi Info (0x08) - Variable length text response**
 Returns the connected WiFi network name (SSID)
