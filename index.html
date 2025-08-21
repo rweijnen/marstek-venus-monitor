@@ -1876,11 +1876,11 @@ Config Value: 0x51 (81)`,
             },
             otafinalize: {
                 title: '🏁 Finalize OTA Update (0x52)',
-                description: 'Validates checksum and firmware signature before committing',
+                description: 'Device validates checksum and configures based on firmware type',
                 command: '0x73 [len_low] [len_high] 0x52 [reserved] []',
                 response: 'Device ACKs with cmd=0x52, payload=0x01 for success',
-                sampleData: 'Checksum verified, VenusC signature found at 0x8050004, device will restart',
-                notes: '⚠️ Compares computed (~sum) vs expected checksum. Checks firmware signature string. Commits and reboots on success.'
+                sampleData: 'Checksum verified, device configured as BMS or EMS based on firmware type',
+                notes: '⚠️ Device validates checksum and reads VenusC signature at 0x8050004 to determine if it should operate as BMS (no VenusC) or EMS (has VenusC). Commits and reboots on success.'
             }
         };
 
@@ -1895,7 +1895,7 @@ Config Value: 0x51 (81)`,
         let pendingAckResolve = null;
         let firmwareChecksum = 0;
 
-        function calculateFirmwareChecksum(firmwareArrayBuffer) {
+        function analyzeFirmware(firmwareArrayBuffer) {
             // Calculate ones' complement checksum as expected by Marstek bootloader
             // sum32(bytes) then ones' complement: ~sum mod 2^32
             const bytes = new Uint8Array(firmwareArrayBuffer);
@@ -1910,12 +1910,36 @@ Config Value: 0x51 (81)`,
             sum = sum >>> 0; // Convert to unsigned 32-bit
             const checksum = (~sum) >>> 0; // Ones' complement and convert to unsigned 32-bit
             
+            // Detect firmware type by checking for VenusC signature at offset 0x50004
+            let firmwareType = 'Unknown';
+            const signatureOffset = 0x50004;
+            
+            if (bytes.length > signatureOffset + 10) {
+                const signatureBytes = bytes.slice(signatureOffset, signatureOffset + 10);
+                const signatureStr = new TextDecoder('utf-8', { fatal: false }).decode(signatureBytes);
+                
+                if (signatureStr.includes('VenusC')) {
+                    firmwareType = 'EMS/Control Firmware (VenusC signature found)';
+                } else {
+                    // Check if the area contains mostly null bytes or valid data
+                    const hasData = signatureBytes.some(b => b !== 0x00 && b !== 0xFF);
+                    if (hasData) {
+                        firmwareType = 'BMS Firmware (no VenusC signature)';
+                    } else {
+                        firmwareType = 'Unknown (signature area empty)';
+                    }
+                }
+            } else {
+                firmwareType = 'Unknown (file too small)';
+            }
+            
             log(`📊 Firmware analysis:`);
             log(`   Size: ${bytes.length} bytes`);
+            log(`   Type: ${firmwareType}`);
             log(`   Sum: 0x${sum.toString(16).padStart(8, '0')}`);
             log(`   Checksum: 0x${checksum.toString(16).padStart(8, '0')} (~sum)`);
             
-            return checksum;
+            return { checksum, type: firmwareType, size: bytes.length };
         }
 
         function createBLEOTAFrame(command, reserved, payload = []) {
@@ -2027,9 +2051,10 @@ Config Value: 0x51 (81)`,
             
             // Note: Total BLE payload will be 128 + 4 = 132 bytes, plus frame overhead
             
-            // Calculate firmware checksum: ones' complement of 32-bit sum of all bytes
-            firmwareChecksum = calculateFirmwareChecksum(firmwareData);
-            log(`🔑 Firmware checksum: 0x${firmwareChecksum.toString(16).padStart(8, '0')}`);
+            // Analyze firmware: checksum + type detection
+            const analysis = analyzeFirmware(firmwareData);
+            firmwareChecksum = analysis.checksum;
+            log(`🔑 Firmware ready for upload`);
         }
 
         async function sendOTAActivate() {
@@ -2305,8 +2330,16 @@ Config Value: 0x51 (81)`,
             const reader = new FileReader();
             reader.onload = function(e) {
                 firmwareData = e.target.result;
-                document.getElementById('otaFileInfo').textContent = 
-                    `File: ${file.name} (${file.size} bytes)`;
+                
+                // Analyze firmware to get type and checksum info
+                const analysis = analyzeFirmware(firmwareData);
+                
+                // Update UI with detailed firmware info
+                document.getElementById('otaFileInfo').innerHTML = `
+                    <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
+                    <strong>Type:</strong> ${analysis.type}<br>
+                    <strong>Checksum:</strong> 0x${analysis.checksum.toString(16).padStart(8, '0').toUpperCase()}
+                `;
                 
                 // Enable start button only if connected and file loaded
                 const startBtn = document.getElementById('otaStartBtn');
@@ -2318,7 +2351,7 @@ Config Value: 0x51 (81)`,
                 document.getElementById('otaProgressContainer').style.display = 'block';
                 document.getElementById('otaStatus').textContent = 'Ready to start...';
                 
-                log('✅ Firmware file loaded and ready for upload');
+                log('✅ Firmware file analyzed and ready for upload');
             };
             reader.readAsArrayBuffer(file);
         }
