@@ -1851,28 +1851,36 @@ Config Value: 0x51 (81)`,
             },
             // BLE OTA Firmware Update
             otaactivate: {
-                title: '🔄 Activate OTA Mode',
-                description: 'Sends magic bytes to activate OTA firmware update mode',
-                command: 'Magic bytes: 0A 0B 0C',
-                response: 'Device enters OTA mode',
-                sampleData: 'OTA mode activated',
-                notes: '🚫 DANGER: Prepares device for firmware update. Device may become unresponsive during update.'
+                title: '🔄 Activate OTA Mode (0x3A)',
+                description: 'Activates OTA mode with fixed pattern validation',
+                command: '0x73 [len_low] [len_high] 0x3A [reserved] [00 05 00 03 02]',
+                response: 'Device ACKs with cmd=0x3A, payload=0x01 for success',
+                sampleData: 'OTA state set to 1, ready for firmware size',
+                notes: '🚫 DANGER: Device validates fixed pattern (buf[1]==5, buf[3]==3, buf[4]==2) before entering OTA mode.'
             },
             otasize: {
                 title: '📏 Send Firmware Size & Checksum',
                 description: 'Sends firmware size and ones\' complement checksum for validation',
                 command: '0x73 [len_low] [len_high] 0x50 [reserved] [size_4bytes] [checksum_4bytes]',
                 response: 'Device ACKs with same cmd=0x50, echoing size and checksum',
-                sampleData: 'Size: 73,728 bytes, Checksum: 0xFF92A61B (~sum32)',
-                notes: '⚠️ Checksum = ones\' complement of 32-bit sum of all firmware bytes. Device validates before accepting data.'
+                sampleData: 'Size: 73,728 bytes, Checksum: 0xFF92A61B (~sum32). OTA state set to 2.',
+                notes: '⚠️ Resets counters, erases flash region. Checksum = ones\' complement of 32-bit sum. Device enters state 2.'
+            },
+            otadata: {
+                title: '📦 Send Data Block (0x51)',
+                description: 'Sends 128-byte firmware chunk with 4-byte offset prefix',
+                command: '0x73 [len_low] [len_high] 0x51 [reserved] [offset_4bytes] [data_128bytes]',
+                response: 'Device ACKs with cmd=0x51, echoing the 4-byte offset',
+                sampleData: 'Offset: 0x00001000, Data: 128 bytes written to flash in 16-byte chunks',
+                notes: '⚠️ Adds bytes to running sum. If offset+128 == total size, sets last block flag and inverts sum.'
             },
             otafinalize: {
-                title: '🏁 Finalize OTA Update',
-                description: 'Finalizes OTA update and commits firmware to device',
+                title: '🏁 Finalize OTA Update (0x52)',
+                description: 'Validates checksum and firmware signature before committing',
                 command: '0x73 [len_low] [len_high] 0x52 [reserved] []',
                 response: 'Device ACKs with cmd=0x52, payload=0x01 for success',
-                sampleData: 'OTA update finalized, device will restart',
-                notes: '⚠️ Final step after all data chunks sent. Device commits firmware and reboots.'
+                sampleData: 'Checksum verified, VenusC signature found at 0x8050004, device will restart',
+                notes: '⚠️ Compares computed (~sum) vs expected checksum. Checks firmware signature string. Commits and reboots on success.'
             }
         };
 
@@ -2013,43 +2021,48 @@ Config Value: 0x51 (81)`,
             rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
             log('✅ Notifications enabled on RX characteristic (ff02)');
             
-            // Calculate chunk size from MTU (default 132 if negotiation fails)
-            try {
-                const mtu = currentDevice.gatt.mtu || 247; // Default ATT MTU
-                otaChunkSize = Math.min(132, mtu - 6); // 6 = OTA overhead
-                log(`📏 Calculated chunk size: ${otaChunkSize} bytes (MTU: ${mtu})`);
-            } catch (e) {
-                log(`⚠️ Using default chunk size: ${otaChunkSize} bytes`);
-            }
+            // Use fixed 128-byte chunks as per protocol specification
+            otaChunkSize = 128;
+            log(`📏 Using protocol chunk size: ${otaChunkSize} bytes (128 data + 4 offset)`);
+            
+            // Note: Total BLE payload will be 128 + 4 = 132 bytes, plus frame overhead
             
             // Calculate firmware checksum: ones' complement of 32-bit sum of all bytes
             firmwareChecksum = calculateFirmwareChecksum(firmwareData);
             log(`🔑 Firmware checksum: 0x${firmwareChecksum.toString(16).padStart(8, '0')}`);
         }
 
-        async function sendOTAMagicBytes() {
+        async function sendOTAActivate() {
             if (!txCharacteristic) {
                 log('❌ TX characteristic not ready');
                 return false;
             }
 
             try {
-                log('🔄 Activating OTA mode with magic bytes...');
-                // Step 1: Send magic bytes as payload in cmd=0x50 frame
-                const magicPayload = [0x0A, 0x0B, 0x0C];
-                const frame = createBLEOTAFrame(0x50, 0x10, magicPayload);
+                log('🔄 Activating OTA mode with cmd 0x3A...');
+                // Step 1: Send activation command 0x3A with fixed pattern
+                // Expects: buf[1]==5, buf[3]==3, buf[4]==2
+                const activatePayload = [0x00, 0x05, 0x00, 0x03, 0x02];
+                const frame = createBLEOTAFrame(0x3A, 0x10, activatePayload);
                 await txCharacteristic.writeValueWithoutResponse(frame);
-                log('✅ OTA activation frame sent, waiting for ACK...');
+                log('✅ OTA activation (0x3A) sent, waiting for ACK...');
                 
-                // Wait for ACK with cmd=0x50
-                const ack = await waitForAck(0x50, 2000);
+                // Wait for ACK with cmd=0x3A and status 0x01
+                const ack = await waitForAck(0x3A, 2000);
                 if (!ack.ok) {
-                    log(`❌ Magic bytes ACK failed: ${ack.reason}`);
+                    log(`❌ Activation ACK failed: ${ack.reason}`);
                     return false;
                 }
                 
-                log('✅ OTA activation confirmed');
-                return true;
+                // Check for status byte 0x01 indicating success
+                if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
+                    log('✅ OTA activation confirmed - device entered state 1');
+                    return true;
+                } else {
+                    const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
+                    log(`❌ OTA activation failed - status: ${status}`);
+                    return false;
+                }
             } catch (error) {
                 log(`❌ Failed to activate OTA mode: ${error.message}`);
                 return false;
@@ -2107,7 +2120,7 @@ Config Value: 0x51 (81)`,
             }
         }
 
-        async function sendFirmwareChunk(chunkData, chunkIndex, totalChunks) {
+        async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
             if (!txCharacteristic) {
                 log('❌ TX characteristic not ready');
                 return false;
@@ -2115,7 +2128,16 @@ Config Value: 0x51 (81)`,
 
             try {
                 // Step 3: Send firmware chunk with cmd=0x51
-                const frame = createBLEOTAFrame(0x51, 0x10, Array.from(chunkData));
+                // Payload: 4-byte offset (LE) + 128 bytes of firmware data
+                const payload = [
+                    offset & 0xFF,
+                    (offset >> 8) & 0xFF,
+                    (offset >> 16) & 0xFF,
+                    (offset >> 24) & 0xFF,
+                    ...Array.from(chunkData)
+                ];
+                
+                const frame = createBLEOTAFrame(0x51, 0x10, payload);
                 await txCharacteristic.writeValueWithoutResponse(frame);
                 
                 // Update progress
@@ -2128,17 +2150,27 @@ Config Value: 0x51 (81)`,
                         `Uploading: ${chunkIndex}/${totalChunks} chunks (${progress}%)`;
                 }
                 
-                log(`📤 Sent chunk ${chunkIndex}/${totalChunks} (${chunkData.length} bytes)`);
+                log(`📤 Sent chunk ${chunkIndex}/${totalChunks} at offset 0x${offset.toString(16)} (${chunkData.length} bytes)`);
                 
-                // Wait for ACK (cmd=0x51) before sending next chunk
+                // Wait for ACK (cmd=0x51) with echoed offset
                 const ack = await waitForAck(0x51, 1500);
                 if (!ack.ok) {
                     log(`❌ Chunk ${chunkIndex} ACK failed: ${ack.reason}`);
                     return false;
                 }
                 
-                // For 0x51 ACK: typically 10-byte frame, payload often zeros (OK)
-                log(`✅ Chunk ${chunkIndex} confirmed`);
+                // Verify device echoed back the correct offset
+                if (ack.payload.length >= 4) {
+                    const echoedOffset = ack.payload[0] | (ack.payload[1] << 8) | (ack.payload[2] << 16) | (ack.payload[3] << 24);
+                    if (echoedOffset === offset) {
+                        log(`✅ Chunk ${chunkIndex} confirmed at offset 0x${offset.toString(16)}`);
+                    } else {
+                        log(`⚠️ Offset mismatch: sent 0x${offset.toString(16)}, got 0x${echoedOffset.toString(16)}`);
+                    }
+                } else {
+                    log(`✅ Chunk ${chunkIndex} confirmed (no offset echo)`);
+                }
+                
                 return true;
             } catch (error) {
                 log(`❌ Failed to send chunk ${chunkIndex}: ${error.message}`);
@@ -2206,8 +2238,8 @@ Config Value: 0x51 (81)`,
                 otaTotalChunks = Math.ceil(firmwareData.byteLength / otaChunkSize);
                 log(`📦 Total chunks: ${otaTotalChunks} (${otaChunkSize} bytes each)`);
                 
-                // Step 1: Send magic bytes to activate OTA mode (optional but harmless)
-                if (!await sendOTAMagicBytes()) {
+                // Step 1: Send activation command 0x3A to enter OTA mode
+                if (!await sendOTAActivate()) {
                     throw new Error('Failed to activate OTA mode');
                 }
                 
@@ -2230,7 +2262,7 @@ Config Value: 0x51 (81)`,
                     
                     while (!chunkSent && retryCount < 3) {
                         try {
-                            if (!await sendFirmwareChunk(chunk, chunkIndex + 1, otaTotalChunks)) {
+                            if (!await sendFirmwareChunk(chunk, offset, chunkIndex + 1, otaTotalChunks)) {
                                 throw new Error(`Failed to send chunk ${chunkIndex + 1}`);
                             }
                             chunkSent = true;
