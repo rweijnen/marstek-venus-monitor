@@ -1859,12 +1859,12 @@ Config Value: 0x51 (81)`,
                 notes: '🚫 DANGER: Prepares device for firmware update. Device may become unresponsive during update.'
             },
             otasize: {
-                title: '📏 Send Firmware Size',
-                description: 'Sends total firmware size to device before data transfer',
-                command: '0x73 [len_low] [len_high] 0x50 [reserved] [size_8_bytes]',
-                response: 'Device ACKs with same cmd=0x50',
-                sampleData: 'Firmware size: 73,728 bytes',
-                notes: '⚠️ Required before sending firmware data. Uses 2-byte LE length field.'
+                title: '📏 Send Firmware Size & Checksum',
+                description: 'Sends firmware size and ones\' complement checksum for validation',
+                command: '0x73 [len_low] [len_high] 0x50 [reserved] [size_4bytes] [checksum_4bytes]',
+                response: 'Device ACKs with same cmd=0x50, echoing size and checksum',
+                sampleData: 'Size: 73,728 bytes, Checksum: 0xFF92A61B (~sum32)',
+                notes: '⚠️ Checksum = ones\' complement of 32-bit sum of all firmware bytes. Device validates before accepting data.'
             },
             otafinalize: {
                 title: '🏁 Finalize OTA Update',
@@ -1885,7 +1885,30 @@ Config Value: 0x51 (81)`,
         let rxCharacteristic = null;  // ff02 - notifications
         let otaChunkSize = 132;       // Default, calculated from MTU
         let pendingAckResolve = null;
-        let firmwareMetadata = 0;
+        let firmwareChecksum = 0;
+
+        function calculateFirmwareChecksum(firmwareArrayBuffer) {
+            // Calculate ones' complement checksum as expected by Marstek bootloader
+            // sum32(bytes) then ones' complement: ~sum mod 2^32
+            const bytes = new Uint8Array(firmwareArrayBuffer);
+            let sum = 0;
+            
+            // Sum all bytes (JavaScript handles 32-bit overflow automatically)
+            for (let i = 0; i < bytes.length; i++) {
+                sum += bytes[i];
+            }
+            
+            // Apply 32-bit mask and ones' complement
+            sum = sum >>> 0; // Convert to unsigned 32-bit
+            const checksum = (~sum) >>> 0; // Ones' complement and convert to unsigned 32-bit
+            
+            log(`📊 Firmware analysis:`);
+            log(`   Size: ${bytes.length} bytes`);
+            log(`   Sum: 0x${sum.toString(16).padStart(8, '0')}`);
+            log(`   Checksum: 0x${checksum.toString(16).padStart(8, '0')} (~sum)`);
+            
+            return checksum;
+        }
 
         function createBLEOTAFrame(command, reserved, payload = []) {
             const frame = [];
@@ -1999,9 +2022,9 @@ Config Value: 0x51 (81)`,
                 log(`⚠️ Using default chunk size: ${otaChunkSize} bytes`);
             }
             
-            // Generate random firmware metadata (unknown purpose - may be version/checksum/device ID)
-            firmwareMetadata = Math.floor(Math.random() * 0xFFFFFFFF);
-            log(`🔑 Firmware metadata: 0x${firmwareMetadata.toString(16).padStart(8, '0')}`);
+            // Calculate firmware checksum: ones' complement of 32-bit sum of all bytes
+            firmwareChecksum = calculateFirmwareChecksum(firmwareData);
+            log(`🔑 Firmware checksum: 0x${firmwareChecksum.toString(16).padStart(8, '0')}`);
         }
 
         async function sendOTAMagicBytes() {
@@ -2040,19 +2063,19 @@ Config Value: 0x51 (81)`,
             }
 
             try {
-                log(`📏 Sending firmware size: ${firmwareSize} bytes with metadata: 0x${firmwareMetadata.toString(16)}`);
+                log(`📏 Sending firmware size: ${firmwareSize} bytes with checksum: 0x${firmwareChecksum.toString(16)}`);
                 
-                // Step 2: Send firmware length in 8-byte payload: size LE (4) + metadata LE (4)
-                // Metadata purpose unknown - may be firmware version, checksum, or device identifier
+                // Step 2: Send firmware length in 8-byte payload: size LE (4) + checksum LE (4)
+                // Checksum = ones' complement of 32-bit sum of all firmware bytes
                 const sizePayload = [
                     firmwareSize & 0xFF,
                     (firmwareSize >> 8) & 0xFF,
                     (firmwareSize >> 16) & 0xFF,
                     (firmwareSize >> 24) & 0xFF,
-                    firmwareMetadata & 0xFF,
-                    (firmwareMetadata >> 8) & 0xFF,
-                    (firmwareMetadata >> 16) & 0xFF,
-                    (firmwareMetadata >> 24) & 0xFF
+                    firmwareChecksum & 0xFF,
+                    (firmwareChecksum >> 8) & 0xFF,
+                    (firmwareChecksum >> 16) & 0xFF,
+                    (firmwareChecksum >> 24) & 0xFF
                 ];
                 
                 const frame = createBLEOTAFrame(0x50, 0x10, sizePayload);
@@ -2066,13 +2089,13 @@ Config Value: 0x51 (81)`,
                     return false;
                 }
                 
-                // Verify device echoed our firmware metadata in the ACK payload
+                // Verify device echoed our firmware checksum in the ACK payload
                 if (ack.payload.length >= 8) {
-                    const echoedMetadata = ack.payload[4] | (ack.payload[5] << 8) | (ack.payload[6] << 16) | (ack.payload[7] << 24);
-                    if (echoedMetadata === firmwareMetadata) {
-                        log(`✅ Firmware metadata verified: 0x${echoedMetadata.toString(16)}`);
+                    const echoedChecksum = ack.payload[4] | (ack.payload[5] << 8) | (ack.payload[6] << 16) | (ack.payload[7] << 24);
+                    if (echoedChecksum === firmwareChecksum) {
+                        log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
                     } else {
-                        log(`⚠️ Firmware metadata mismatch: sent 0x${firmwareMetadata.toString(16)}, got 0x${echoedMetadata.toString(16)}`);
+                        log(`⚠️ Firmware checksum mismatch: sent 0x${firmwareChecksum.toString(16)}, got 0x${echoedChecksum.toString(16)}`);
                     }
                 }
                 
