@@ -477,7 +477,7 @@
             </div>
             
             <div class="checkbox-container">
-                <input type="checkbox" id="acceptRisk"> 
+                <input type="checkbox" id="acceptRisk" onchange="toggleAcceptButton()"> 
                 <label for="acceptRisk">I understand the risks and agree to proceed at my own responsibility</label>
             </div>
             
@@ -723,8 +723,29 @@
 
     <script>
         // Disclaimer handling
-        document.getElementById('acceptRisk').addEventListener('change', function() {
-            document.getElementById('acceptBtn').disabled = !this.checked;
+        function toggleAcceptButton() {
+            const acceptRiskCheckbox = document.getElementById('acceptRisk');
+            const acceptBtn = document.getElementById('acceptBtn');
+            
+            if (acceptRiskCheckbox && acceptBtn) {
+                acceptBtn.disabled = !acceptRiskCheckbox.checked;
+                console.log('Checkbox changed:', acceptRiskCheckbox.checked, 'Button disabled:', acceptBtn.disabled);
+            } else {
+                console.error('Could not find checkbox or button elements');
+            }
+        }
+
+        // Also set up event listener when DOM is ready (backup approach)
+        document.addEventListener('DOMContentLoaded', function() {
+            const acceptRiskCheckbox = document.getElementById('acceptRisk');
+            const acceptBtn = document.getElementById('acceptBtn');
+            
+            if (acceptRiskCheckbox && acceptBtn) {
+                acceptRiskCheckbox.addEventListener('change', toggleAcceptButton);
+                console.log('Event listener set up successfully');
+            } else {
+                console.error('Could not find elements during DOMContentLoaded');
+            }
         });
 
         function declineAndExit() {
