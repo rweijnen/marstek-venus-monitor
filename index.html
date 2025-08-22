@@ -797,7 +797,7 @@
             disconnectBtn.disabled = !connected;
             runAllBtn.disabled = !connected;
             
-            const buttons = document.querySelectorAll('button[onclick*="sendCommand"]');
+            const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"]');
             buttons.forEach(btn => btn.disabled = !connected);
             
             isConnected = connected;
