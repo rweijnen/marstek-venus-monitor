@@ -540,8 +540,12 @@
                     <span class="cmd-button-text">📝 Event Log</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
                 </button>
-                <button onclick="sendCommand(0x21, 'Read Meter IP', [0x0B])" disabled data-tooltip="Read configured meter IP address" class="cmd-button">
-                    <span class="cmd-button-text">🌐 Read Meter IP</span>
+                <button onclick="sendCommand(0x21, 'Read Meter IP (Method 1)', [0x0B])" disabled data-tooltip="Read meter IP using current protocol" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Meter IP (Method 1)</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
+                </button>
+                <button onclick="sendMeterIPCommand(0x21, 'Read Meter IP (Method 2)', [0x0B])" disabled data-tooltip="Read meter IP using alternative protocol" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Meter IP (Method 2)</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
                 </button>
                 <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="cmd-button">
@@ -807,6 +811,27 @@
             const message = [...header, ...payloadArray];
             const checksum = message.reduce((xor, byte) => xor ^ byte, 0);
             message.push(checksum);
+            return new Uint8Array(message);
+        }
+
+        function createMeterIPMessage(commandType, payload = null) {
+            // Alternative format for meter IP commands based on protocol analysis
+            // Frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD] [XOR]
+            // LEN = count of bytes from 0x23 through checksum
+            // XOR = 0x23 ^ CMD ^ PAYLOAD bytes
+            
+            const payloadArray = payload ? Array.from(payload) : [];
+            const len = 4 + payloadArray.length; // 0x23 + cmd + payload + checksum = 4 + payload length
+            
+            const message = [START_BYTE, len, IDENTIFIER_BYTE, commandType, ...payloadArray];
+            
+            // XOR only over [0x23, cmd, payload] - not including 0x73, len, or checksum
+            let checksum = IDENTIFIER_BYTE ^ commandType;
+            for (const byte of payloadArray) {
+                checksum ^= byte;
+            }
+            message.push(checksum);
+            
             return new Uint8Array(message);
         }
 
@@ -1280,6 +1305,34 @@
                 window.currentCommand = commandName;
                 
                 log(`📤 Sending ${commandName}...`);
+                log(`📋 Frame: ${formatBytes(command)}`);
+                
+                const writeChars = Object.values(characteristics).filter(char => 
+                    char.properties.write || char.properties.writeWithoutResponse
+                );
+                
+                if (writeChars.length === 0) {
+                    log('❌ No writable characteristics found');
+                    return;
+                }
+                
+                const writeChar = writeChars[0];
+                await writeChar.writeValueWithoutResponse(command);
+                
+            } catch (error) {
+                log(`❌ Failed to send ${commandName}: ${error.message}`);
+            }
+        }
+
+        async function sendMeterIPCommand(commandType, commandName, payload = null) {
+            if (!isConnected) return;
+            
+            try {
+                const command = createMeterIPMessage(commandType, payload);
+                window.currentCommand = commandName;
+                
+                log(`📤 Sending ${commandName} (Alternative Protocol)...`);
+                log(`📋 Frame: ${formatBytes(command)}`);
                 
                 const writeChars = Object.values(characteristics).filter(char => 
                     char.properties.write || char.properties.writeWithoutResponse
