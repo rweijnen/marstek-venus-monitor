@@ -552,6 +552,14 @@
                     <span class="cmd-button-text">🔗 Network Info</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('network')">i</span>
                 </button>
+                <button onclick="sendCommand(0x22, 'Read CT Polling Rate')" disabled data-tooltip="Read current CT meter polling rate setting" class="cmd-button">
+                    <span class="cmd-button-text">📊 Read CT Polling Rate</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpollread')">i</span>
+                </button>
+                <button onclick="sendCommand(0x28, 'Read Local API Status')" disabled data-tooltip="Read current Local API configuration" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Local API Status</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>
+                </button>
             </div>
 
             <!-- Power Management Commands -->
@@ -630,6 +638,18 @@
                     <button onclick="setLocalApiPort()" disabled class="btn-warning cmd-button" data-tooltip="Set local API port number">
                         <span class="cmd-button-text">Set Local API Port</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiport')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 0 (fastest)">
+                        <span class="cmd-button-text">CT Polling: Rate 0 (Fastest)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll0')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 1 (medium)">
+                        <span class="cmd-button-text">CT Polling: Rate 1 (Medium)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll1')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 2', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 2 (slowest)">
+                        <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
                     </button>
                 </div>
             </div>
@@ -1240,6 +1260,40 @@
                         });
                     } else {
                         displayData('🌐 Local API Configuration', { 'Status': 'Configuration updated' });
+                    }
+                    break;
+                
+                case 0x22:
+                    // CT Polling Rate response
+                    if (payload.length >= 1) {
+                        const pollingRate = payload[0];
+                        let rateText = 'Unknown';
+                        let rateDescription = '';
+                        switch (pollingRate) {
+                            case 0: 
+                                rateText = 'Rate 0 (Fastest)';
+                                rateDescription = 'Fastest polling rate setting';
+                                break;
+                            case 1: 
+                                rateText = 'Rate 1 (Medium)';
+                                rateDescription = 'Medium polling rate setting';
+                                break;
+                            case 2: 
+                                rateText = 'Rate 2 (Slowest)';
+                                rateDescription = 'Slowest polling rate setting';
+                                break;
+                            default: 
+                                rateText = `Rate ${pollingRate} (Unknown)`;
+                                rateDescription = 'Unexpected value';
+                                break;
+                        }
+                        displayData('📊 CT Polling Rate Configuration', {
+                            'Current Rate': rateText,
+                            'Description': rateDescription,
+                            'Raw Value': `0x${pollingRate.toString(16).padStart(2, '0')}`
+                        });
+                    } else {
+                        displayData('📊 CT Polling Rate', { 'Status': 'Configuration updated' });
                     }
                     break;
                     
@@ -1934,6 +1988,46 @@ Config Value: 0x51 (81)`,
                 response: 'Device ACKs with cmd=0x52, payload=0x01 for success',
                 sampleData: 'Checksum verified, device configured as BMS or EMS based on firmware type',
                 notes: '⚠️ Device validates checksum and reads VenusC signature at 0x8050004 to determine if it should operate as BMS (no VenusC) or EMS (has VenusC). Commits and reboots on success.'
+            },
+            ctpollread: {
+                title: '📊 Read CT Polling Rate (0x22)',
+                description: 'Read current CT (Current Transformer) meter polling rate configuration',
+                command: '0x73 0x04 0x23 0x22 [checksum]',
+                response: '1 byte: polling rate value (0=fastest, 1=medium, 2=slowest)',
+                sampleData: '0x01 = medium polling rate',
+                notes: '📡 Controls how often the device polls connected CT power meters. Lower values = faster polling rates. Stored persistently in firmware memory at 0x37B.'
+            },
+            ctpoll0: {
+                title: '📊 Set CT Polling Rate 0 (0x22)',
+                description: 'Set CT meter polling rate to 0 (fastest setting)',
+                command: '0x73 0x05 0x23 0x22 0x00 [checksum]',
+                response: 'ACK or current polling rate',
+                sampleData: 'Rate set to 0',
+                notes: '⚡ Value 0: Fastest polling rate setting. Actual timing intervals to be determined through testing.'
+            },
+            ctpoll1: {
+                title: '📊 Set CT Polling Rate 1 (0x22)',
+                description: 'Set CT meter polling rate to 1 (medium setting)',
+                command: '0x73 0x05 0x23 0x22 0x01 [checksum]',
+                response: 'ACK or current polling rate',
+                sampleData: 'Rate set to 1',
+                notes: '⚖️ Value 1: Medium polling rate setting. Actual timing intervals to be determined through testing.'
+            },
+            ctpoll2: {
+                title: '📊 Set CT Polling Rate 2 (0x22)',
+                description: 'Set CT meter polling rate to 2 (slowest setting)',
+                command: '0x73 0x05 0x23 0x22 0x02 [checksum]',
+                response: 'ACK or current polling rate',
+                sampleData: 'Rate set to 2',
+                notes: '🔋 Value 2: Slowest polling rate setting. Actual timing intervals to be determined through testing.'
+            },
+            apiread: {
+                title: '🌐 Read Local API Status (0x28)',
+                description: 'Read current Local API configuration and status',
+                command: '0x73 0x04 0x23 0x28 [checksum]',
+                response: '3 bytes: [enable_flag, port_low, port_high]',
+                sampleData: '0x01 0x50 0x1F = Enabled on port 8080',
+                notes: '🔍 Returns current API state (0x00=disabled, 0x01=enabled) and configured port number in little-endian format. Use this to verify API settings before making changes.'
             }
         };
 
