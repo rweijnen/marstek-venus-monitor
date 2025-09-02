@@ -627,27 +627,27 @@
                         <span class="cmd-button-text">Disable Generator</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('gendisable')">i</span>
                     </button>
-                    <button onclick="sendCommand(0x28, 'Enable Local API', [0x01, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Enable local API access">
-                        <span class="cmd-button-text">Enable Local API</span>
-                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apienable')">i</span>
+                    <button onclick="sendCommand(0x28, 'Enable Local API (Port 30000)', [0x01, 0x30, 0x75])" disabled class="btn-warning cmd-button" data-tooltip="Enable local API on default port 30000">
+                        <span class="cmd-button-text">Enable Local API (30000)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apienable30000')">i</span>
+                    </button>
+                    <button onclick="setLocalApiPort()" disabled class="btn-warning cmd-button" data-tooltip="Enable local API with custom port number">
+                        <span class="cmd-button-text">Enable Local API (Custom Port)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apicustom')">i</span>
                     </button>
                     <button onclick="sendCommand(0x28, 'Disable Local API', [0x00, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable local API access">
                         <span class="cmd-button-text">Disable Local API</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apidisable')">i</span>
                     </button>
-                    <button onclick="setLocalApiPort()" disabled class="btn-warning cmd-button" data-tooltip="Set local API port number">
-                        <span class="cmd-button-text">Set Local API Port</span>
-                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiport')">i</span>
-                    </button>
-                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 0 (fastest)">
+                    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 0 (fastest)">
                         <span class="cmd-button-text">CT Polling: Rate 0 (Fastest)</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll0')">i</span>
                     </button>
-                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 1 (medium)">
+                    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 1 (medium)">
                         <span class="cmd-button-text">CT Polling: Rate 1 (Medium)</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll1')">i</span>
                     </button>
-                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 2', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 2 (slowest)">
+                    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 2', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 2 (slowest)">
                         <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
                     </button>
@@ -1263,8 +1263,9 @@
                     }
                     break;
                 
+                case 0x20:
                 case 0x22:
-                    // CT Polling Rate response
+                    // CT Polling Rate response (0x20 write responds as 0x22, 0x22 read responds as 0x22)
                     if (payload.length >= 1) {
                         const pollingRate = payload[0];
                         let rateText = 'Unknown';
@@ -1998,28 +1999,28 @@ Config Value: 0x51 (81)`,
                 notes: '📡 Controls how often the device polls connected CT power meters. Lower values = faster polling rates. Stored persistently in firmware memory at 0x37B.'
             },
             ctpoll0: {
-                title: '📊 Set CT Polling Rate 0 (0x22)',
+                title: '📊 Set CT Polling Rate 0 (0x20)',
                 description: 'Set CT meter polling rate to 0 (fastest setting)',
-                command: '0x73 0x05 0x23 0x22 0x00 [checksum]',
-                response: 'ACK or current polling rate',
+                command: '0x73 0x06 0x23 0x20 0x00 [checksum]',
+                response: 'Echoed as command 0x22 with confirmation',
                 sampleData: 'Rate set to 0',
-                notes: '⚡ Value 0: Fastest polling rate setting. Actual timing intervals to be determined through testing.'
+                notes: '⚡ Value 0: Fastest polling rate setting. Uses command 0x20 per firmware case 32.'
             },
             ctpoll1: {
-                title: '📊 Set CT Polling Rate 1 (0x22)',
+                title: '📊 Set CT Polling Rate 1 (0x20)', 
                 description: 'Set CT meter polling rate to 1 (medium setting)',
-                command: '0x73 0x05 0x23 0x22 0x01 [checksum]',
-                response: 'ACK or current polling rate',
+                command: '0x73 0x06 0x23 0x20 0x01 [checksum]',
+                response: 'Echoed as command 0x22 with confirmation',
                 sampleData: 'Rate set to 1',
-                notes: '⚖️ Value 1: Medium polling rate setting. Actual timing intervals to be determined through testing.'
+                notes: '⚖️ Value 1: Medium polling rate setting. Uses command 0x20 per firmware case 32.'
             },
             ctpoll2: {
-                title: '📊 Set CT Polling Rate 2 (0x22)',
-                description: 'Set CT meter polling rate to 2 (slowest setting)',
-                command: '0x73 0x05 0x23 0x22 0x02 [checksum]',
-                response: 'ACK or current polling rate',
+                title: '📊 Set CT Polling Rate 2 (0x20)',
+                description: 'Set CT meter polling rate to 2 (slowest setting)', 
+                command: '0x73 0x06 0x23 0x20 0x02 [checksum]',
+                response: 'Echoed as command 0x22 with confirmation',
                 sampleData: 'Rate set to 2',
-                notes: '🔋 Value 2: Slowest polling rate setting. Actual timing intervals to be determined through testing.'
+                notes: '🔋 Value 2: Slowest polling rate setting. Uses command 0x20 per firmware case 32.'
             },
             apiread: {
                 title: '🌐 Read Local API Status (0x28)',
@@ -2028,6 +2029,22 @@ Config Value: 0x51 (81)`,
                 response: '3 bytes: [enable_flag, port_low, port_high]',
                 sampleData: '0x01 0x50 0x1F = Enabled on port 8080',
                 notes: '🔍 Returns current API state (0x00=disabled, 0x01=enabled) and configured port number in little-endian format. Use this to verify API settings before making changes.'
+            },
+            apienable30000: {
+                title: '🌐 Enable Local API Port 30000 (0x28)',
+                description: 'Enable Local API on default port 30000',
+                command: '0x73 0x08 0x23 0x28 0x01 0x30 0x75 [checksum]',
+                response: '3 bytes: [enable_flag, port_low, port_high]',
+                sampleData: '0x01 0x30 0x75 = Enabled on port 30000',
+                notes: '🌐 Enables Local API with default port 30000 (0x7530). This is the documented default port for UDP JSON API access.'
+            },
+            apicustom: {
+                title: '🌐 Enable Local API Custom Port (0x28)',
+                description: 'Enable Local API with user-specified port number',
+                command: '0x73 0x08 0x23 0x28 0x01 [port_low] [port_high] [checksum]',
+                response: '3 bytes: [enable_flag, port_low, port_high]',
+                sampleData: 'User prompted for port 1-65535, sent in little-endian format',
+                notes: '⚙️ Prompts user for custom port number (recommended range 49152-65535). Enables API and sets port in single operation per firmware design.'
             }
         };
 
