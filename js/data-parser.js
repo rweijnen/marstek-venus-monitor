@@ -19,7 +19,7 @@ function parseResponse(data, commandName) {
     let output = '';
     
     // Add raw data hex dump
-    output += `<div class="hex-dump"><strong>Raw Data (${data.length} bytes):</strong><br>${formatHexDump(data)}</div>`;
+    output += `<div class="hex-dump"><strong>Raw Data (${data.length} bytes):</strong><br><pre style="font-family: monospace; font-size: 12px; margin: 5px 0;">${formatHexDump(data)}</pre></div>`;
     
     // Extract payload (skip header bytes and checksum)
     const payload = data.slice(4, -1);
@@ -603,12 +603,30 @@ function parseErrorCodes(payload) {
  * @returns {string} Formatted hex dump
  */
 function formatHexDump(data) {
-    return Array.from(data)
-        .map((b, i) => {
-            const hex = b.toString(16).padStart(2, '0').toUpperCase();
-            return (i % 16 === 0 ? '<br>' : '') + hex + ' ';
-        })
-        .join('');
+    let hexDump = '';
+    for (let i = 0; i < data.length; i += 16) {
+        // Address
+        hexDump += i.toString(16).padStart(4, '0') + ': ';
+        
+        // Hex bytes
+        let hexPart = '';
+        let asciiPart = '';
+        for (let j = 0; j < 16; j++) {
+            if (i + j < data.length) {
+                const byte = data[i + j];
+                hexPart += byte.toString(16).padStart(2, '0').toUpperCase() + ' ';
+                // ASCII representation (printable chars only)
+                asciiPart += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+            } else {
+                hexPart += '   ';
+            }
+            // Add extra space in middle
+            if (j === 7) hexPart += ' ';
+        }
+        
+        hexDump += hexPart + ' |' + asciiPart + '|<br>';
+    }
+    return hexDump;
 }
 
 // Export functions for use by other modules

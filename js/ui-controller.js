@@ -123,9 +123,29 @@ function updateStatus(connected, deviceName = null) {
 // DATA DISPLAY FUNCTIONS
 // ==========================================
 
-function displayData(title, data) {
+function displayData(content) {
     const displayDiv = document.getElementById('dataDisplay');
     if (!displayDiv) return;
+    
+    // Handle new unified HTML content from data parser
+    if (typeof content === 'string') {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = content;
+        displayDiv.appendChild(card);
+        
+        // Limit display to 10 most recent items
+        while (displayDiv.children.length > 10) {
+            displayDiv.removeChild(displayDiv.firstChild);
+        }
+        
+        displayDiv.scrollTop = displayDiv.scrollHeight;
+        return;
+    }
+    
+    // Legacy support: handle old format (title, data)
+    const title = arguments[0];
+    const data = arguments[1];
     
     const card = document.createElement('div');
     card.className = 'data-card';
