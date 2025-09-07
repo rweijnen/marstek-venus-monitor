@@ -1,0 +1,623 @@
+/**
+ * Marstek Venus E Monitor - UI Controller
+ * Handles all user interface interactions, DOM manipulation, modals, and logging
+ * Extracted from index.html for better code organization
+ */
+
+// ==========================================
+// UI STATE MANAGEMENT
+// ==========================================
+
+let isConnected = false;
+let deviceType = 'unknown'; // 'battery', 'meter', or 'unknown'
+
+// ==========================================
+// DISCLAIMER MODAL HANDLING
+// ==========================================
+
+// Disclaimer handling
+document.getElementById('acceptRisk').addEventListener('change', function() {
+    document.getElementById('acceptBtn').disabled = !this.checked;
+});
+
+function declineAndExit() {
+    window.close();
+    // If window.close() fails (most browsers), redirect to a safe page
+    setTimeout(() => {
+        window.location.href = 'about:blank';
+    }, 100);
+}
+
+function acceptAndContinue() {
+    document.getElementById('disclaimerModal').style.display = 'none';
+    document.getElementById('mainInterface').style.display = 'block';
+    
+    // Store acceptance in localStorage
+    localStorage.setItem('marstek-disclaimer-accepted', new Date().toISOString());
+    
+    log('✅ Disclaimer accepted - Marstek Venus E Monitor ready');
+    log('⚠️ Remember: This is experimental software - use with caution');
+}
+
+// Check if disclaimer was already accepted (within last 24 hours)
+function checkDisclaimerAcceptance() {
+    const lastAccepted = localStorage.getItem('marstek-disclaimer-accepted');
+    if (lastAccepted) {
+        const acceptedDate = new Date(lastAccepted);
+        const now = new Date();
+        const hoursSinceAccepted = (now - acceptedDate) / (1000 * 60 * 60);
+        
+        // Require re-acceptance after 24 hours
+        if (hoursSinceAccepted < 24) {
+            document.getElementById('disclaimerModal').style.display = 'none';
+            document.getElementById('mainInterface').style.display = 'block';
+        }
+    }
+}
+
+// ==========================================
+// LOGGING AND ERROR HANDLING
+// ==========================================
+
+function log(message) {
+    const logDiv = document.getElementById('log');
+    if (!logDiv) return;
+    const timestamp = new Date().toLocaleTimeString();
+    logDiv.textContent += `[${timestamp}] ${message}\n`;
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function showError(message) {
+    log(`❌ Error: ${message}`);
+    
+    // Also show in UI if there's an error display element
+    const errorDiv = document.getElementById('errorDisplay');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+function clearAll() {
+    const logDiv = document.getElementById('log');
+    const dataDisplay = document.getElementById('dataDisplay');
+    
+    if (logDiv) logDiv.textContent = '';
+    if (dataDisplay) dataDisplay.innerHTML = '';
+    
+    log('🗑️ Display cleared');
+}
+
+// ==========================================
+// CONNECTION STATUS MANAGEMENT
+// ==========================================
+
+function updateStatus(connected, deviceName = null) {
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const runAllBtn = document.getElementById('runAllBtn');
+    
+    if (!statusEl) return;
+    
+    if (connected && deviceName) {
+        statusEl.textContent = `Connected to ${deviceName}`;
+    } else {
+        statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+    }
+    statusEl.className = connected ? 'connected' : 'disconnected';
+    connectBtn.disabled = connected;
+    disconnectBtn.disabled = !connected;
+    runAllBtn.disabled = !connected;
+    
+    const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
+    buttons.forEach(btn => btn.disabled = !connected);
+    
+    isConnected = connected;
+}
+
+// ==========================================
+// DATA DISPLAY FUNCTIONS
+// ==========================================
+
+function displayData(title, data) {
+    const displayDiv = document.getElementById('dataDisplay');
+    if (!displayDiv) return;
+    
+    const card = document.createElement('div');
+    card.className = 'data-card';
+    
+    let html = `<h3>${title}</h3>`;
+    
+    if (typeof data === 'object' && !Array.isArray(data)) {
+        html += '<div class="data-grid"><div>';
+        for (const [key, value] of Object.entries(data)) {
+            if (key === 'cellVoltages' && Array.isArray(value)) {
+                html += `
+                    <div class="data-item">
+                        <span class="data-label">Cell Voltages:</span>
+                        <span class="data-value">${value.map(v => v + 'V').join(', ')}</span>
+                    </div>
+                `;
+            } else {
+                const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : 
+                                   typeof value === 'string' && value.includes('W') ? value :
+                                   typeof value === 'string' && value.includes('°C') ? value :
+                                   typeof value === 'string' && value.includes('%') ? value :
+                                   typeof value === 'string' && value.includes('V') ? value :
+                                   typeof value === 'number' && key.includes('ower') ? value + 'W' :
+                                   typeof value === 'number' && key.includes('emperature') ? value + '°C' :
+                                   typeof value === 'number' && key.includes('oltage') && !key.includes('ell') ? value + 'V' :
+                                   typeof value === 'number' && key === 'unknownValue' ? value + ' (counter?)' :
+                                   value;
+                
+                html += `
+                    <div class="data-item">
+                        <span class="data-label">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</span>
+                        <span class="data-value">${displayValue}</span>
+                    </div>
+                `;
+            }
+        }
+        html += '</div></div>';
+    } else if (Array.isArray(data)) {
+        if (data.length > 0 && data[0].timestamp) {
+            data.forEach(item => {
+                const className = title.includes('Error') ? 'error-entry' : 'event-log';
+                html += `<div class="${className}">${item.timestamp} - Type: ${item.type || item.code}${item.code && item.type ? ', Code: ' + item.code : ''}</div>`;
+            });
+        } else {
+            html += `<div class="data-item"><span class="data-value">${data.join(', ')}</span></div>`;
+        }
+    } else {
+        html += `<div class="data-item"><span class="data-value">${data}</span></div>`;
+    }
+    
+    card.innerHTML = html;
+    displayDiv.appendChild(card);
+    
+    // Limit display to 10 most recent items
+    while (displayDiv.children.length > 10) {
+        displayDiv.removeChild(displayDiv.firstChild);
+    }
+}
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+
+function formatBytes(data) {
+    return Array.from(new Uint8Array(data.buffer || data))
+        .map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+}
+
+function formatHexDump(bytes) {
+    let hexDump = '';
+    for (let i = 0; i < bytes.length; i += 16) {
+        // Address
+        hexDump += i.toString(16).padStart(4, '0') + ': ';
+        
+        // Hex bytes
+        let hexPart = '';
+        let asciiPart = '';
+        for (let j = 0; j < 16; j++) {
+            if (i + j < bytes.length) {
+                const byte = bytes[i + j];
+                hexPart += byte.toString(16).padStart(2, '0') + ' ';
+                // ASCII representation (printable chars only)
+                asciiPart += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+            } else {
+                hexPart += '   ';
+            }
+            // Add extra space in middle
+            if (j === 7) hexPart += ' ';
+        }
+        
+        hexDump += hexPart + ' |' + asciiPart + '|\n';
+    }
+    return hexDump;
+}
+
+// ==========================================
+// FIRMWARE/OTA UI FUNCTIONS
+// ==========================================
+
+function handleFirmwareFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // This should call the BLE protocol function
+        if (typeof window.handleFirmwareAnalysis === 'function') {
+            window.handleFirmwareAnalysis(e.target.result, file);
+        } else {
+            log(`📁 Firmware loaded: ${file.name} (${file.size} bytes) - BLE handler not available`);
+        }
+        
+        // Update UI file info
+        document.getElementById('otaFileInfo').innerHTML = `
+            <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
+            <strong>Status:</strong> Loaded, analyzing...
+        `;
+        
+        // Show progress container
+        document.getElementById('otaProgressContainer').style.display = 'block';
+        document.getElementById('otaStatus').textContent = 'File loaded, ready to analyze...';
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function updateOTAProgress(percent, status) {
+    const progressBar = document.getElementById('otaProgress');
+    const statusEl = document.getElementById('otaStatus');
+    
+    if (progressBar) progressBar.style.width = percent + '%';
+    if (statusEl) statusEl.textContent = status;
+}
+
+// ==========================================
+// VERSION INFORMATION
+// ==========================================
+
+async function displayVersionInfo() {
+    try {
+        const response = await fetch('https://api.github.com/repos/rweijnen/marstek-venus-monitor/commits/main');
+        if (response.ok) {
+            const data = await response.json();
+            const commitSha = data.sha.substring(0, 7);
+            const commitDate = new Date(data.commit.author.date).toLocaleString();
+            const commitMessage = data.commit.message.split('\n')[0]; // First line only
+            
+            document.getElementById('versionInfo').innerHTML = 
+                `<small>Version: <code>${commitSha}</code> - ${commitMessage} (${commitDate})</small>`;
+        } else {
+            document.getElementById('versionInfo').innerHTML = 
+                '<small>Version: Unable to fetch version info</small>';
+        }
+    } catch (error) {
+        document.getElementById('versionInfo').innerHTML = 
+            '<small>Version: ' + window.location.hostname + '</small>';
+    }
+}
+
+// ==========================================
+// COMMAND INFO MODAL
+// ==========================================
+
+// Command information data
+const commandInfo = {
+    runtime: {
+        title: '⚡ Runtime Info (0x03)',
+        description: 'Real-time power flow, temperatures, and system status',
+        command: '0x73 0x04 0x23 0x03 [checksum]',
+        response: '38+ bytes of runtime data including power, voltage, temperature, and status flags',
+        sampleData: 'Input: 1250W, Output: 800W, Temperature: 25°C, Battery: 85%',
+        notes: '🔍 Shows live system metrics. Response format varies by device type (battery vs meter).'
+    },
+    device: {
+        title: '📱 Device Info (0x04)',
+        description: 'Device model, MAC address, and firmware versions',
+        command: '0x73 0x04 0x23 0x04 [checksum]',
+        response: 'Device name, MAC address, firmware version, and hardware details',
+        sampleData: 'Model: Venus E, MAC: 12:34:56:78:9A:BC, FW: v2.1.0',
+        notes: '📋 Essential device identification and version information.'
+    },
+    wifi: {
+        title: '📶 WiFi Info (0x08)',
+        description: 'Connected WiFi network name (SSID)',
+        command: '0x73 0x04 0x23 0x08 [checksum]',
+        response: 'SSID of currently connected wireless network',
+        sampleData: 'Connected to: MyNetwork_5G',
+        notes: '🌐 Shows current WiFi connection. Empty if using Ethernet or disconnected.'
+    },
+    system: {
+        title: '🔧 System Data (0x0D)',
+        description: 'System operational parameters',
+        command: '0x73 0x04 0x23 0x0D [checksum]',
+        response: 'System configuration and operational status data',
+        sampleData: 'Various system parameters and operational flags',
+        notes: '⚙️ Internal system metrics and configuration status.'
+    },
+    errors: {
+        title: '🚨 Error Codes (0x13)',
+        description: 'Historical error codes with timestamps',
+        command: '0x73 0x04 0x23 0x13 [checksum]',
+        response: 'List of error entries with timestamps and error codes',
+        sampleData: '2024-01-15 10:30:45 - Error Code: E001 (Overvoltage)',
+        notes: '📝 Historical error log. May be empty if no errors recorded.'
+    },
+    bms: {
+        title: '🔋 BMS Data (0x14)',
+        description: 'Battery voltages, current, SOC, and cell data',
+        command: '0x73 0x04 0x23 0x14 [checksum]',
+        response: 'Battery Management System data including cell voltages, current, and State of Charge',
+        sampleData: 'Cells: 3.45V, 3.47V, 3.46V, Current: -5.2A, SOC: 85%',
+        notes: '🔋 Detailed battery health and performance metrics.'
+    },
+    config: {
+        title: '⚙️ Config Data (0x1A)',
+        description: 'System configuration parameters',
+        command: '0x73 0x04 0x23 0x1A [checksum]',
+        response: 'Configuration parameters and system settings',
+        sampleData: 'Power limits, charging parameters, system preferences',
+        notes: '📋 Current system configuration and user-defined settings.'
+    },
+    events: {
+        title: '📝 Event Log (0x1C)',
+        description: 'System event history with timestamps',
+        command: '0x73 0x04 0x23 0x1C [checksum]',
+        response: 'Chronological list of system events and state changes',
+        sampleData: '2024-01-15 09:15:23 - System Start, 09:20:01 - Grid Connected',
+        notes: '📅 Historical system events and state changes log.'
+    },
+    meterip: {
+        title: '🌐 Read Meter IP (0x21)',
+        description: 'Read meter IP address using different protocol methods',
+        command: 'Method 1: 0x73 0x05 0x23 0x21 0x0B [checksum]<br>Method 2: Alternative protocol',
+        response: '4 bytes representing IP address in network byte order',
+        sampleData: '192.168.1.100 (0xC0A80164)',
+        notes: '🔍 Two methods available. Method 2 uses alternative protocol for compatibility.'
+    },
+    network: {
+        title: '🔗 Network Info (0x24)',
+        description: 'IP address, gateway, subnet mask, DNS',
+        command: '0x73 0x04 0x23 0x24 [checksum]',
+        response: 'Complete network configuration including IP, subnet, gateway, and DNS',
+        sampleData: 'IP: 192.168.1.100, Gateway: 192.168.1.1, DNS: 8.8.8.8',
+        notes: '🌐 Full network configuration details for diagnostics.'
+    },
+    ctpollread: {
+        title: '📊 Read CT Polling Rate (0x22)',
+        description: 'Read current CT meter polling rate setting',
+        command: '0x73 0x04 0x23 0x22 [checksum]',
+        response: '1 byte: polling rate value (0=fastest, 1=medium, 2=slowest)',
+        sampleData: '0x01 = Medium polling rate',
+        notes: '📈 Current CT meter polling frequency. Lower values = faster polling but more power usage.'
+    },
+    apiread: {
+        title: '🌐 Read Local API Status (0x28)',
+        description: 'Read current Local API configuration and status',
+        command: '0x73 0x04 0x23 0x28 [checksum]',
+        response: '3 bytes: [enable_flag, port_low, port_high]',
+        sampleData: '0x01 0x50 0x1F = Enabled on port 8080',
+        notes: '🔍 Returns current API state (0x00=disabled, 0x01=enabled) and configured port number in little-endian format. Use this to verify API settings before making changes.'
+    },
+    power800: {
+        title: '⚡ Set 800W Mode (0x15)',
+        description: 'Set maximum output power to 800W',
+        command: '0x73 0x06 0x23 0x15 0x20 0x03 [checksum]',
+        response: 'Confirmation of power limit change',
+        sampleData: 'Power limit set to 800W',
+        notes: '⚠️ Immediately limits output power. May affect connected loads.'
+    },
+    power2500: {
+        title: '⚡ Set 2500W Mode (0x15)',
+        description: 'Set maximum output power to 2500W',
+        command: '0x73 0x06 0x23 0x15 0xC4 0x09 [checksum]',
+        response: 'Confirmation of power limit change',
+        sampleData: 'Power limit set to 2500W',
+        notes: '⚠️ Immediately changes output power limit. Ensure system can handle load.'
+    },
+    acpower: {
+        title: '⚡ Set AC Power 2500W (0x16)',
+        description: 'Set AC input power limit to 2500W',
+        command: '0x73 0x06 0x23 0x16 0xC4 0x09 [checksum]',
+        response: 'Confirmation of AC input power limit',
+        sampleData: 'AC input limit set to 2500W',
+        notes: '🔌 Controls how much power can be drawn from AC input (grid/generator).'
+    },
+    totalpower: {
+        title: '⚡ Set Total Power 2500W (0x17)',
+        description: 'Set total system power limit to 2500W',
+        command: '0x73 0x06 0x23 0x17 0xC4 0x09 [checksum]',
+        response: 'Confirmation of total system power limit',
+        sampleData: 'Total system power limit set to 2500W',
+        notes: '🔋 Sets overall system power limit combining all sources.'
+    },
+    server0: {
+        title: '🌐 Set Server Type 0 (0x02)',
+        description: 'Configure server connection type to 0',
+        command: '0x73 0x05 0x23 0x02 0x00 [checksum]',
+        response: 'Server type configuration confirmation',
+        sampleData: 'Server type set to 0',
+        notes: '⚙️ Changes server connection configuration. Effect varies by firmware.'
+    },
+    eps: {
+        title: '🔄 EPS Mode Control (0x05)',
+        description: 'Enable/disable Emergency Power Supply mode',
+        command: 'Enable: 0x73 0x05 0x23 0x05 0x01 [checksum]<br>Disable: 0x73 0x05 0x23 0x05 0x00 [checksum]',
+        response: 'EPS mode status confirmation',
+        sampleData: 'EPS Mode: Enabled/Disabled',
+        notes: '🔄 Emergency Power Supply mode. When enabled, system provides backup power during grid outage.'
+    },
+    acinput: {
+        title: '🔌 AC Input Control (0x06)',
+        description: 'Enable/disable AC input (grid power)',
+        command: 'Enable: 0x73 0x05 0x23 0x06 0x01 [checksum]<br>Disable: 0x73 0x05 0x23 0x06 0x00 [checksum]',
+        response: 'AC input status confirmation',
+        sampleData: 'AC Input: Enabled/Disabled',
+        notes: '🔌 Controls whether system accepts power from AC input (grid/generator).'
+    },
+    genstart: {
+        title: '⚡ Generator Start/Stop (0x07)',
+        description: 'Start or stop connected generator',
+        command: 'Start: 0x73 0x05 0x23 0x07 0x01 [checksum]<br>Stop: 0x73 0x05 0x23 0x07 0x00 [checksum]',
+        response: 'Generator control confirmation',
+        sampleData: 'Generator: Started/Stopped',
+        notes: '🔧 Controls external generator if connected. Use with caution.'
+    },
+    buzzer: {
+        title: '🔊 Buzzer Control (0x09)',
+        description: 'Enable/disable system buzzer/alarm',
+        command: 'Enable: 0x73 0x05 0x23 0x09 0x01 [checksum]<br>Disable: 0x73 0x05 0x23 0x09 0x00 [checksum]',
+        response: 'Buzzer status confirmation',
+        sampleData: 'Buzzer: Enabled/Disabled',
+        notes: '🔊 Controls audible alerts and notifications.'
+    },
+    reset: {
+        title: '🔄 System Reset (0x0A)',
+        description: 'Perform system reset',
+        command: '0x73 0x05 0x23 0x0A 0x01 [checksum]',
+        response: 'System will reset and disconnect',
+        sampleData: 'System resetting...',
+        notes: '⚠️ CAUTION: Forces immediate system restart. May interrupt operations.'
+    },
+    restore: {
+        title: '🏭 Factory Reset (0x0B)',
+        description: 'Restore factory default settings',
+        command: '0x73 0x05 0x23 0x0B 0x01 [checksum]',
+        response: 'Factory reset confirmation (system may restart)',
+        sampleData: 'Settings restored to factory defaults',
+        notes: '🏭 WARNING: Erases all user settings and returns to factory defaults!'
+    },
+    datetime: {
+        title: '⏰ Set Current Date/Time (0x1B)',
+        description: 'Set system date and time to current local time',
+        command: '0x73 0x0A 0x23 0x1B [YY] [MM] [DD] [HH] [MM] [SS] [checksum]',
+        response: 'Date/time set confirmation',
+        sampleData: 'DateTime set to: 2024-01-15 14:30:25',
+        notes: '🕐 Sets system clock to current local time. Important for accurate logging and scheduling.'
+    },
+    ctpoll0: {
+        title: '📊 Set CT Polling Rate 0 (0x20)',
+        description: 'Set CT meter polling rate to 0 (fastest setting)',
+        command: '0x73 0x06 0x23 0x20 0x00 [checksum]',
+        response: 'Echoed as command 0x22 with confirmation',
+        sampleData: 'Rate set to 0',
+        notes: '⚡ Value 0: Fastest polling rate setting. Uses command 0x20 per firmware case 32.'
+    },
+    ctpoll1: {
+        title: '📊 Set CT Polling Rate 1 (0x20)', 
+        description: 'Set CT meter polling rate to 1 (medium setting)',
+        command: '0x73 0x06 0x23 0x20 0x01 [checksum]',
+        response: 'Echoed as command 0x22 with confirmation',
+        sampleData: 'Rate set to 1',
+        notes: '⚖️ Value 1: Medium polling rate setting. Uses command 0x20 per firmware case 32.'
+    },
+    ctpoll2: {
+        title: '📊 Set CT Polling Rate 2 (0x20)',
+        description: 'Set CT meter polling rate to 2 (slowest setting)', 
+        command: '0x73 0x06 0x23 0x20 0x02 [checksum]',
+        response: 'Echoed as command 0x22 with confirmation',
+        sampleData: 'Rate set to 2',
+        notes: '🔋 Value 2: Slowest polling rate setting. Uses command 0x20 per firmware case 32.'
+    },
+    apienable30000: {
+        title: '🌐 Enable Local API Port 30000 (0x28)',
+        description: 'Enable Local API on default port 30000',
+        command: '0x73 0x08 0x23 0x28 0x01 0x30 0x75 [checksum]',
+        response: '3 bytes: [enable_flag, port_low, port_high]',
+        sampleData: '0x01 0x30 0x75 = Enabled on port 30000',
+        notes: '🌐 Enables Local API with default port 30000 (0x7530). This is the documented default port for UDP JSON API access.'
+    },
+    apicustom: {
+        title: '🌐 Enable Local API Custom Port (0x28)',
+        description: 'Enable Local API with user-specified port number',
+        command: '0x73 0x08 0x23 0x28 0x01 [port_low] [port_high] [checksum]',
+        response: '3 bytes: [enable_flag, port_low, port_high]',
+        sampleData: 'User prompted for port 1-65535, sent in little-endian format',
+        notes: '⚙️ Prompts user for custom port number (recommended range 49152-65535). Enables API and sets port in single operation per firmware design.'
+    },
+    readconfig: {
+        title: '📋 Read Configuration (0x10)',
+        description: 'Read device configuration including server credentials and connection settings',
+        command: '0x73 0x05 0x23 0x10 [checksum]',
+        response: '~80 bytes: ID, XID, Server, Port, User, Password, Flag',
+        sampleData: 'Configuration data with server credentials (password masked for security)',
+        notes: '🔐 Returns complete device configuration including sensitive credential information. Password field is masked in display for security.'
+    },
+    writeconfig: {
+        title: '💾 Write Configuration (0x80)',
+        description: 'Write configuration data with server credentials using sub-command format',
+        command: '0x73 [len] 0x23 0x80 0x0C [url]<.,.>[port]<.,.>[user]<.,.>[pass] [checksum]',
+        response: 'Status byte: 0x00 = Success, other = Error code',
+        sampleData: 'Sub-command 12 (0x0C) with delimiter format: server.com<.,.>8080<.,.>username<.,.>password',
+        notes: '⚠️ DANGEROUS: Modifies server credentials! Uses sub-command 12 with "<.,.>" delimiter format. Incorrect settings may prevent remote monitoring.'
+    }
+};
+
+function showCommandInfo(cmdKey) {
+    const info = commandInfo[cmdKey];
+    if (!info) return;
+    
+    const modal = document.getElementById('infoModal');
+    const details = document.getElementById('commandDetails');
+    
+    details.innerHTML = `
+        <h3>${info.title}</h3>
+        <div class="detail-section">
+            <strong>Description:</strong><br>
+            ${info.description}
+        </div>
+        <div class="detail-section">
+            <strong>Command Sent:</strong><br>
+            <code>${info.command}</code>
+        </div>
+        <div class="detail-section">
+            <strong>Response Format:</strong><br>
+            ${info.response}
+        </div>
+        <div class="detail-section">
+            <strong>Sample Data:</strong>
+            <pre>${info.sampleData}</pre>
+        </div>
+        ${info.notes ? `
+        <div class="detail-section">
+            <strong>Notes:</strong><br>
+            ${info.notes}
+        </div>` : ''}
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function closeInfoModal() {
+    document.getElementById('infoModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const infoModal = document.getElementById('infoModal');
+    if (event.target == infoModal) {
+        infoModal.style.display = 'none';
+    }
+}
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
+
+// Initialize disclaimer check and version info on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkDisclaimerAcceptance();
+    displayVersionInfo();
+    
+    // Check browser compatibility
+    if (!navigator.bluetooth) {
+        log('❌ Web Bluetooth not supported');
+        showError('Web Bluetooth not supported in this browser');
+    }
+});
+
+// ==========================================
+// EXPORTED FUNCTIONS FOR BLE MODULE
+// ==========================================
+
+// Make these functions available globally for the BLE module
+window.uiController = {
+    log,
+    showError,
+    displayData,
+    updateStatus,
+    formatBytes,
+    formatHexDump,
+    updateOTAProgress,
+    clearAll,
+    isConnected: () => isConnected,
+    setDeviceType: (type) => { deviceType = type; },
+    getDeviceType: () => deviceType
+};

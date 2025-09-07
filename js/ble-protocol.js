@@ -1,0 +1,1150 @@
+/**
+ * Marstek Venus E BLE Protocol Implementation
+ * 
+ * This module contains all Web Bluetooth API interactions and Marstek/HM protocol
+ * implementation for communicating with Marstek Venus E battery systems.
+ * 
+ * Features:
+ * - BLE device connection/disconnection
+ * - Command message creation and sending
+ * - Response parsing and notification handling
+ * - OTA firmware update protocol
+ * - Protocol utility functions
+ */
+
+// ========================================
+// BLE CONSTANTS AND GLOBAL VARIABLES
+// ========================================
+
+const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
+const START_BYTE = 0x73;
+const IDENTIFIER_BYTE = 0x23;
+
+let device = null;
+let server = null;
+let characteristics = {};
+let isConnected = false;
+let deviceType = 'unknown'; // 'battery', 'meter', or 'unknown'
+
+// OTA-specific globals
+let otaInProgress = false;
+let otaCurrentChunk = 0;
+let otaTotalChunks = 0;
+let txCharacteristic = null;  // ff01 - write without response
+let rxCharacteristic = null;  // ff02 - notifications
+let otaChunkSize = 132;       // Default, calculated from MTU
+let pendingAckResolve = null;
+let firmwareChecksum = 0;
+let firmwareData = null;
+
+// ========================================
+// BLE CONNECTION MANAGEMENT
+// ========================================
+
+/**
+ * Connect to a Marstek BLE device
+ */
+async function connect() {
+    try {
+        log('🔍 Connecting to Marstek device...');
+        
+        // Request device with MST prefix filter
+        device = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: 'MST' }],
+            optionalServices: [SERVICE_UUID]
+        });
+
+        // Connect to GATT server
+        server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        
+        // Get all characteristics
+        const chars = await service.getCharacteristics();
+        characteristics = {};
+        
+        // Set up characteristics and notifications
+        for (const char of chars) {
+            characteristics[char.uuid] = char;
+            
+            // Enable notifications for readable characteristics
+            if (char.properties.notify) {
+                await char.startNotifications();
+                char.addEventListener('characteristicvaluechanged', 
+                    createNotificationHandler(char.uuid));
+                log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
+            }
+        }
+
+        // Handle disconnection
+        device.addEventListener('gattserverdisconnected', () => {
+            log('❌ Device disconnected');
+            isConnected = false;
+            if (window.uiController && window.uiController.updateStatus) {
+                window.uiController.updateStatus(false);
+            }
+        });
+
+        // Update connection status
+        isConnected = true;
+        if (window.uiController && window.uiController.updateStatus) {
+            window.uiController.updateStatus(true, device.name);
+        }
+        log(`✅ Connected to ${device.name}!`);
+
+        // Determine device type from name
+        if (device.name.includes('ACCP')) {
+            deviceType = 'battery';
+            log('🔋 Detected: Battery device (Venus E)');
+        } else if (device.name.includes('TPM')) {
+            deviceType = 'meter';
+            log('📊 Detected: CT meter device');
+        }
+
+    } catch (error) {
+        log(`❌ Connection failed: ${error.message}`);
+        isConnected = false;
+        if (window.uiController && window.uiController.updateStatus) {
+            window.uiController.updateStatus(false);
+        }
+    }
+}
+
+/**
+ * Disconnect from the BLE device
+ */
+function disconnect() {
+    if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+        log('🔌 Disconnected from device');
+    }
+    
+    // Reset state
+    device = null;
+    server = null;
+    characteristics = {};
+    isConnected = false;
+    deviceType = 'unknown';
+    
+    if (window.uiController && window.uiController.updateStatus) {
+        window.uiController.updateStatus(false);
+    }
+}
+
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
+
+/**
+ * Log messages to console and UI log element
+ * @param {string} message - Message to log
+ */
+function log(message) {
+    console.log(message);
+    
+    // Also log to UI if available
+    if (window.uiController && window.uiController.log) {
+        window.uiController.log(message);
+    } else {
+        // Fallback to direct DOM manipulation
+        const logElement = document.getElementById('log');
+        if (logElement) {
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+    }
+}
+
+// ========================================
+// PROTOCOL MESSAGE CREATION
+// ========================================
+
+/**
+ * Format bytes array as hex string for logging
+ * @param {ArrayBuffer|Uint8Array} data - Data to format
+ * @returns {string} Formatted hex string
+ */
+function formatBytes(data) {
+    return Array.from(new Uint8Array(data.buffer || data))
+        .map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+}
+
+/**
+ * Calculate XOR checksum for array of bytes
+ * @param {Array|Uint8Array} bytes - Bytes to checksum
+ * @returns {number} XOR checksum
+ */
+function calculateXORChecksum(bytes) {
+    let xor = 0;
+    for (let i = 0; i < bytes.length; i++) {
+        xor ^= bytes[i];
+    }
+    return xor;
+}
+
+/**
+ * Format hex dump for detailed byte analysis
+ * @param {Uint8Array} bytes - Bytes to format
+ * @returns {string} Formatted hex dump
+ */
+function formatHexDump(bytes) {
+    let hexDump = '';
+    for (let i = 0; i < bytes.length; i += 16) {
+        // Address
+        hexDump += i.toString(16).padStart(4, '0') + ': ';
+        
+        // Hex bytes
+        let hexPart = '';
+        let asciiPart = '';
+        for (let j = 0; j < 16; j++) {
+            if (i + j < bytes.length) {
+                const byte = bytes[i + j];
+                hexPart += byte.toString(16).padStart(2, '0') + ' ';
+                // ASCII representation (printable chars only)
+                asciiPart += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+            } else {
+                hexPart += '   ';
+            }
+            // Add extra space in middle
+            if (j === 7) hexPart += ' ';
+        }
+        
+        hexDump += hexPart + ' |' + asciiPart + '|\n';
+    }
+    return hexDump;
+}
+
+// ========================================
+// MESSAGE CREATION FUNCTIONS
+// ========================================
+
+/**
+ * Create standard command message for Marstek protocol
+ * @param {number} commandType - Command type byte
+ * @param {Array|null} payload - Optional payload bytes
+ * @returns {Uint8Array} Complete command message with checksum
+ */
+function createCommandMessage(commandType, payload = null) {
+    const header = [START_BYTE, 0, IDENTIFIER_BYTE, commandType];
+    const payloadArray = payload ? Array.from(payload) : [];
+    const messageLength = header.length + payloadArray.length + 1;
+    header[1] = messageLength;
+    const message = [...header, ...payloadArray];
+    const checksum = message.reduce((xor, byte) => xor ^ byte, 0);
+    message.push(checksum);
+    return new Uint8Array(message);
+}
+
+/**
+ * Create meter IP command message using alternative protocol format
+ * @param {number} commandType - Command type byte
+ * @param {Array|null} payload - Optional payload bytes
+ * @returns {Uint8Array} Complete meter IP command message
+ */
+function createMeterIPMessage(commandType, payload = null) {
+    // Alternative format for meter IP commands based on protocol analysis
+    // Frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD] [XOR]
+    // LEN = count of bytes from 0x23 through checksum
+    // XOR = 0x23 ^ CMD ^ PAYLOAD bytes
+    
+    const payloadArray = payload ? Array.from(payload) : [];
+    const len = 4 + payloadArray.length; // 0x23 + cmd + payload + checksum = 4 + payload length
+    
+    const message = [START_BYTE, len, IDENTIFIER_BYTE, commandType, ...payloadArray];
+    
+    // XOR only over [0x23, cmd, payload] - not including 0x73, len, or checksum
+    let checksum = IDENTIFIER_BYTE ^ commandType;
+    for (const byte of payloadArray) {
+        checksum ^= byte;
+    }
+    message.push(checksum);
+    
+    return new Uint8Array(message);
+}
+
+/**
+ * Create BLE OTA frame for firmware update commands
+ * @param {number} command - OTA command byte (0x3A, 0x50, 0x51, 0x52)
+ * @param {number} reserved - Reserved byte (typically 0x10)
+ * @param {Array} payload - Payload bytes
+ * @returns {Uint8Array} Complete OTA frame
+ */
+function createBLEOTAFrame(command, reserved, payload = []) {
+    const frame = [];
+    frame.push(0x73);                    // Header byte
+    
+    // Calculate total frame length: payload + 6 bytes overhead
+    const totalLength = payload.length + 6;
+    frame.push(totalLength & 0xFF);      // Length low byte (LE)
+    frame.push((totalLength >> 8) & 0xFF); // Length high byte (LE)
+    
+    frame.push(command);                 // Command byte (0x50, 0x51, 0x52)
+    frame.push(reserved);                // Reserved byte (0x10)
+    frame.push(...payload);              // Payload
+    
+    // Calculate XOR checksum over all previous bytes
+    let checksum = 0;
+    for (const byte of frame) {
+        checksum ^= byte;
+    }
+    frame.push(checksum);
+    
+    return new Uint8Array(frame);
+}
+
+// ========================================
+// CONNECTION MANAGEMENT
+// ========================================
+
+/**
+ * Update connection status and UI elements
+ * @param {boolean} connected - Connection state
+ * @param {string|null} deviceName - Device name if connected
+ */
+function updateStatus(connected, deviceName = null) {
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const runAllBtn = document.getElementById('runAllBtn');
+    
+    if (!statusEl) return;
+    
+    if (connected && deviceName) {
+        statusEl.textContent = `Connected to ${deviceName}`;
+    } else {
+        statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+    }
+    statusEl.className = connected ? 'connected' : 'disconnected';
+    connectBtn.disabled = connected;
+    disconnectBtn.disabled = !connected;
+    runAllBtn.disabled = !connected;
+    
+    const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
+    buttons.forEach(btn => btn.disabled = !connected);
+    
+    isConnected = connected;
+}
+
+
+// ========================================
+// COMMAND SENDING FUNCTIONS
+// ========================================
+
+/**
+ * Send standard command to BLE device
+ * @param {number} commandType - Command type byte
+ * @param {string} commandName - Human-readable command name for logging
+ * @param {Array|null} payload - Optional payload bytes
+ */
+async function sendCommand(commandType, commandName, payload = null) {
+    if (!isConnected) return;
+    
+    try {
+        const command = createCommandMessage(commandType, payload);
+        window.currentCommand = commandName;
+        
+        log(`📤 Sending ${commandName}...`);
+        log(`📋 Frame: ${formatBytes(command)}`);
+        
+        const writeChars = Object.values(characteristics).filter(char => 
+            char.properties.write || char.properties.writeWithoutResponse
+        );
+        
+        if (writeChars.length === 0) {
+            log('❌ No writable characteristics found');
+            return;
+        }
+        
+        const writeChar = writeChars[0];
+        await writeChar.writeValueWithoutResponse(command);
+        
+    } catch (error) {
+        log(`❌ Failed to send ${commandName}: ${error.message}`);
+    }
+}
+
+/**
+ * Send meter IP command using alternative protocol
+ * @param {number} commandType - Command type byte
+ * @param {string} commandName - Human-readable command name for logging
+ * @param {Array|null} payload - Optional payload bytes
+ */
+async function sendMeterIPCommand(commandType, commandName, payload = null) {
+    if (!isConnected) return;
+    
+    try {
+        const command = createMeterIPMessage(commandType, payload);
+        window.currentCommand = commandName;
+        
+        log(`📤 Sending ${commandName} (Alternative Protocol)...`);
+        log(`📋 Frame: ${formatBytes(command)}`);
+        
+        const writeChars = Object.values(characteristics).filter(char => 
+            char.properties.write || char.properties.writeWithoutResponse
+        );
+        
+        if (writeChars.length === 0) {
+            log('❌ No writable characteristics found');
+            return;
+        }
+        
+        const writeChar = writeChars[0];
+        await writeChar.writeValueWithoutResponse(command);
+        
+    } catch (error) {
+        log(`❌ Failed to send ${commandName}: ${error.message}`);
+    }
+}
+
+// ========================================
+// NOTIFICATION AND RESPONSE HANDLING
+// ========================================
+
+/**
+ * Create notification handler for BLE characteristic
+ * @param {string} charUuid - Characteristic UUID
+ * @returns {Function} Notification handler function
+ */
+function createNotificationHandler(charUuid) {
+    return function(event) {
+        const data = event.target.value;
+        const bytes = new Uint8Array(data.buffer);
+        
+        log(`📨 Response received (${bytes.length} bytes): ${formatBytes(bytes)}`);
+        
+        if (window.currentCommand) {
+            // Use the comprehensive data parser if available
+            if (window.dataParser && window.dataParser.parseResponse) {
+                const parsed = window.dataParser.parseResponse(bytes, window.currentCommand);
+                if (window.uiController && window.uiController.displayData) {
+                    window.uiController.displayData(parsed);
+                } else {
+                    // Fallback display
+                    const dataDisplay = document.getElementById('dataDisplay');
+                    if (dataDisplay) {
+                        dataDisplay.innerHTML = parsed;
+                    }
+                }
+            } else {
+                // Fallback to basic display
+                log('⚠️ Data parser not available, showing raw data');
+                log(`Raw response: ${formatBytes(bytes)}`);
+            }
+            window.currentCommand = null;
+        }
+    };
+}
+
+
+// ========================================
+// OTA FIRMWARE UPDATE FUNCTIONS
+// ========================================
+
+/**
+ * Analyze firmware file to calculate checksum and detect type
+ * @param {ArrayBuffer} firmwareArrayBuffer - Firmware data
+ * @returns {Object} Analysis results with checksum, type, and size
+ */
+function analyzeFirmware(firmwareArrayBuffer) {
+    // Calculate ones' complement checksum as expected by Marstek bootloader
+    const bytes = new Uint8Array(firmwareArrayBuffer);
+    let sum = 0;
+    
+    // Sum all bytes (JavaScript handles 32-bit overflow automatically)
+    for (let i = 0; i < bytes.length; i++) {
+        sum += bytes[i];
+    }
+    
+    // Apply 32-bit mask and ones' complement
+    sum = sum >>> 0; // Convert to unsigned 32-bit
+    const checksum = (~sum) >>> 0; // Ones' complement and convert to unsigned 32-bit
+    
+    // Detect firmware type by checking for VenusC signature at offset 0x50004
+    let firmwareType = 'Unknown';
+    const signatureOffset = 0x50004;
+    
+    if (bytes.length > signatureOffset + 10) {
+        const signatureBytes = bytes.slice(signatureOffset, signatureOffset + 10);
+        const signatureStr = new TextDecoder('utf-8', { fatal: false }).decode(signatureBytes);
+        
+        if (signatureStr.includes('VenusC')) {
+            firmwareType = 'EMS/Control Firmware (VenusC signature found)';
+        } else {
+            // Check if the area contains mostly null bytes or valid data
+            const hasData = signatureBytes.some(b => b !== 0x00 && b !== 0xFF);
+            if (hasData) {
+                firmwareType = 'BMS Firmware (no VenusC signature)';
+            } else {
+                firmwareType = 'Unknown (signature area empty)';
+            }
+        }
+    } else {
+        firmwareType = 'Unknown (file too small)';
+    }
+    
+    log(`📊 Firmware analysis:`);
+    log(`   Size: ${bytes.length} bytes`);
+    log(`   Type: ${firmwareType}`);
+    log(`   Sum: 0x${sum.toString(16).padStart(8, '0')}`);
+    log(`   Checksum: 0x${checksum.toString(16).padStart(8, '0')} (~sum)`);
+    
+    return { checksum, type: firmwareType, size: bytes.length };
+}
+
+/**
+ * Handle OTA notification responses
+ * @param {Event} event - BLE characteristic change event
+ */
+function handleNotification(event) {
+    const value = new Uint8Array(event.target.value.buffer);
+    
+    // Parse OTA frame from notification
+    if (value.length < 6 || value[0] !== 0x73) {
+        log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        return;
+    }
+    
+    const declaredLength = value[1] | (value[2] << 8);
+    if (declaredLength !== value.length) {
+        log(`❌ Length mismatch: declared ${declaredLength}, got ${value.length}`);
+        return;
+    }
+    
+    const cmd = value[3];
+    const reserved = value[4];
+    
+    // Verify XOR checksum
+    let xor = 0;
+    for (let i = 0; i < value.length - 1; i++) {
+        xor ^= value[i];
+    }
+    if (xor !== value[value.length - 1]) {
+        log(`❌ Bad XOR checksum: expected ${xor.toString(16)}, got ${value[value.length - 1].toString(16)}`);
+        return;
+    }
+    
+    const payload = value.slice(5, -1);
+    log(`📥 Received ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+    
+    // Resolve pending ACK promise
+    if (pendingAckResolve) {
+        pendingAckResolve({
+            ok: true,
+            cmd: cmd,
+            reserved: reserved,
+            payload: payload
+        });
+        pendingAckResolve = null;
+    }
+}
+
+/**
+ * Wait for ACK response from device
+ * @param {number} expectedCmd - Expected command in ACK
+ * @param {number} timeoutMs - Timeout in milliseconds
+ * @returns {Promise} Promise resolving to ACK response
+ */
+async function waitForAck(expectedCmd, timeoutMs = 2000) {
+    return new Promise((resolve, reject) => {
+        pendingAckResolve = (ack) => {
+            if (ack.cmd === expectedCmd) {
+                resolve(ack);
+            } else {
+                resolve({
+                    ok: false,
+                    reason: `unexpected cmd: expected 0x${expectedCmd.toString(16)}, got 0x${ack.cmd.toString(16)}`
+                });
+            }
+        };
+        
+        setTimeout(() => {
+            if (pendingAckResolve) {
+                pendingAckResolve = null;
+                resolve({ ok: false, reason: "timeout" });
+            }
+        }, timeoutMs);
+    });
+}
+
+/**
+ * Connect and prepare OTA characteristics
+ */
+async function connectAndPrepareOTA() {
+    if (!device) {
+        throw new Error("No device connected");
+    }
+    
+    // Find TX and RX characteristics
+    const service = await device.gatt.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
+    txCharacteristic = await service.getCharacteristic('0000ff01-0000-1000-8000-00805f9b34fb');
+    rxCharacteristic = await service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
+    
+    // Enable notifications on RX characteristic
+    await rxCharacteristic.startNotifications();
+    rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+    log('✅ Notifications enabled on RX characteristic (ff02)');
+    
+    // Use fixed 128-byte chunks as per protocol specification
+    otaChunkSize = 128;
+    log(`📏 Using protocol chunk size: ${otaChunkSize} bytes (128 data + 4 offset)`);
+    
+    // Analyze firmware: checksum + type detection
+    const analysis = analyzeFirmware(firmwareData);
+    firmwareChecksum = analysis.checksum;
+    log(`🔑 Firmware ready for upload`);
+}
+
+/**
+ * Send OTA activation command
+ * @returns {Promise<boolean>} Success status
+ */
+async function sendOTAActivate() {
+    if (!txCharacteristic) {
+        log('❌ TX characteristic not ready');
+        return false;
+    }
+
+    try {
+        log('🔄 Activating OTA mode with cmd 0x3A...');
+        // Step 1: Send activation command 0x3A with fixed pattern
+        // Expects: buf[1]==5, buf[3]==3, buf[4]==2
+        const activatePayload = [0x00, 0x05, 0x00, 0x03, 0x02];
+        const frame = createBLEOTAFrame(0x3A, 0x10, activatePayload);
+        await txCharacteristic.writeValueWithoutResponse(frame);
+        log('✅ OTA activation (0x3A) sent, waiting for ACK...');
+        
+        // Wait for ACK with cmd=0x3A and status 0x01
+        const ack = await waitForAck(0x3A, 2000);
+        if (!ack.ok) {
+            log(`❌ Activation ACK failed: ${ack.reason}`);
+            return false;
+        }
+        
+        // Check for status byte 0x01 indicating success
+        if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
+            log('✅ OTA activation confirmed - device entered state 1');
+            return true;
+        } else {
+            const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
+            log(`❌ OTA activation failed - status: ${status}`);
+            return false;
+        }
+    } catch (error) {
+        log(`❌ Failed to activate OTA mode: ${error.message}`);
+        return false;
+    }
+}
+
+/**
+ * Send firmware size and checksum to device
+ * @param {number} firmwareSize - Size of firmware in bytes
+ * @returns {Promise<boolean>} Success status
+ */
+async function sendFirmwareSize(firmwareSize) {
+    if (!txCharacteristic) {
+        log('❌ TX characteristic not ready');
+        return false;
+    }
+
+    try {
+        log(`📏 Sending firmware size: ${firmwareSize} bytes with checksum: 0x${firmwareChecksum.toString(16)}`);
+        
+        // Step 2: Send firmware length in 8-byte payload: size LE (4) + checksum LE (4)
+        const sizePayload = [
+            firmwareSize & 0xFF,
+            (firmwareSize >> 8) & 0xFF,
+            (firmwareSize >> 16) & 0xFF,
+            (firmwareSize >> 24) & 0xFF,
+            firmwareChecksum & 0xFF,
+            (firmwareChecksum >> 8) & 0xFF,
+            (firmwareChecksum >> 16) & 0xFF,
+            (firmwareChecksum >> 24) & 0xFF
+        ];
+        
+        const frame = createBLEOTAFrame(0x50, 0x10, sizePayload);
+        await txCharacteristic.writeValueWithoutResponse(frame);
+        log('✅ Firmware size sent, waiting for ACK...');
+        
+        // Wait for ACK (device should echo the same cmd=0x50)
+        const ack = await waitForAck(0x50, 2000);
+        if (!ack.ok) {
+            log(`❌ Size ACK failed: ${ack.reason}`);
+            return false;
+        }
+        
+        // Verify device echoed our firmware checksum in the ACK payload
+        if (ack.payload.length >= 8) {
+            const echoedChecksum = ack.payload[4] | (ack.payload[5] << 8) | (ack.payload[6] << 16) | (ack.payload[7] << 24);
+            if (echoedChecksum === firmwareChecksum) {
+                log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
+            } else {
+                log(`⚠️ Firmware checksum mismatch: sent 0x${firmwareChecksum.toString(16)}, got 0x${echoedChecksum.toString(16)}`);
+            }
+        }
+        
+        log('✅ Firmware size confirmed');
+        return true;
+    } catch (error) {
+        log(`❌ Failed to send firmware size: ${error.message}`);
+        return false;
+    }
+}
+
+/**
+ * Send firmware data chunk
+ * @param {Uint8Array} chunkData - Chunk data to send
+ * @param {number} offset - Offset in firmware file
+ * @param {number} chunkIndex - Current chunk index
+ * @param {number} totalChunks - Total number of chunks
+ * @returns {Promise<boolean>} Success status
+ */
+async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
+    if (!txCharacteristic) {
+        log('❌ TX characteristic not ready');
+        return false;
+    }
+
+    try {
+        // Step 3: Send firmware chunk with cmd=0x51
+        // Payload: 4-byte offset (LE) + 128 bytes of firmware data
+        const payload = [
+            offset & 0xFF,
+            (offset >> 8) & 0xFF,
+            (offset >> 16) & 0xFF,
+            (offset >> 24) & 0xFF,
+            ...Array.from(chunkData)
+        ];
+        
+        const frame = createBLEOTAFrame(0x51, 0x10, payload);
+        await txCharacteristic.writeValueWithoutResponse(frame);
+        
+        // Update progress
+        const progress = Math.round((chunkIndex / totalChunks) * 100);
+        if (document.getElementById('otaProgress')) {
+            document.getElementById('otaProgress').style.width = `${progress}%`;
+        }
+        if (document.getElementById('otaStatus')) {
+            document.getElementById('otaStatus').textContent = 
+                `Uploading: ${chunkIndex}/${totalChunks} chunks (${progress}%)`;
+        }
+        
+        log(`📤 Sent chunk ${chunkIndex}/${totalChunks} at offset 0x${offset.toString(16)} (${chunkData.length} bytes)`);
+        
+        // Wait for ACK (cmd=0x51) with echoed offset
+        const ack = await waitForAck(0x51, 1500);
+        if (!ack.ok) {
+            log(`❌ Chunk ${chunkIndex} ACK failed: ${ack.reason}`);
+            return false;
+        }
+        
+        // Verify device echoed back the correct offset
+        if (ack.payload.length >= 4) {
+            const echoedOffset = ack.payload[0] | (ack.payload[1] << 8) | (ack.payload[2] << 16) | (ack.payload[3] << 24);
+            if (echoedOffset === offset) {
+                log(`✅ Chunk ${chunkIndex} confirmed at offset 0x${offset.toString(16)}`);
+            } else {
+                log(`⚠️ Offset mismatch: sent 0x${offset.toString(16)}, got 0x${echoedOffset.toString(16)}`);
+            }
+        } else {
+            log(`✅ Chunk ${chunkIndex} confirmed (no offset echo)`);
+        }
+        
+        return true;
+    } catch (error) {
+        log(`❌ Failed to send chunk ${chunkIndex}: ${error.message}`);
+        return false;
+    }
+}
+
+/**
+ * Send OTA finalization command
+ * @returns {Promise<boolean>} Success status
+ */
+async function sendOTAFinalize() {
+    if (!txCharacteristic) {
+        log('❌ TX characteristic not ready');
+        return false;
+    }
+
+    try {
+        log('🏁 Sending OTA finalization command...');
+        // Step 4: Send finalize command with cmd=0x52 and empty payload
+        const frame = createBLEOTAFrame(0x52, 0x10, []);
+        await txCharacteristic.writeValueWithoutResponse(frame);
+        log('✅ OTA finalize command sent, waiting for confirmation...');
+        
+        // Wait for ACK (cmd=0x52) with payload indicating success (0x01) or failure
+        const ack = await waitForAck(0x52, 3000);
+        if (!ack.ok) {
+            log(`❌ Finalize ACK failed: ${ack.reason}`);
+            return false;
+        }
+        
+        // For 0x52 ACK: payload[0] == 0x01 means success
+        if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
+            log('✅ OTA finalization successful - device will restart');
+            return true;
+        } else {
+            const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
+            log(`❌ OTA finalization failed - status: ${status}`);
+            return false;
+        }
+    } catch (error) {
+        log(`❌ Failed to finalize OTA update: ${error.message}`);
+        return false;
+    }
+}
+
+/**
+ * Perform complete OTA firmware update
+ */
+async function performOTAUpdate() {
+    if (!firmwareData) {
+        log('❌ No firmware file selected');
+        return;
+    }
+
+    if (otaInProgress) {
+        log('⚠️ OTA update already in progress');
+        return;
+    }
+
+    otaInProgress = true;
+    otaCurrentChunk = 0;
+    
+    try {
+        log(`🚀 Starting OTA update...`);
+        log(`📄 Firmware size: ${firmwareData.byteLength} bytes`);
+        
+        // Step 0: Connect and prepare OTA characteristics
+        await connectAndPrepareOTA();
+        
+        // Calculate chunks using computed chunk size
+        otaTotalChunks = Math.ceil(firmwareData.byteLength / otaChunkSize);
+        log(`📦 Total chunks: ${otaTotalChunks} (${otaChunkSize} bytes each)`);
+        
+        // Step 1: Send activation command 0x3A to enter OTA mode
+        if (!await sendOTAActivate()) {
+            throw new Error('Failed to activate OTA mode');
+        }
+        
+        // Step 2: Send firmware size with session token
+        if (!await sendFirmwareSize(firmwareData.byteLength)) {
+            throw new Error('Failed to send firmware size');
+        }
+        
+        // Step 3: Send firmware data in chunks
+        log('📤 Starting firmware data transfer...');
+        let offset = 0;
+        let chunkIndex = 0;
+        
+        while (offset < firmwareData.byteLength) {
+            const end = Math.min(offset + otaChunkSize, firmwareData.byteLength);
+            const chunk = new Uint8Array(firmwareData.slice(offset, end));
+            
+            let retryCount = 0;
+            let chunkSent = false;
+            
+            while (!chunkSent && retryCount < 3) {
+                try {
+                    if (!await sendFirmwareChunk(chunk, offset, chunkIndex + 1, otaTotalChunks)) {
+                        throw new Error(`Failed to send chunk ${chunkIndex + 1}`);
+                    }
+                    chunkSent = true;
+                    offset += chunk.length;
+                    chunkIndex++;
+                } catch (error) {
+                    retryCount++;
+                    log(`⚠️ Retry ${retryCount}/3 for chunk ${chunkIndex + 1}: ${error.message}`);
+                    if (retryCount >= 3) {
+                        throw new Error(`Failed to send chunk ${chunkIndex + 1} after 3 retries`);
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Small backoff
+                }
+            }
+        }
+        
+        // Step 4: Finalize OTA update
+        log('🏁 Finalizing OTA update...');
+        if (!await sendOTAFinalize()) {
+            throw new Error('Failed to finalize OTA update');
+        }
+        
+        log('✅ OTA update completed successfully!');
+        if (document.getElementById('otaStatus')) {
+            document.getElementById('otaStatus').textContent = 'Update completed! Device will restart...';
+        }
+        
+    } catch (error) {
+        log(`❌ OTA update failed: ${error.message}`);
+        if (document.getElementById('otaStatus')) {
+            document.getElementById('otaStatus').textContent = `Update failed: ${error.message}`;
+        }
+    } finally {
+        otaInProgress = false;
+    }
+}
+
+/**
+ * Handle firmware file selection
+ * @param {Event} event - File input change event
+ */
+function handleFirmwareFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    log(`📁 Selected firmware file: ${file.name} (${file.size} bytes)`);
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        firmwareData = e.target.result;
+        
+        // Analyze firmware to get type and checksum info
+        const analysis = analyzeFirmware(firmwareData);
+        
+        // Update UI with detailed firmware info
+        if (document.getElementById('otaFileInfo')) {
+            document.getElementById('otaFileInfo').innerHTML = `
+                <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
+                <strong>Type:</strong> ${analysis.type}<br>
+                <strong>Checksum:</strong> 0x${analysis.checksum.toString(16).padStart(8, '0').toUpperCase()}
+            `;
+        }
+        
+        // Enable start button only if connected and file loaded
+        const startBtn = document.getElementById('otaStartBtn');
+        if (device && characteristics) {
+            if (startBtn) startBtn.disabled = false;
+        }
+        
+        // Show progress container
+        if (document.getElementById('otaProgressContainer')) {
+            document.getElementById('otaProgressContainer').style.display = 'block';
+        }
+        if (document.getElementById('otaStatus')) {
+            document.getElementById('otaStatus').textContent = 'Ready to start...';
+        }
+        
+        log('✅ Firmware file analyzed and ready for upload');
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ========================================
+// SPECIALIZED COMMAND FUNCTIONS
+// ========================================
+
+/**
+ * Set current date and time on device
+ */
+function setCurrentDateTime() {
+    if (!isConnected) return;
+    
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const second = now.getSeconds();
+    
+    // Format: [year_low, year_high, month, day, hour, minute, second]
+    const payload = [
+        year & 0xFF,           // Year low byte
+        (year >> 8) & 0xFF,    // Year high byte  
+        month,
+        day,
+        hour,
+        minute,
+        second
+    ];
+    
+    log(`🕐 Setting time to ${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}:${second.toString().padStart(2,'0')}`);
+    sendCommand(0x0B, 'Set Date/Time', payload);
+}
+
+/**
+ * Set local API port with user input
+ */
+function setLocalApiPort() {
+    if (!isConnected) return;
+    
+    const portInput = prompt('Enter the local API port number (1-65535):', '8080');
+    if (!portInput) return;
+    
+    const port = parseInt(portInput);
+    if (isNaN(port) || port < 1 || port > 65535) {
+        log('❌ Invalid port number. Must be between 1 and 65535.');
+        return;
+    }
+    
+    // Format: [enable_flag, port_low, port_high]
+    const payload = [
+        0x01,                  // Enable flag (1 = enable with port)
+        port & 0xFF,           // Port low byte
+        (port >> 8) & 0xFF     // Port high byte
+    ];
+    
+    log(`🌐 Setting local API port to ${port}`);
+    sendCommand(0x28, `Set Local API Port ${port}`, payload);
+}
+
+/**
+ * Run comprehensive test sequence
+ */
+async function runAllTests() {
+    if (!isConnected) return;
+    
+    log('🧪 Starting comprehensive test sequence...');
+    clearAll();
+    
+    const commands = [
+        { cmd: 0x03, name: 'Runtime Info' },
+        { cmd: 0x04, name: 'Device Info' },
+        { cmd: 0x08, name: 'WiFi Info' },
+        { cmd: 0x0D, name: 'System Data' },
+        { cmd: 0x13, name: 'Error Codes' },
+        { cmd: 0x14, name: 'BMS Data' },
+        { cmd: 0x1A, name: 'Config Data' },
+        { cmd: 0x1C, name: 'Event Log' },
+        { cmd: 0x21, name: 'Read Meter IP', payload: [0x0B] },
+        { cmd: 0x24, name: 'Network Info' }
+    ];
+    
+    for (const test of commands) {
+        log(`\n📋 Running test: ${test.name}`);
+        await sendCommand(test.cmd, test.name, test.payload);
+        // Wait 1 second between commands to avoid overwhelming the device
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    log('\n✅ All tests completed! Check the hex dumps above for analysis.');
+}
+
+
+
+// ========================================
+// CONFIGURATION MANAGEMENT FUNCTIONS
+// ========================================
+
+/**
+ * Send configuration write command with user input
+ * Command 80 (0x80) with sub-command 12 (0x0C) for XID config
+ */
+async function sendConfigWriteCommand() {
+    if (!isConnected) {
+        log('❌ Not connected to device');
+        return;
+    }
+    
+    // Prompt for configuration data with security warning
+    const confirmWrite = confirm(
+        '⚠️ WARNING: This will modify device server credentials!\n\n' +
+        'This command writes server configuration including:\n' +
+        '• Server URL\n' +
+        '• Port number\n' +
+        '• Username\n' +
+        '• Password\n\n' +
+        'Incorrect settings may prevent remote monitoring.\n\n' +
+        'Do you want to continue?'
+    );
+    
+    if (!confirmWrite) {
+        log('ℹ️ Configuration write cancelled by user');
+        return;
+    }
+    
+    // Get configuration details from user
+    const url = prompt("Enter server URL (e.g., server.example.com):");
+    if (!url) {
+        log('❌ Server URL is required');
+        return;
+    }
+    
+    const port = prompt("Enter port number (e.g., 8080):");
+    if (!port || isNaN(port) || port <= 0 || port > 65535) {
+        log('❌ Valid port number is required (1-65535)');
+        return;
+    }
+    
+    const username = prompt("Enter username:");
+    if (!username) {
+        log('❌ Username is required');
+        return;
+    }
+    
+    const password = prompt("Enter password:");
+    if (!password) {
+        log('❌ Password is required');
+        return;
+    }
+    
+    try {
+        // Create payload in format: URL<.,.>port<.,.>username<.,.>password
+        const delimiter = '<.,.>';
+        const configString = `${url}${delimiter}${port}${delimiter}${username}${delimiter}${password}`;
+        const configBytes = Array.from(new TextEncoder().encode(configString));
+        
+        // Add sub-command byte (0x0C = 12 for XID config write)
+        const fullPayload = [0x0C, ...configBytes];
+        
+        const command = createCommandMessage(0x80, fullPayload);
+        window.currentCommand = 'Write Configuration';
+        
+        log('📤 Sending Write Configuration...');
+        log('⚠️  WARNING: Modifying device server credentials!');
+        log(`📋 Config: URL=${url}, Port=${port}, User=${username}, Pass=${'*'.repeat(password.length)}`);
+        log(`📋 Frame: ${formatBytes(command)}`);
+        
+        const writeChars = Object.values(characteristics).filter(char => 
+            char.properties.write || char.properties.writeWithoutResponse
+        );
+        
+        if (writeChars.length === 0) {
+            log('❌ No writable characteristics found');
+            return;
+        }
+        
+        const writeChar = writeChars[0];
+        await writeChar.writeValueWithoutResponse(command);
+        log('✅ Configuration write command sent successfully');
+        
+    } catch (error) {
+        log(`❌ Failed to send Write Configuration: ${error.message}`);
+    }
+}
+
+// ========================================
+// BROWSER COMPATIBILITY CHECK
+// ========================================
+
+// Check browser compatibility
+if (!navigator.bluetooth) {
+    log('❌ Web Bluetooth not supported');
+}
+
+// Export functions for global access
+if (typeof window !== 'undefined') {
+    // Connection functions
+    window.connect = connect;
+    window.disconnect = disconnect;
+    
+    // Command sending functions
+    window.sendCommand = sendCommand;
+    window.sendMeterIPCommand = sendMeterIPCommand;
+    window.sendConfigWriteCommand = sendConfigWriteCommand;
+    
+    // Utility functions
+    window.formatBytes = formatBytes;
+    window.createCommandMessage = createCommandMessage;
+    
+    // OTA functions
+    window.handleFirmwareFile = handleFirmwareFile;
+    window.performOTAUpdate = performOTAUpdate;
+    
+    // Test functions
+    window.runAllTests = runAllTests;
+    window.setCurrentDateTime = setCurrentDateTime;
+    window.setLocalApiPort = setLocalApiPort;
+}
