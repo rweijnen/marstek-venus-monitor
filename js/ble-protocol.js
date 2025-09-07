@@ -223,7 +223,9 @@ function formatHexDump(bytes) {
 function createCommandMessage(commandType, payload = null) {
     const header = [START_BYTE, 0, IDENTIFIER_BYTE, commandType];
     const payloadArray = payload ? Array.from(payload) : [];
-    const messageLength = header.length + payloadArray.length + 1;
+    // LEN = count of bytes AFTER length field (from 0x23 to end including checksum)
+    // For read commands: 0x23 + cmd + checksum = 3 bytes
+    const messageLength = 3 + payloadArray.length;
     header[1] = messageLength;
     const message = [...header, ...payloadArray];
     const checksum = message.reduce((xor, byte) => xor ^ byte, 0);
