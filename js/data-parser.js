@@ -73,6 +73,25 @@ function parseResponse(data, commandName) {
             }
             break;
             
+        case 0x0A: // Get Settings Info
+            output += '<h3>⚙️ Settings Information</h3>';
+            if (payload.length >= 80) {
+                output += '<div class="data-grid">';
+                output += `<div><strong>Settings Data Length:</strong> ${payload.length} bytes</div>`;
+                // Parse the 80 bytes of settings data - structure from firmware
+                const view = new DataView(payload.buffer, payload.byteOffset);
+                for (let i = 0; i < Math.min(10, payload.length / 8); i++) {
+                    const offset = i * 8;
+                    if (offset + 7 < payload.length) {
+                        output += `<div><strong>Setting ${i+1}:</strong> ${view.getUint32(offset, true)} / ${view.getUint32(offset + 4, true)}</div>`;
+                    }
+                }
+                output += '</div>';
+            } else {
+                output += `<div class="error">Incomplete settings data (${payload.length} bytes, expected 80)</div>`;
+            }
+            break;
+            
         case 0x08: // WiFi Info
             output += '<h3>📶 WiFi Information</h3>';
             try {
