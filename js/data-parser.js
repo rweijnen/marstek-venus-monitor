@@ -237,6 +237,35 @@ function parseResponse(data, commandName) {
             }
             break;
             
+        case 0x27: // Power Data Array
+            output += '<h3>📊 Power Data Array</h3>';
+            if (payload.length >= 6) {
+                const numEntries = (payload.length - 5) / 6; // Each entry is 6 bytes
+                const powerData = [];
+                const currentData = [];
+                
+                // Skip first 5 bytes (header), then parse 6-byte entries
+                for (let i = 5; i < payload.length - 1 && powerData.length < 30; i += 6) {
+                    if (i + 5 < payload.length) {
+                        const view = new DataView(payload.buffer, payload.byteOffset + i);
+                        const power = view.getUint32(0, true); // 4 bytes power
+                        const current = view.getUint16(4, true); // 2 bytes current
+                        powerData.push(power);
+                        currentData.push(current);
+                    }
+                }
+                
+                output += `
+                <div class="data-grid">
+                    <div><strong>Number of Entries:</strong> ${powerData.length}</div>
+                    <div><strong>Power Values:</strong> [${powerData.join(', ')}]</div>
+                    <div><strong>Current Values:</strong> [${currentData.join(', ')}]</div>
+                </div>`;
+            } else {
+                output += '<div class="data-grid"><div><strong>Status:</strong> No power data available</div></div>';
+            }
+            break;
+            
         case 0x28: // Local API Status
             output += '<h3>🌐 Local API Configuration</h3>';
             if (payload.length >= 3) {
