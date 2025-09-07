@@ -133,6 +133,14 @@
                     <span class="cmd-button-text">🌐 Read Local API Status</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>
                 </button>
+                <button onclick="sendCommand(0x10, 'Read Configuration')" disabled class="cmd-button" data-tooltip="Read device configuration including server credentials (~80 bytes)">
+                    <span class="cmd-button-text">📋 Read Configuration</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('readconfig')">i</span>
+                </button>
+                <button onclick="sendCommand(0x27, 'Get Power Data Array', [0x1E])" disabled class="cmd-button" data-tooltip="Get array of last 30 power measurements">
+                    <span class="cmd-button-text">📊 Get Power Array (30)</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('powerarray')">i</span>
+                </button>
             </div>
 
             <!-- Power Management Commands -->
@@ -224,17 +232,9 @@
                         <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
                     </button>
-                    <button onclick="sendCommand(0x10, 'Read Configuration')" disabled class="btn-safe cmd-button" data-tooltip="Read device configuration including server credentials (~80 bytes)">
-                        <span class="cmd-button-text">📋 Read Configuration</span>
-                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('readconfig')">i</span>
-                    </button>
                     <button onclick="sendConfigWriteCommand()" disabled class="btn-danger cmd-button" data-tooltip="Write configuration data with server credentials">
                         <span class="cmd-button-text">💾 Write Configuration</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('writeconfig')">i</span>
-                    </button>
-                    <button onclick="sendCommand(0x27, 'Get Power Data Array', [0x1E])" disabled class="btn-safe cmd-button" data-tooltip="Get array of last 30 power measurements">
-                        <span class="cmd-button-text">📊 Get Power Array (30)</span>
-                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('powerarray')">i</span>
                     </button>
                 </div>
             </div>
@@ -253,10 +253,6 @@
                     <button onclick="sendCommand(0x0C, 'Disable Dev Mode', [0x0A, 0x0B, 0x0C, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable development mode">
                         <span class="cmd-button-text">🔒 Disable Dev Mode</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('devmodedisable')">i</span>
-                    </button>
-                    <button onclick="sendCommand(0x0D, 'Get Dev Mode Info')" disabled class="btn-safe cmd-button" data-tooltip="Get development mode information">
-                        <span class="cmd-button-text">📊 Dev Mode Info</span>
-                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('devinfo')">i</span>
                     </button>
                     <button onclick="sendCommand(0x1F, 'Trigger FW Upgrade', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Trigger firmware upgrade mode (requires magic bytes)">
                         <span class="cmd-button-text">⬆️ FW Upgrade Mode</span>
