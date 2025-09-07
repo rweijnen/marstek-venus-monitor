@@ -113,12 +113,8 @@
                     <span class="cmd-button-text">📝 Event Log</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
                 </button>
-                <button onclick="sendCommand(0x21, 'Read Meter IP (Method 1)', [0x0B])" disabled data-tooltip="Read meter IP using current protocol" class="cmd-button">
-                    <span class="cmd-button-text">🌐 Read Meter IP (Method 1)</span>
-                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
-                </button>
-                <button onclick="sendMeterIPCommand(0x21, 'Read Meter IP (Method 2)', [0x0B])" disabled data-tooltip="Read meter IP using alternative protocol" class="cmd-button">
-                    <span class="cmd-button-text">🌐 Read Meter IP (Method 2)</span>
+                <button onclick="sendMeterIPCommand(0x21, 'Read P1 Meter IP', [0x0B])" disabled data-tooltip="Read P1 meter IP address from device configuration" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read P1 Meter IP</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
                 </button>
                 <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="cmd-button">

@@ -375,12 +375,12 @@ const commandInfo = {
         notes: '📅 Historical system events and state changes log.'
     },
     meterip: {
-        title: '🌐 Read Meter IP (0x21)',
-        description: 'Read meter IP address using different protocol methods',
-        command: 'Method 1: 0x73 0x05 0x23 0x21 0x0B [checksum]<br>Method 2: Alternative protocol',
-        response: '4 bytes representing IP address in network byte order',
-        sampleData: '192.168.1.100 (0xC0A80164)',
-        notes: '🔍 Two methods available. Method 2 uses alternative protocol for compatibility.'
+        title: '🌐 Read P1 Meter IP (0x21)',
+        description: 'Read P1 power meter IP address from device configuration',
+        command: '0x73 0x05 0x23 0x21 0x0B [checksum] (Alternative protocol)',
+        response: '4 bytes representing IP address or text string with IP',
+        sampleData: '192.168.1.100 or "192.168.1.100"',
+        notes: '🔍 Reads the IP address of the connected P1 meter. Uses alternative protocol for compatibility with current firmware. Returns 0xFF bytes if no meter IP is configured.'
     },
     network: {
         title: '🔗 Network Info (0x24)',
