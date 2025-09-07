@@ -228,6 +228,10 @@
                         <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
                     </button>
+                    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 3', [0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 3 (extended/custom)">
+                        <span class="cmd-button-text">CT Polling: Rate 3 (Extended)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll3')">i</span>
+                    </button>
                     <button onclick="sendConfigWriteCommand()" disabled class="btn-danger cmd-button" data-tooltip="Write configuration data with server credentials">
                         <span class="cmd-button-text">💾 Write Configuration</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('writeconfig')">i</span>

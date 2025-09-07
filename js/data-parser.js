@@ -204,37 +204,47 @@ function parseResponse(data, commandName) {
             
         case 0x22: // CT Polling Rate
             output += '<h3>📊 CT Polling Rate Configuration</h3>';
-            if (payload.length >= 1) {
-                const pollingRate = payload[0];
-                let rateText = 'Unknown';
-                let rateDescription = '';
-                switch (pollingRate) {
-                    case 0: 
-                        rateText = 'Rate 0 (Fastest)';
-                        rateDescription = 'Fastest polling rate setting';
-                        break;
-                    case 1: 
-                        rateText = 'Rate 1 (Medium)';
-                        rateDescription = 'Medium polling rate setting';
-                        break;
-                    case 2: 
-                        rateText = 'Rate 2 (Slowest)';
-                        rateDescription = 'Slowest polling rate setting';
-                        break;
-                    default: 
-                        rateText = `Rate ${pollingRate} (Unknown)`;
-                        rateDescription = 'Unexpected value';
-                        break;
-                }
-                output += `
-                <div class="data-grid">
-                    <div><strong>Current Rate:</strong> ${rateText}</div>
-                    <div><strong>Description:</strong> ${rateDescription}</div>
-                    <div><strong>Raw Value:</strong> 0x${pollingRate.toString(16).padStart(2, '0')}</div>
-                </div>`;
-            } else {
-                output += '<div class="data-grid"><div><strong>Status:</strong> Configuration updated</div></div>';
+            // The response format seems to be: command echo + checksum + actual value
+            // So the actual polling rate is the last byte of the payload
+            let pollingRate = 0;
+            if (payload.length >= 2) {
+                // Get the last byte as the actual polling rate
+                pollingRate = payload[payload.length - 1];
+            } else if (payload.length >= 1) {
+                pollingRate = payload[0];
             }
+            
+            let rateText = 'Unknown';
+            let rateDescription = '';
+            switch (pollingRate) {
+                case 0: 
+                    rateText = 'Rate 0 (Fastest)';
+                    rateDescription = 'Fastest polling rate setting';
+                    break;
+                case 1: 
+                    rateText = 'Rate 1 (Medium)';
+                    rateDescription = 'Medium polling rate setting';
+                    break;
+                case 2: 
+                    rateText = 'Rate 2 (Slowest)';
+                    rateDescription = 'Slowest polling rate setting';
+                    break;
+                case 3: 
+                    rateText = 'Rate 3 (Custom/Extended)';
+                    rateDescription = 'Extended polling rate setting';
+                    break;
+                default: 
+                    rateText = `Rate ${pollingRate} (0x${pollingRate.toString(16).padStart(2, '0')})`;
+                    rateDescription = 'Non-standard value';
+                    break;
+            }
+            output += `
+            <div class="data-grid">
+                <div><strong>Current Rate:</strong> ${rateText}</div>
+                <div><strong>Description:</strong> ${rateDescription}</div>
+                <div><strong>Raw Value:</strong> 0x${pollingRate.toString(16).padStart(2, '0')}</div>
+                <div><strong>Response Format:</strong> ${payload.length} bytes - ${formatBytes(payload)}</div>
+            </div>`;
             break;
             
         case 0x24: // Network Info
