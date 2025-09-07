@@ -5,8 +5,8 @@
  * and formatting data for display in the UI.
  */
 
-// Device type detection (will be set based on device info response)
-let deviceType = 'unknown';
+// Device type detection (accessed via uiController)
+// let deviceType = 'unknown'; // Removed - using uiController.getDeviceType()
 
 /**
  * Parse BLE response data and format for display
@@ -55,11 +55,11 @@ function parseResponse(data, commandName) {
                 // Detect device type based on 'type' field
                 if (info.type) {
                     if (info.type.startsWith('HME')) {
-                        deviceType = 'meter';
+                        if (window.uiController) window.uiController.setDeviceType('meter');
                     } else if (info.type.startsWith('HMG') || info.type.startsWith('HM')) {
-                        deviceType = 'battery';
+                        if (window.uiController) window.uiController.setDeviceType('battery');
                     } else {
-                        deviceType = 'unknown';
+                        if (window.uiController) window.uiController.setDeviceType('unknown');
                     }
                 }
                 
@@ -438,7 +438,8 @@ function formatBytes(data) {
 function parseRuntimeInfo(payload) {
     const view = new DataView(payload.buffer, payload.byteOffset);
     
-    if (deviceType === 'meter') {
+    const currentDeviceType = window.uiController ? window.uiController.getDeviceType() : 'unknown';
+    if (currentDeviceType === 'meter') {
         // CT002 Meter - shorter response, different scaling
         if (payload.length < 15) return null;
         
@@ -478,7 +479,8 @@ function parseRuntimeInfo(payload) {
  * @returns {Object|null} Parsed BMS data
  */
 function parseBMSData(payload) {
-    if (deviceType === 'meter') {
+    const currentDeviceType = window.uiController ? window.uiController.getDeviceType() : 'unknown';
+    if (currentDeviceType === 'meter') {
         // Meter has minimal BMS data - just basic status
         if (payload.length < 3) return null;
         const view = new DataView(payload.buffer, payload.byteOffset);

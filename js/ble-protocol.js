@@ -23,8 +23,7 @@ const IDENTIFIER_BYTE = 0x23;
 let device = null;
 let server = null;
 let characteristics = {};
-let isConnected = false;
-let deviceType = 'unknown'; // 'battery', 'meter', or 'unknown'
+// Note: (window.uiController ? window.uiController.isConnected() : false) and (window.uiController ? window.uiController.getDeviceType() : 'unknown') are managed by ui-controller.js
 
 // OTA-specific globals
 let otaInProgress = false;
@@ -78,14 +77,12 @@ async function connect() {
         // Handle disconnection
         device.addEventListener('gattserverdisconnected', () => {
             log('❌ Device disconnected');
-            isConnected = false;
             if (window.uiController && window.uiController.updateStatus) {
                 window.uiController.updateStatus(false);
             }
         });
 
         // Update connection status
-        isConnected = true;
         if (window.uiController && window.uiController.updateStatus) {
             window.uiController.updateStatus(true, device.name);
         }
@@ -93,16 +90,15 @@ async function connect() {
 
         // Determine device type from name
         if (device.name.includes('ACCP')) {
-            deviceType = 'battery';
+            if (window.uiController) window.uiController.setDeviceType('battery');
             log('🔋 Detected: Battery device (Venus E)');
         } else if (device.name.includes('TPM')) {
-            deviceType = 'meter';
+            if (window.uiController) window.uiController.setDeviceType('meter');
             log('📊 Detected: CT meter device');
         }
 
     } catch (error) {
         log(`❌ Connection failed: ${error.message}`);
-        isConnected = false;
         if (window.uiController && window.uiController.updateStatus) {
             window.uiController.updateStatus(false);
         }
@@ -122,8 +118,7 @@ function disconnect() {
     device = null;
     server = null;
     characteristics = {};
-    isConnected = false;
-    deviceType = 'unknown';
+    // Connection state and device type reset handled by ui-controller
     
     if (window.uiController && window.uiController.updateStatus) {
         window.uiController.updateStatus(false);
@@ -297,34 +292,7 @@ function createBLEOTAFrame(command, reserved, payload = []) {
 // CONNECTION MANAGEMENT
 // ========================================
 
-/**
- * Update connection status and UI elements
- * @param {boolean} connected - Connection state
- * @param {string|null} deviceName - Device name if connected
- */
-function updateStatus(connected, deviceName = null) {
-    const statusEl = document.getElementById('status');
-    const connectBtn = document.getElementById('connectBtn');
-    const disconnectBtn = document.getElementById('disconnectBtn');
-    const runAllBtn = document.getElementById('runAllBtn');
-    
-    if (!statusEl) return;
-    
-    if (connected && deviceName) {
-        statusEl.textContent = `Connected to ${deviceName}`;
-    } else {
-        statusEl.textContent = connected ? 'Connected' : 'Disconnected';
-    }
-    statusEl.className = connected ? 'connected' : 'disconnected';
-    connectBtn.disabled = connected;
-    disconnectBtn.disabled = !connected;
-    runAllBtn.disabled = !connected;
-    
-    const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
-    buttons.forEach(btn => btn.disabled = !connected);
-    
-    isConnected = connected;
-}
+// updateStatus is handled by ui-controller.js
 
 
 // ========================================
@@ -338,7 +306,7 @@ function updateStatus(connected, deviceName = null) {
  * @param {Array|null} payload - Optional payload bytes
  */
 async function sendCommand(commandType, commandName, payload = null) {
-    if (!isConnected) return;
+    if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     try {
         const command = createCommandMessage(commandType, payload);
@@ -371,7 +339,7 @@ async function sendCommand(commandType, commandName, payload = null) {
  * @param {Array|null} payload - Optional payload bytes
  */
 async function sendMeterIPCommand(commandType, commandName, payload = null) {
-    if (!isConnected) return;
+    if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     try {
         const command = createMeterIPMessage(commandType, payload);
@@ -939,7 +907,7 @@ function handleFirmwareFile(event) {
  * Set current date and time on device
  */
 function setCurrentDateTime() {
-    if (!isConnected) return;
+    if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     const now = new Date();
     const year = now.getFullYear();
@@ -968,7 +936,7 @@ function setCurrentDateTime() {
  * Set local API port with user input
  */
 function setLocalApiPort() {
-    if (!isConnected) return;
+    if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     const portInput = prompt('Enter the local API port number (1-65535):', '8080');
     if (!portInput) return;
@@ -994,7 +962,7 @@ function setLocalApiPort() {
  * Run comprehensive test sequence
  */
 async function runAllTests() {
-    if (!isConnected) return;
+    if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     log('🧪 Starting comprehensive test sequence...');
     clearAll();
@@ -1033,7 +1001,7 @@ async function runAllTests() {
  * Command 80 (0x80) with sub-command 12 (0x0C) for XID config
  */
 async function sendConfigWriteCommand() {
-    if (!isConnected) {
+    if (!(window.uiController ? window.uiController.isConnected() : false)) {
         log('❌ Not connected to device');
         return;
     }
