@@ -204,13 +204,10 @@ function parseResponse(data, commandName) {
             
         case 0x22: // CT Polling Rate
             output += '<h3>📊 CT Polling Rate Configuration</h3>';
-            // The response format seems to be: command echo + checksum + actual value
-            // So the actual polling rate is the last byte of the payload
+            // Standard protocol: payload is extracted correctly by slice(4, -1)
+            // The first byte of payload is the actual polling rate value
             let pollingRate = 0;
-            if (payload.length >= 2) {
-                // Get the last byte as the actual polling rate
-                pollingRate = payload[payload.length - 1];
-            } else if (payload.length >= 1) {
+            if (payload.length >= 1) {
                 pollingRate = payload[0];
             }
             
@@ -230,20 +227,29 @@ function parseResponse(data, commandName) {
                     rateDescription = 'Slowest polling rate setting';
                     break;
                 case 3: 
-                    rateText = 'Rate 3 (Custom/Extended)';
+                    rateText = 'Rate 3 (Extended)';
                     rateDescription = 'Extended polling rate setting';
                     break;
                 default: 
-                    rateText = `Rate ${pollingRate} (0x${pollingRate.toString(16).padStart(2, '0')})`;
-                    rateDescription = 'Non-standard value';
+                    if (pollingRate >= 100) {
+                        rateText = `Rate ${pollingRate} (0x${pollingRate.toString(16).padStart(2, '0').toUpperCase()})`;
+                        rateDescription = 'High-value rate (possible time interval in milliseconds or custom encoding)';
+                    } else if (pollingRate >= 10) {
+                        rateText = `Rate ${pollingRate} (0x${pollingRate.toString(16).padStart(2, '0').toUpperCase()})`;
+                        rateDescription = 'Custom polling rate value';
+                    } else {
+                        rateText = `Rate ${pollingRate}`;
+                        rateDescription = 'Non-standard rate value';
+                    }
                     break;
             }
             output += `
             <div class="data-grid">
                 <div><strong>Current Rate:</strong> ${rateText}</div>
                 <div><strong>Description:</strong> ${rateDescription}</div>
-                <div><strong>Raw Value:</strong> 0x${pollingRate.toString(16).padStart(2, '0')}</div>
-                <div><strong>Response Format:</strong> ${payload.length} bytes - ${formatBytes(payload)}</div>
+                <div><strong>Raw Value:</strong> ${pollingRate} (0x${pollingRate.toString(16).padStart(2, '0').toUpperCase()})</div>
+                <div><strong>Payload Length:</strong> ${payload.length} bytes</div>
+                <div><strong>Full Response:</strong> ${formatBytes(data)}</div>
             </div>`;
             break;
             
