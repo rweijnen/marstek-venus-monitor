@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - stable
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Determine deployment path
+        id: path
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/stable" ]]; then
+            echo "path=stable" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "path=beta" >> $GITHUB_OUTPUT
+          else
+            echo "path=." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create deployment directory structure
+        run: |
+          mkdir -p _site
+          if [[ "${{ steps.path.outputs.path }}" == "." ]]; then
+            cp -r * _site/ 2>/dev/null || true
+          else
+            mkdir -p _site/${{ steps.path.outputs.path }}
+            cp -r * _site/${{ steps.path.outputs.path }}/ 2>/dev/null || true
+          fi
+          
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
