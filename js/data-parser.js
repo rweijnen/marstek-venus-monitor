@@ -590,12 +590,15 @@ function parseRuntimeInfo(payload) {
             buildCode: buildCode,                      // 0x4E-0x4F: Build/error code (BE)
             firmwareBuild: firmwareTimestamp,          // 0x51-0x5C: Build timestamp ASCII
             
-            // Calibration/variant tags at end
-            calTag1: view.getUint16(0x5E, true),      // 0x5E-0x5F: Should be 1
-            calTag2: view.getUint16(0x60, true),      // 0x60-0x61: Should be 255
-            calTag3: view.getUint16(0x62, true),      // 0x62-0x63: Should be 1010
-            calTag4: view.getUint16(0x64, true),      // 0x64-0x65: Should be 356
-            apiPort: view.getUint16(0x66, true),      // 0x66-0x67: Local API port (30000)
+            // Reserved counter after build string
+            reservedCounter: view.getUint16(0x5E, true),  // 0x5E-0x5F: Reserved (0x0000)
+            
+            // Calibration/variant tags
+            calTag1: view.getUint16(0x60, true),      // 0x60-0x61: u16 LE -> 0x0001 = 1
+            calTag2: view.getUint8(0x62),             // 0x62: u8 -> 0xFF = 255
+            calTag3: view.getUint16(0x63, false),     // 0x63-0x64: u16 BE -> 0x03F2 = 1010
+            calTag4: view.getUint16(0x65, true),      // 0x65-0x66: u16 LE -> 0x0164 = 356
+            apiPort: view.getUint16(0x67, true),      // 0x67-0x68: u16 LE -> 0x7530 = 30000
             
             // Device type string
             deviceType: `${modelType} Battery System`
