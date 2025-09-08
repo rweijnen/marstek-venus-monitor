@@ -104,6 +104,22 @@ export abstract class BasePayload {
         }
     }
 
+    protected safeReadInt16LE(offset: number, defaultValue: number = 0): number {
+        try {
+            return this.readInt16LE(offset);
+        } catch {
+            return defaultValue;
+        }
+    }
+
+    protected safeReadUint32LE(offset: number, defaultValue: number = 0): number {
+        try {
+            return this.readUint32LE(offset);
+        } catch {
+            return defaultValue;
+        }
+    }
+
     // Abstract method that must be implemented by concrete payload classes
     public abstract parse(): any;
     
