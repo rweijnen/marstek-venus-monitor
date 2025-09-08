@@ -50,7 +50,7 @@ export class RuntimeInfoPayload extends BasePayload {
         const buildCode = this.safeReadUint16LE(0x4E); // Build code at payload offset 0x4E (raw 0x52)
 
         // Parse firmware timestamp (12 ASCII bytes)
-        const firmwareBuild = this.parseFirmwareTimestamp(0x50); // Timestamp at payload offset 0x50 (raw 0x54)
+        const firmwareBuild = this.parseFirmwareTimestamp(0x51); // Timestamp at payload offset 0x51 (raw 0x55)
 
         // Parse calibration tags with bounds checking
         const reservedCounter = this.safeReadUint16LE(0x5C); // Reserved at payload offset 0x5C
@@ -88,9 +88,10 @@ export class RuntimeInfoPayload extends BasePayload {
     private parseFirmwareTimestamp(offset: number): string {
         try {
             const timestampStr = this.readString(offset, 12);
-            if (timestampStr.length >= 12 && /^\d+/.test(timestampStr)) {
+            if (timestampStr.length >= 10 && /^\d+/.test(timestampStr)) {
                 // Format: YYYYMMDDhhmm -> YYYY-MM-DD hh:mm
-                const cleaned = timestampStr.slice(0, 12);
+                // Handle both 12-byte (YYYYMMDDhhmm) and shorter versions
+                const cleaned = timestampStr.padEnd(12, '0').slice(0, 12);
                 return `${cleaned.slice(0,4)}-${cleaned.slice(4,6)}-${cleaned.slice(6,8)} ${cleaned.slice(8,10)}:${cleaned.slice(10,12)}`;
             }
         } catch (e) {
