@@ -77,7 +77,7 @@ function formatHexDump(data: Uint8Array): string {
             if (j === 7) hexPart += ' ';
         }
         
-        hexDump += hexPart + ' |' + asciiPart + '|<br>';
+        hexDump += hexPart + ' |' + asciiPart + '|\n';
     }
     return hexDump;
 }
