@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - gh-pages-stable
+      - stable
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
         id: generate-matrix
         run: |
           # Only build specific branches we care about
-          branches='["main", "gh-pages-stable"]'
+          branches='["main", "stable"]'
           echo "branches=${branches}" >> $GITHUB_OUTPUT
 
   build:
@@ -84,8 +84,8 @@ jobs:
           echo "Building site with branches: ${branches}"
           
           # Copy stable branch to root (main production site)
-          if [ -d "branches/branch-1-gh-pages-stable" ]; then
-            cp -r branches/branch-1-gh-pages-stable/* public/
+          if [ -d "branches/branch-1-stable" ]; then
+            cp -r branches/branch-1-stable/* public/
           fi
           
           # Copy main branch to /latest directory (beta/development)
