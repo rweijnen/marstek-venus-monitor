@@ -534,6 +534,7 @@ function analyzeFirmware(firmwareArrayBuffer) {
     const signatureOffset = 0x50004;
     
     if (bytes.length > signatureOffset + 10) {
+        // Large firmware files - check for EMS signature
         const signatureBytes = bytes.slice(signatureOffset, signatureOffset + 10);
         const signatureStr = new TextDecoder('utf-8', { fatal: false }).decode(signatureBytes);
         
@@ -548,8 +549,12 @@ function analyzeFirmware(firmwareArrayBuffer) {
                 firmwareType = 'Unknown (signature area empty)';
             }
         }
+    } else if (bytes.length >= 32768) {
+        // Smaller firmware files (32KB+) - likely BMS firmware
+        firmwareType = 'BMS Firmware (size suggests BMS)';
     } else {
-        firmwareType = 'Unknown (file too small)';
+        // Very small files - likely not valid firmware
+        firmwareType = 'Unknown (file too small for firmware)';
     }
     
     log(`📊 Firmware analysis:`);
@@ -983,8 +988,8 @@ function handleFirmwareFile(event) {
         
         // Enable start button only if connected and file loaded
         const startBtn = document.getElementById('otaStartBtn');
-        if (device && characteristics) {
-            if (startBtn) startBtn.disabled = false;
+        if (startBtn && device && device.gatt && device.gatt.connected) {
+            startBtn.disabled = false;
         }
         
         // Show progress container

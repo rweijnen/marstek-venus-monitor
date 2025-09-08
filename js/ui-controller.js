@@ -119,6 +119,12 @@ function updateStatus(connected, deviceName = null) {
     const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
     buttons.forEach(btn => btn.disabled = !connected);
     
+    // Handle OTA firmware buttons
+    const firmwareSelectBtn = document.querySelector('button[onclick*="firmwareFile"]');
+    const otaStartBtn = document.getElementById('otaStartBtn');
+    if (firmwareSelectBtn) firmwareSelectBtn.disabled = !connected;
+    if (otaStartBtn) otaStartBtn.disabled = !connected;
+    
     isConnected = connected;
 }
 
