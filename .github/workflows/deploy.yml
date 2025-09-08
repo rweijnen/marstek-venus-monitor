@@ -45,6 +45,41 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install TypeScript
+        run: npm install -g typescript
+        
+      - name: Compile TypeScript
+        run: |
+          # Only compile if TypeScript files exist
+          if [ -d "js" ] && find js -name "*.ts" -type f | grep -q .; then
+            echo "🔨 Compiling TypeScript files..."
+            
+            # Create dist directory for compiled JS
+            mkdir -p js/dist
+            
+            # Compile TypeScript files
+            tsc --target ES2020 --module ES2020 --outDir js/dist --allowJs --skipLibCheck js/**/*.ts || true
+            
+            # Copy compiled files with proper extensions
+            find js -name "*.ts" -type f | while read tsfile; do
+              jsfile="${tsfile%.ts}.js"
+              distfile="js/dist/$(basename ${jsfile})"
+              if [ -f "$distfile" ]; then
+                echo "✅ Compiled: $tsfile -> $distfile"
+              fi
+            done
+            
+            echo "📦 TypeScript compilation completed"
+          else
+            echo "ℹ️ No TypeScript files found, skipping compilation"
+          fi
+      
       - name: Build branch content
         run: |
           # Clean up unnecessary files

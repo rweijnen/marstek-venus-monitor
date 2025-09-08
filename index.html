@@ -377,6 +377,30 @@
     <!-- JavaScript Dependencies -->
     <script src="js/ui-controller.js"></script>
     <script src="js/data-parser.js"></script>
+    <!-- Load compiled TypeScript parser if available, fallback to regular parser -->
+    <script>
+        // Try to load the new TypeScript-compiled parser
+        import('./js/dist/data-parser-ts.js')
+            .then(module => {
+                console.log('✅ Loaded TypeScript parser');
+                // Override the existing parseResponse function with the new clean version
+                if (window.dataParser && module.parseResponse) {
+                    const oldParseResponse = window.dataParser.parseResponse;
+                    window.dataParser.parseResponse = function(data, commandName) {
+                        try {
+                            return module.parseResponse(data, commandName);
+                        } catch (error) {
+                            console.warn('TypeScript parser failed, falling back to old parser:', error);
+                            return oldParseResponse(data, commandName);
+                        }
+                    };
+                    console.log('🔄 Parser upgraded to TypeScript version with fallback');
+                }
+            })
+            .catch(error => {
+                console.log('ℹ️ TypeScript parser not available, using legacy parser:', error.message);
+            });
+    </script>
     <script src="js/ble-protocol.js"></script>
     <script src="js/integration-test.js"></script>
 </body>
