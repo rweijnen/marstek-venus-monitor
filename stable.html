@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redirecting to Stable Version...</title>
+    <title>Loading Stable Version...</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -34,22 +34,48 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .error { background: rgba(255,0,0,0.1); padding: 20px; border-radius: 8px; margin-top: 20px; }
         a { color: white; text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔋 Marstek Venus E Monitor</h1>
-        <div class="spinner"></div>
-        <p>Redirecting to stable version (v1.0.0)...</p>
-        <p><small>If you're not redirected automatically, <a href="https://github.com/rweijnen/marstek-venus-monitor/releases/tag/v1.0.0" id="manualLink">click here</a></small></p>
+        <div class="spinner" id="spinner"></div>
+        <p id="status">Loading stable version (v1.0.0)...</p>
+        <div id="error" class="error" style="display:none;">
+            <p>Unable to load stable version from CDN.</p>
+            <p><small><a href="https://github.com/rweijnen/marstek-venus-monitor/releases/tag/v1.0.0" target="_blank">Download v1.0.0 from GitHub Releases</a></small></p>
+        </div>
     </div>
     
     <script>
-        // Redirect to GitHub release page for v1.0.0 which has proper files
-        setTimeout(() => {
-            window.location.href = 'https://github.com/rweijnen/marstek-venus-monitor/releases/tag/v1.0.0';
-        }, 2000);
+        async function loadStableVersion() {
+            try {
+                // Fetch the v1.0.0 content from JSDelivr
+                const response = await fetch('https://cdn.jsdelivr.net/gh/rweijnen/marstek-venus-monitor@v1.0.0/index.html');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch stable version');
+                }
+                
+                const content = await response.text();
+                
+                // Replace the current document with the stable version content
+                document.open();
+                document.write(content);
+                document.close();
+                
+            } catch (error) {
+                console.error('Error loading stable version:', error);
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('status').textContent = 'Error loading stable version';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+        
+        // Load stable version after a short delay
+        setTimeout(loadStableVersion, 1000);
     </script>
 </body>
 </html>
