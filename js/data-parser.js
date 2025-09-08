@@ -18,8 +18,12 @@ function parseResponse(data, commandName) {
     const commandByte = data[3]; // Command byte is at index 3
     let output = '';
     
-    // Add raw data hex dump
-    output += `<div class="hex-dump"><strong>Raw Data (${data.length} bytes):</strong><br><pre style="font-family: monospace; font-size: 12px; margin: 5px 0;">${formatHexDump(data)}</pre></div>`;
+    // Log technical details instead of showing in display
+    if (window.uiController && window.uiController.log) {
+        window.uiController.log(`📊 Raw Response (${data.length} bytes): ${formatBytes(data)}`);
+        window.uiController.log(`📋 Hex Dump:\n${formatHexDump(data)}`);
+        window.uiController.log(`🔍 Command: 0x${commandByte.toString(16).padStart(2, '0').toUpperCase()}, Payload: ${data.length - 5} bytes`);
+    }
     
     // Extract payload (skip header bytes and checksum)
     const payload = data.slice(4, -1);
@@ -247,9 +251,6 @@ function parseResponse(data, commandName) {
             <div class="data-grid">
                 <div><strong>Current Rate:</strong> ${rateText}</div>
                 <div><strong>Description:</strong> ${rateDescription}</div>
-                <div><strong>Raw Value:</strong> ${pollingRate} (0x${pollingRate.toString(16).padStart(2, '0').toUpperCase()})</div>
-                <div><strong>Payload Length:</strong> ${payload.length} bytes</div>
-                <div><strong>Full Response:</strong> ${formatBytes(data)}</div>
             </div>`;
             break;
             
