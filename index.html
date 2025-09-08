@@ -1691,7 +1691,7 @@
         // Fetch and display version info
         async function displayVersionInfo() {
             try {
-                const response = await fetch('https://api.github.com/repos/rweijnen/marstek-venus-monitor/commits/main');
+                const response = await fetch('https://api.github.com/repos/rweijnen/marstek-venus-monitor/commits/stable');
                 if (response.ok) {
                     const data = await response.json();
                     const commitSha = data.sha.substring(0, 7);
