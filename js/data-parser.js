@@ -509,31 +509,61 @@ function parseRuntimeInfo(payload) {
         if (payload.length < 15) return null;
         
         return {
-            totalPower: (view.getUint16(2, true) / 100).toFixed(2) + 'W',  // ÷100 scaling
-            current: (view.getUint16(4, true) / 100).toFixed(2) + 'A',     // ÷100 scaling  
-            phasePower: (view.getUint16(6, true) / 100).toFixed(2) + 'W',   // ÷100 scaling
-            voltage: view.getUint16(8, true) + 'V',                        // Raw voltage
+            totalPower: (view.getUint16(2, true) / 100).toFixed(2) + 'W',
+            current: (view.getUint16(4, true) / 100).toFixed(2) + 'A',
+            phasePower: (view.getUint16(6, true) / 100).toFixed(2) + 'W',
+            voltage: view.getUint16(8, true) + 'V',
             unknownValue1: view.getUint16(10, true),
             unknownValue2: view.getUint16(12, true),
             deviceType: 'CT002 Power Meter'
         };
     } else {
-        // Battery - full response with battery-specific data
-        if (payload.length < 40) return null;
+        // Battery - full response with corrected field parsing
+        if (payload.length < 85) return null;  // Need at least 85 bytes for firmware timestamp
+        
+        // Parse power rating from offset 0x4A-0x4B (74-75)
+        const powerRating = view.getUint16(0x4A, true);
+        const modelType = powerRating === 2500 ? '2500W' : powerRating === 800 ? '800W' : `${powerRating}W`;
+        
+        // Parse firmware timestamp from offset 0x52 (82)
+        let firmwareTimestamp = 'Unknown';
+        try {
+            const timestampBytes = payload.slice(0x52);
+            const nullIndex = timestampBytes.indexOf(0);
+            if (nullIndex > 0) {
+                const timestampStr = new TextDecoder().decode(timestampBytes.slice(0, nullIndex));
+                if (timestampStr.length === 12 && /^\d+$/.test(timestampStr)) {
+                    // Format: YYYYMMDDhhmm -> YYYY-MM-DD hh:mm
+                    firmwareTimestamp = `${timestampStr.slice(0,4)}-${timestampStr.slice(4,6)}-${timestampStr.slice(6,8)} ${timestampStr.slice(8,10)}:${timestampStr.slice(10,12)}`;
+                }
+            }
+        } catch (e) {
+            // Keep as 'Unknown' if parsing fails
+        }
         
         return {
-            in1Power: view.getUint16(2, true) + 'W',                       // Raw watts
-            in2Power: (view.getUint16(4, true) / 100).toFixed(2) + 'W',   // ÷100 scaling
-            unknownValue1: view.getUint16(6, true),
-            unknownValue2: view.getUint16(8, true),
-            devVersion: view.getUint8(10),
-            out1Power: view.getUint16(20, true) + 'W',                     // Raw watts
-            out2Power: (view.getUint16(24, true) / 10).toFixed(1) + 'W',  // ÷10 scaling
+            // First field is signed 16-bit at offset 0
+            gridPower: view.getInt16(0, true) + 'W',
+            // Second field at offset 2 - scaled
+            solarPower: (view.getUint16(2, true) / 100).toFixed(2) + 'W',
+            // Status values at offset 6 and 8  
+            statusValue1: view.getUint16(6, true),
+            statusValue2: view.getUint16(8, true),
+            // Device version at offset 10
+            deviceVersion: view.getUint8(10),
+            // Output power fields
+            loadPower: view.getUint16(20, true) + 'W',
+            batteryPower: (view.getUint16(24, true) / 10).toFixed(1) + 'W',
+            // Temperature readings (signed, scaled by 10)
             temperatureLow: (view.getInt16(33, true) / 10).toFixed(1) + '°C',
             temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1) + '°C',
+            // Connection status flags at offset 15
             wifiConnected: !!(view.getUint8(15) & 0x01),
             mqttConnected: !!(view.getUint8(15) & 0x02),
-            deviceType: 'Battery System'
+            // Device information
+            powerRating: modelType,
+            firmwareBuild: firmwareTimestamp,
+            deviceType: `${modelType} Battery System`
         };
     }
 }
