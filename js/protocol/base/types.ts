@@ -48,6 +48,16 @@ export interface IRuntimeInfo {
     apiPort: number;         // 30000
 }
 
+export interface IDeviceInfo {
+    type: string;           // Device type (e.g., "HMG-50")
+    id: string;            // Device ID  
+    sn: string;            // Serial number
+    mac: string;           // MAC address
+    fw: string;            // Firmware version
+    hw: string;            // Hardware version
+    [key: string]: string; // Allow for other key-value pairs
+}
+
 export enum CommandType {
     RUNTIME_INFO = 0x03,
     DEVICE_INFO = 0x04,

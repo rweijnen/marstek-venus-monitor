@@ -5,6 +5,7 @@
 import { BasePayload } from '../base/Payload.js';
 import { CommandType } from '../base/types.js';
 import { RuntimeInfoPayload } from './RuntimeInfo.js';
+import { DeviceInfoPayload } from './DeviceInfo.js';
 export function createPayload(data) {
     if (data.length < 4) {
         throw new Error('Data too short to determine command type');
@@ -13,9 +14,9 @@ export function createPayload(data) {
     switch (command) {
         case CommandType.RUNTIME_INFO:
             return new RuntimeInfoPayload(data);
+        case CommandType.DEVICE_INFO:
+            return new DeviceInfoPayload(data);
         // Add other payload types as we implement them
-        // case CommandType.DEVICE_INFO:
-        //     return new DeviceInfoPayload(data);
         // case CommandType.BMS_DATA:
         //     return new BMSDataPayload(data);
         default:
@@ -46,4 +47,4 @@ class GenericPayload extends BasePayload {
         `;
     }
 }
-export { RuntimeInfoPayload };
+export { RuntimeInfoPayload, DeviceInfoPayload };
