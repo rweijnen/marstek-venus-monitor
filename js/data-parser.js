@@ -528,6 +528,10 @@ function parseRuntimeInfo(payload) {
         // Parse firmware version (Payload 0x48-0x49 = Raw 0x4C-0x4D)
         const fwMajor = view.getUint8(0x48);
         const fwMinor = view.getUint8(0x49);
+        
+        // Debug - check what we're reading
+        const debugPowerBytes = `${payload[0x46]?.toString(16)} ${payload[0x47]?.toString(16)}`;
+        const debugFwBytes = `${payload[0x48]?.toString(16)} ${payload[0x49]?.toString(16)}`;
         const fwVersion = `v${fwMajor}.${fwMinor}`;
         
         // Parse build code (Payload 0x4A-0x4B = Raw 0x4E-0x4F) - Big Endian
@@ -590,6 +594,10 @@ function parseRuntimeInfo(payload) {
             firmwareVersion: fwVersion,                // Payload 0x48-0x49 = Raw 0x4C-0x4D
             buildCode: buildCode,                      // Payload 0x4A-0x4B = Raw 0x4E-0x4F (BE)
             firmwareBuild: firmwareTimestamp,          // Payload 0x4D-0x58 = Raw 0x51-0x5C
+            
+            // Debug info
+            debugPower: `${debugPowerBytes} = ${powerRating}`,
+            debugFw: `${debugFwBytes} = v${fwMajor}.${fwMinor}`,
             
             // Tail section after build timestamp (PAYLOAD offsets, not raw)
             reservedCounter: payload.length > 0x5B ? view.getUint16(0x5A, true) : 0,  // Payload 0x5A = Raw 0x5E
