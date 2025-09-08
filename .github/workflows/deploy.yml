@@ -83,15 +83,15 @@ jobs:
           branches='${{ needs.build_matrix.outputs.branches }}'
           echo "Building site with branches: ${branches}"
           
-          # Copy main branch to root
-          if [ -d "branches/branch-0-main" ]; then
-            cp -r branches/branch-0-main/* public/
+          # Copy stable branch to root (main production site)
+          if [ -d "branches/branch-1-gh-pages-stable" ]; then
+            cp -r branches/branch-1-gh-pages-stable/* public/
           fi
           
-          # Copy stable branch to /stable directory  
-          if [ -d "branches/branch-1-gh-pages-stable" ]; then
-            mkdir -p public/stable
-            cp -r branches/branch-1-gh-pages-stable/* public/stable/
+          # Copy main branch to /latest directory (beta/development)
+          if [ -d "branches/branch-0-main" ]; then
+            mkdir -p public/latest
+            cp -r branches/branch-0-main/* public/latest/
           fi
           
           # Create version info

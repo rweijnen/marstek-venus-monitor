@@ -72,8 +72,8 @@
                 <label for="versionSelect" style="margin-right: 10px;">Version:</label>
                 <select id="versionSelect" onchange="switchVersion(this)" style="padding: 5px 10px; border-radius: 5px; border: 1px solid #ccc;">
                     <option value="">Select Version</option>
-                    <option value="v1.0.0">v1.0.0 (Stable)</option>
-                    <option value="main">v2.0.0-beta (Current)</option>
+                    <option value="stable">v1.0.0 (Stable)</option>
+                    <option value="latest">v2.0.0-beta (Latest)</option>
                 </select>
                 <span id="versionNote" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
             </div>
@@ -86,12 +86,12 @@
                     
                     const baseUrl = 'https://rweijnen.github.io/marstek-venus-monitor';
                     
-                    if (version === 'v1.0.0') {
-                        // Stable version served from /stable path
-                        window.location.href = `${baseUrl}/stable/`;
-                    } else if (version === 'main') {
-                        // Main branch (current beta) served from root
+                    if (version === 'stable') {
+                        // Stable version served from root path
                         window.location.href = baseUrl;
+                    } else if (version === 'latest') {
+                        // Latest beta version served from /latest path
+                        window.location.href = `${baseUrl}/latest/`;
                     }
                 }
                 
@@ -100,13 +100,13 @@
                     const versionSelect = document.getElementById('versionSelect');
                     const versionNote = document.getElementById('versionNote');
                     
-                    // Detect current version based on URL domain
-                    if (window.location.href.includes('jsdelivr.net')) {
-                        versionSelect.value = 'v1.0.0';
-                        versionNote.textContent = '(Stable Release)';
+                    // Detect current version based on URL path
+                    if (window.location.pathname.includes('/latest')) {
+                        versionSelect.value = 'latest';
+                        versionNote.textContent = '(Latest Beta Features)';
                     } else {
-                        versionSelect.value = 'main';
-                        versionNote.textContent = '(Beta - Latest Features)';
+                        versionSelect.value = 'stable';
+                        versionNote.textContent = '(Stable Production Release)';
                     }
                 });
             </script>
