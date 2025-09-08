@@ -85,13 +85,12 @@
                     if (!version) return;
                     
                     const baseUrl = 'https://rweijnen.github.io/marstek-venus-monitor';
-                    const currentUrl = window.location.href;
                     
                     if (version === 'v1.0.0') {
-                        // GitHub serves tags at cdn.jsdelivr.net for specific versions
-                        window.location.href = `https://cdn.jsdelivr.net/gh/rweijnen/marstek-venus-monitor@v1.0.0/index.html`;
+                        // Stable version served from /stable path
+                        window.location.href = `${baseUrl}/stable/`;
                     } else if (version === 'main') {
-                        // Main branch (current beta)
+                        // Main branch (current beta) served from root
                         window.location.href = baseUrl;
                     }
                 }
@@ -101,8 +100,8 @@
                     const versionSelect = document.getElementById('versionSelect');
                     const versionNote = document.getElementById('versionNote');
                     
-                    // Detect current version
-                    if (window.location.href.includes('jsdelivr.net')) {
+                    // Detect current version based on URL path
+                    if (window.location.pathname.includes('/stable')) {
                         versionSelect.value = 'v1.0.0';
                         versionNote.textContent = '(Stable Release)';
                     } else {
