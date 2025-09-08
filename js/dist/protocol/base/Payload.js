@@ -2,76 +2,60 @@
  * Base Payload Parser
  * Abstract base class for all payload parsers
  */
-
 import { FrameHeader } from './Header.js';
-
-export abstract class BasePayload {
-    protected readonly header: FrameHeader;
-    protected readonly payload: Uint8Array;
-    protected readonly view: DataView;
-
-    constructor(data: Uint8Array) {
+export class BasePayload {
+    constructor(data) {
         this.header = new FrameHeader(data);
-        
         if (!this.header.isValid) {
             throw new Error(`Invalid frame header: ${this.header.toString()}`);
         }
-
         this.payload = this.header.getPayload(data);
         this.view = new DataView(this.payload.buffer, this.payload.byteOffset, this.payload.byteLength);
     }
-
     // Helper methods for reading data with proper bounds checking
-    protected readUint8(offset: number): number {
+    readUint8(offset) {
         if (offset >= this.payload.length) {
             throw new Error(`Offset ${offset} out of bounds (payload length: ${this.payload.length})`);
         }
         return this.view.getUint8(offset);
     }
-
-    protected readUint16LE(offset: number): number {
+    readUint16LE(offset) {
         if (offset + 1 >= this.payload.length) {
             throw new Error(`Offset ${offset}+1 out of bounds (payload length: ${this.payload.length})`);
         }
         return this.view.getUint16(offset, true); // little endian
     }
-
-    protected readUint16BE(offset: number): number {
+    readUint16BE(offset) {
         if (offset + 1 >= this.payload.length) {
             throw new Error(`Offset ${offset}+1 out of bounds (payload length: ${this.payload.length})`);
         }
         return this.view.getUint16(offset, false); // big endian
     }
-
-    protected readInt16LE(offset: number): number {
+    readInt16LE(offset) {
         if (offset + 1 >= this.payload.length) {
             throw new Error(`Offset ${offset}+1 out of bounds (payload length: ${this.payload.length})`);
         }
         return this.view.getInt16(offset, true); // little endian
     }
-
-    protected readUint32LE(offset: number): number {
+    readUint32LE(offset) {
         if (offset + 3 >= this.payload.length) {
             throw new Error(`Offset ${offset}+3 out of bounds (payload length: ${this.payload.length})`);
         }
         return this.view.getUint32(offset, true); // little endian
     }
-
-    protected readString(offset: number, maxLength: number): string {
+    readString(offset, maxLength) {
         if (offset >= this.payload.length) {
             throw new Error(`Offset ${offset} out of bounds (payload length: ${this.payload.length})`);
         }
-
         const endOffset = Math.min(offset + maxLength, this.payload.length);
         const bytes = this.payload.slice(offset, endOffset);
-        
         // Find null terminator
         const nullIndex = bytes.indexOf(0);
         const validBytes = nullIndex >= 0 ? bytes.slice(0, nullIndex) : bytes;
-        
         try {
             return new TextDecoder('utf-8').decode(validBytes).trim();
-        } catch (error) {
+        }
+        catch (error) {
             // Fallback to ASCII if UTF-8 fails
             return Array.from(validBytes)
                 .map(b => b >= 32 && b <= 126 ? String.fromCharCode(b) : '')
@@ -79,58 +63,49 @@ export abstract class BasePayload {
                 .trim();
         }
     }
-
-    protected safeReadUint16LE(offset: number, defaultValue: number = 0): number {
+    safeReadUint16LE(offset, defaultValue = 0) {
         try {
             return this.readUint16LE(offset);
-        } catch {
+        }
+        catch {
             return defaultValue;
         }
     }
-
-    protected safeReadUint8(offset: number, defaultValue: number = 0): number {
+    safeReadUint8(offset, defaultValue = 0) {
         try {
             return this.readUint8(offset);
-        } catch {
+        }
+        catch {
             return defaultValue;
         }
     }
-
-    protected safeReadUint16BE(offset: number, defaultValue: number = 0): number {
+    safeReadUint16BE(offset, defaultValue = 0) {
         try {
             return this.readUint16BE(offset);
-        } catch {
+        }
+        catch {
             return defaultValue;
         }
     }
-
-    // Abstract method that must be implemented by concrete payload classes
-    public abstract parse(): any;
-    
     // Optional method for generating HTML display
-    public toHTML(): string {
+    toHTML() {
         const data = this.parse();
         let html = `<h3>${this.header.getCommandName()}</h3><div class="data-grid">`;
-        
         for (const [key, value] of Object.entries(data)) {
             const displayKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             html += `<div><strong>${displayKey}:</strong> ${value}</div>`;
         }
-        
         html += '</div>';
         return html;
     }
-
     // Getters for header information
-    public get commandType(): number {
+    get commandType() {
         return this.header.command;
     }
-
-    public get commandName(): string {
+    get commandName() {
         return this.header.getCommandName();
     }
-
-    public get payloadLength(): number {
+    get payloadLength() {
         return this.payload.length;
     }
 }
