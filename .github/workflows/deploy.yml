@@ -22,42 +22,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: main
-          path: main
-
-      - name: Checkout stable branch  
-        uses: actions/checkout@v4
-        with:
-          ref: stable
-          path: stable
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Create deployment with both versions
-        run: |
-          mkdir -p _site
-          
-          # Copy main branch to root (beta version)
-          cp -r main/* _site/ 2>/dev/null || true
-          rm -rf _site/.git _site/.github
-          
-          # Copy stable branch to /stable directory
-          mkdir -p _site/stable
-          cp -r stable/* _site/stable/ 2>/dev/null || true
-          rm -rf _site/stable/.git _site/stable/.github
-          
-          # Create index.html redirect for /stable/ path
-          echo "Deployment structure:"
-          find _site -name "index.html" -type f
-          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: .
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -1,0 +1,2556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marstek Venus E - BLE Test Tool</title>
+    <meta name="description" content="Web-based battery monitoring tool for Marstek Venus E batteries via Bluetooth Low Energy">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; text-align: center; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        
+        /* Disclaimer Modal Styles */
+        .modal {
+            display: block;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 20px auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
+            min-height: min-content;
+        }
+        .modal-header {
+            color: #dc3545;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .disclaimer-text {
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            color: #856404;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            font-weight: 500;
+        }
+        .checkbox-container input {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .modal {
+                padding: 10px;
+            }
+            .modal-content {
+                margin: 10px auto;
+                padding: 15px;
+                width: 95%;
+                border-radius: 8px;
+            }
+            .modal-header {
+                font-size: 20px;
+                margin-bottom: 15px;
+            }
+            .disclaimer-text {
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            .modal-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .modal-buttons button {
+                width: 100%;
+                padding: 15px;
+                font-size: 16px;
+            }
+            .checkbox-container {
+                font-size: 14px;
+                align-items: flex-start;
+                margin: 15px 0;
+            }
+            .checkbox-container input {
+                margin-top: 2px;
+                flex-shrink: 0;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .modal {
+                padding: 5px;
+            }
+            .modal-content {
+                margin: 5px auto;
+                padding: 10px;
+            }
+            .modal-header {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+            .disclaimer-text {
+                font-size: 13px;
+            }
+        }
+        .btn-accept {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .btn-decline {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .btn-accept:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Main Interface Styles */
+        .main-interface {
+            display: none;
+        }
+        .status {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .connected { color: #28a745; font-weight: bold; }
+        .disconnected { color: #dc3545; font-weight: bold; }
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover { transform: translateY(-1px); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .btn-connect { background: #28a745; padding: 12px 24px; font-size: 16px; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .command-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .command-section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        .data-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .data-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .data-item:last-child { border-bottom: none; }
+        .data-label { font-weight: 500; color: #666; }
+        .data-value { font-weight: bold; color: #333; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            margin-top: 20px;
+            border-radius: 6px;
+        }
+        .event-log {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .error-entry {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 8px;
+            margin: 3px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 15px;
+            color: #666;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+        }
+        .github-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .github-link:hover {
+            text-decoration: underline;
+        }
+        #versionInfo {
+            margin: 10px 0;
+            font-style: italic;
+        }
+        #versionInfo code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Command info styles */
+        .cmd-button {
+            position: relative;
+            width: 100%;
+            text-align: left;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cmd-button-text {
+            flex-grow: 1;
+        }
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+            cursor: help;
+        }
+        .info-icon:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        .section-caption {
+            margin: 10px 0;
+            padding: 8px 12px;
+            background: #e7f3ff;
+            border-left: 3px solid #667eea;
+            font-size: 14px;
+            color: #495057;
+            border-radius: 4px;
+        }
+        
+        /* Command info modal */
+        .info-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+        .info-modal-content {
+            background-color: #fefefe;
+            margin: 50px auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 700px;
+            position: relative;
+        }
+        .info-modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .info-modal-close:hover {
+            color: #000;
+        }
+        .command-details h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .command-details .detail-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .command-details code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .command-details pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        
+        /* Tooltip styles */
+        [data-tooltip] {
+            position: relative;
+        }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            white-space: nowrap;
+            font-size: 12px;
+            z-index: 10;
+            pointer-events: none;
+            margin-bottom: 5px;
+            max-width: 300px;
+            white-space: normal;
+            text-align: center;
+        }
+        [data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #333;
+            z-index: 10;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Command Info Modal -->
+    <div id="infoModal" class="info-modal">
+        <div class="info-modal-content">
+            <span class="info-modal-close" onclick="closeInfoModal()">&times;</span>
+            <div id="commandDetails" class="command-details"></div>
+        </div>
+    </div>
+
+    <!-- Disclaimer Modal -->
+    <div id="disclaimerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">⚠️ EXPERIMENTAL SOFTWARE WARNING ⚠️</div>
+            
+            <div class="disclaimer-text">
+                <p><strong>This is highly experimental testing software for Marstek Venus E batteries.</strong></p>
+                
+                <div class="warning-box">
+                    <strong>IMPORTANT WARNINGS:</strong>
+                    <ul>
+                        <li>This software can send commands to your battery system</li>
+                        <li>Some commands may modify battery settings or behavior</li>
+                        <li>Improper use could potentially damage your equipment</li>
+                        <li>This tool is for advanced users and developers only</li>
+                        <li>Use in a controlled environment with proper safety precautions</li>
+                    </ul>
+                </div>
+                
+                <p><strong>By continuing, you acknowledge that:</strong></p>
+                <ul>
+                    <li>You understand the experimental nature of this software</li>
+                    <li>You accept full responsibility for any consequences</li>
+                    <li>You will not hold the developers liable for any damages</li>
+                    <li>You have proper knowledge of battery systems and safety</li>
+                    <li>You will use this tool at your own risk</li>
+                </ul>
+                
+                <p><strong>Supported Equipment:</strong> Marstek Venus E batteries with "MST_ACCP" and "MST-TPM" Bluetooth names.</p>
+                
+                <p><strong>Browser Requirements:</strong> Chrome, Edge, or Opera with Web Bluetooth support.</p>
+            </div>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="acceptRisk"> 
+                <label for="acceptRisk">I understand the risks and agree to proceed at my own responsibility</label>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-decline" onclick="declineAndExit()">❌ Exit Safely</button>
+                <button class="btn-accept" id="acceptBtn" disabled onclick="acceptAndContinue()">✅ Accept Risk & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Interface -->
+    <div class="main-interface" id="mainInterface">
+        <div class="container">
+            <h1>🔋 Marstek Venus E - BLE Test Tool</h1>
+            <p class="subtitle">Advanced BLE monitoring and diagnostics for Marstek battery systems</p>
+            
+            <div class="status">
+                <span>Status: <span id="status" class="disconnected">Disconnected</span></span>
+                <div>
+                    <button onclick="connect()" id="connectBtn" class="btn-connect">Connect to Marstek</button>
+                    <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+                    <button onclick="runAllTests()" id="runAllBtn" disabled>🧪 Run All Tests</button>
+                    <button onclick="clearAll()">Clear All</button>
+                </div>
+            </div>
+
+            <div class="section-caption">
+                📖 <strong>Read Commands:</strong> These commands safely read information from your device including power status, battery data, network configuration, and system logs. No settings are modified.
+            </div>
+            <div class="command-grid">
+                <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="cmd-button">
+                    <span class="cmd-button-text">⚡ Runtime Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('runtime')">i</span>
+                </button>
+                <button onclick="sendCommand(0x04, 'Device Info')" disabled data-tooltip="Device model, MAC address, and firmware versions" class="cmd-button">
+                    <span class="cmd-button-text">📱 Device Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('device')">i</span>
+                </button>
+                <button onclick="sendCommand(0x08, 'WiFi Info')" disabled data-tooltip="Connected WiFi network name (SSID)" class="cmd-button">
+                    <span class="cmd-button-text">📶 WiFi Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wifi')">i</span>
+                </button>
+                <button onclick="sendCommand(0x0D, 'System Data')" disabled data-tooltip="System operational parameters" class="cmd-button">
+                    <span class="cmd-button-text">🔧 System Data</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('system')">i</span>
+                </button>
+                <button onclick="sendCommand(0x13, 'Error Codes')" disabled data-tooltip="Historical error codes with timestamps" class="cmd-button">
+                    <span class="cmd-button-text">🚨 Error Codes</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('errors')">i</span>
+                </button>
+                <button onclick="sendCommand(0x14, 'BMS Data')" disabled data-tooltip="Battery voltages, current, SOC, and cell data" class="cmd-button">
+                    <span class="cmd-button-text">🔋 BMS Data</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('bms')">i</span>
+                </button>
+                <button onclick="sendCommand(0x1A, 'Config Data')" disabled data-tooltip="System configuration parameters" class="cmd-button">
+                    <span class="cmd-button-text">⚙️ Config Data</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('config')">i</span>
+                </button>
+                <button onclick="sendCommand(0x1C, 'Event Log')" disabled data-tooltip="System event history with timestamps" class="cmd-button">
+                    <span class="cmd-button-text">📝 Event Log</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
+                </button>
+                <button onclick="sendCommand(0x21, 'Read Meter IP (Method 1)', [0x0B])" disabled data-tooltip="Read meter IP using current protocol" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Meter IP (Method 1)</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
+                </button>
+                <button onclick="sendMeterIPCommand(0x21, 'Read Meter IP (Method 2)', [0x0B])" disabled data-tooltip="Read meter IP using alternative protocol" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Meter IP (Method 2)</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
+                </button>
+                <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="cmd-button">
+                    <span class="cmd-button-text">🔗 Network Info</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('network')">i</span>
+                </button>
+                <button onclick="sendCommand(0x22, 'Read CT Polling Rate')" disabled data-tooltip="Read current CT meter polling rate setting" class="cmd-button">
+                    <span class="cmd-button-text">📊 Read CT Polling Rate</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpollread')">i</span>
+                </button>
+                <button onclick="sendCommand(0x28, 'Read Local API Status')" disabled data-tooltip="Read current Local API configuration" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Read Local API Status</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>
+                </button>
+            </div>
+
+            <!-- Power Management Commands -->
+            <div class="command-section">
+                <h3>⚡ Power Management (Modify Settings)</h3>
+                <div class="section-caption">
+                    ⚠️ <strong>Power Settings:</strong> These commands modify power output limits and operating modes. Changes take effect immediately and may affect connected loads.
+                </div>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x15, 'Set 800W Mode', [0x20, 0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 800W">
+                        <span class="cmd-button-text">Set 800W Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('power800')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x15, 'Set 2500W Mode', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 2500W">
+                        <span class="cmd-button-text">Set 2500W Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('power2500')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x16, 'Set AC Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input power limit">
+                        <span class="cmd-button-text">Set AC Power 2500W</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acpower')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x17, 'Set Total Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set total system power limit">
+                        <span class="cmd-button-text">Set Total Power 2500W</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('totalpower')">i</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- System Configuration Commands -->
+            <div class="command-section">
+                <h3>⚙️ System Configuration (Modify Settings)</h3>
+                <div class="section-caption">
+                    ⚠️ <strong>System Settings:</strong> These commands change operational modes including EPS (Emergency Power Supply), AC input behavior, and generator control. Settings persist after power cycle.
+                </div>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x02, 'Set Server Type 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Configure server connection type">
+                        <span class="cmd-button-text">Set Server Type 0</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('servertype')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x0F, 'Enable EPS', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable Emergency Power Supply mode">
+                        <span class="cmd-button-text">Enable EPS</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsenable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x0F, 'Disable EPS', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable Emergency Power Supply mode">
+                        <span class="cmd-button-text">Disable EPS</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsdisable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x19, 'AC Mode 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input to mode 0">
+                        <span class="cmd-button-text">AC Input Mode 0</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acmode0')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x19, 'AC Mode 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input to mode 1">
+                        <span class="cmd-button-text">AC Input Mode 1</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acmode1')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x1E, 'Set Working Mode', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Configure device operating mode">
+                        <span class="cmd-button-text">Set Working Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x23, 'Enable Generator', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable generator input">
+                        <span class="cmd-button-text">Enable Generator</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('genenable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x23, 'Disable Generator', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable generator input">
+                        <span class="cmd-button-text">Disable Generator</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('gendisable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x28, 'Enable Local API', [0x01, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Enable local API access">
+                        <span class="cmd-button-text">Enable Local API</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apienable')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x28, 'Disable Local API', [0x00, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable local API access">
+                        <span class="cmd-button-text">Disable Local API</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apidisable')">i</span>
+                    </button>
+                    <button onclick="setLocalApiPort()" disabled class="btn-warning cmd-button" data-tooltip="Set local API port number">
+                        <span class="cmd-button-text">Set Local API Port</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiport')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 0 (fastest)">
+                        <span class="cmd-button-text">CT Polling: Rate 0 (Fastest)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll0')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 1 (medium)">
+                        <span class="cmd-button-text">CT Polling: Rate 1 (Medium)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll1')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x22, 'Set CT Polling Rate: 2', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 2 (slowest)">
+                        <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Time/Network Commands -->
+            <div class="command-section">
+                <h3>🕰 Time & Network (Modify Settings)</h3>
+                <div class="section-caption">
+                    ⚠️ <strong>Time & Network:</strong> These commands update device clock and network configuration. IP changes may affect remote monitoring.
+                </div>
+                <div class="command-grid">
+                    <button onclick="setCurrentDateTime()" disabled class="btn-warning cmd-button" data-tooltip="Sync device clock with browser time">
+                        <span class="cmd-button-text">Set Current Time</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settime')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled class="btn-warning cmd-button" data-tooltip="Write test IP 192.168.1.1 to meter config">
+                        <span class="cmd-button-text">🌐 Write Test IP</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('writemeter')">i</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Advanced/Dangerous Commands -->
+            <div class="command-section">
+                <h3>🔧 Advanced Commands (Use with Extreme Caution)</h3>
+                <div class="section-caption" style="background: #f8d7da; border-left-color: #dc3545;">
+                    🚫 <strong>DANGER ZONE:</strong> These commands can reset the device, enable firmware updates, or configure parallel operation. May cause data loss or require physical access to recover.
+                </div>
+                <div class="command-grid">
+                    <button onclick="sendCommand(0x0C, 'System Reset', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Restart the device immediately">
+                        <span class="cmd-button-text">⚠️ System Reset</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('reset')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x1F, 'Upgrade Mode', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Enter firmware upgrade mode">
+                        <span class="cmd-button-text">⚠️ Upgrade Mode</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('upgrade')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Configure for parallel operation">
+                        <span class="cmd-button-text">⚠️ Parallel Ready</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallel')">i</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- OTA Firmware Update (EXPERIMENTAL) -->
+            <div class="command-section">
+                <h3>🔥 OTA Firmware Update (EXTREMELY DANGEROUS)</h3>
+                <div class="section-caption" style="background: #721c24; color: white; border-left-color: #f5c6cb;">
+                    ⚠️ <strong>EXTREME DANGER:</strong> OTA firmware updates can permanently brick your device! Only use if you have a backup and recovery method. This is reverse-engineered and experimental.
+                </div>
+                <div class="command-grid">
+                    <input type="file" id="firmwareFile" accept=".bin" style="display: none;" onchange="handleFirmwareFile(event)">
+                    <button onclick="document.getElementById('firmwareFile').click()" disabled class="btn-danger cmd-button" data-tooltip="Select .bin firmware file to upload">
+                        <span class="cmd-button-text">📁 Select Firmware</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('otasize')">i</span>
+                    </button>
+                    <button onclick="performOTAUpdate()" disabled class="btn-danger cmd-button" id="otaStartBtn" data-tooltip="Start complete OTA firmware upload process">
+                        <span class="cmd-button-text">⚡ Start OTA Update</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('otaactivate')">i</span>
+                    </button>
+                </div>
+                <div id="otaFileInfo" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+                    No firmware file selected
+                </div>
+                <div id="otaProgressContainer" style="display: none; margin-top: 10px;">
+                    <div style="background: #333; border-radius: 5px; overflow: hidden;">
+                        <div id="otaProgress" style="width: 0%; height: 20px; background: #28a745; transition: width 0.3s;"></div>
+                    </div>
+                    <div id="otaStatus" style="margin-top: 5px; color: #888;">Ready to start...</div>
+                </div>
+            </div>
+
+            <div id="dataDisplay"></div>
+            <div id="log" class="log"></div>
+            
+            <div class="footer">
+                <p>
+                    <strong>Marstek Venus E Monitor</strong> - Experimental BLE Battery Diagnostics<br>
+                    <a href="https://github.com/rweijnen/marstek-venus-monitor" class="github-link" target="_blank">
+                        View on GitHub
+                    </a> | 
+                    <a href="https://github.com/tomquist/hmjs" class="github-link" target="_blank">
+                        Original HMJS Project
+                    </a>
+                </p>
+                <p id="versionInfo"><small>Version: Loading...</small></p>
+                <p><small>⚠️ Use at your own risk - Experimental software</small></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Disclaimer handling
+        document.getElementById('acceptRisk').addEventListener('change', function() {
+            document.getElementById('acceptBtn').disabled = !this.checked;
+        });
+
+        function declineAndExit() {
+            window.close();
+            // If window.close() fails (most browsers), redirect to a safe page
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 100);
+        }
+
+        function acceptAndContinue() {
+            document.getElementById('disclaimerModal').style.display = 'none';
+            document.getElementById('mainInterface').style.display = 'block';
+            
+            // Store acceptance in localStorage
+            localStorage.setItem('marstek-disclaimer-accepted', new Date().toISOString());
+            
+            log('✅ Disclaimer accepted - Marstek Venus E Monitor ready');
+            log('⚠️ Remember: This is experimental software - use with caution');
+        }
+
+        // Check if disclaimer was already accepted (within last 24 hours)
+        const lastAccepted = localStorage.getItem('marstek-disclaimer-accepted');
+        if (lastAccepted) {
+            const acceptedDate = new Date(lastAccepted);
+            const now = new Date();
+            const hoursSinceAccepted = (now - acceptedDate) / (1000 * 60 * 60);
+            
+            // Require re-acceptance after 24 hours
+            if (hoursSinceAccepted < 24) {
+                document.getElementById('disclaimerModal').style.display = 'none';
+                document.getElementById('mainInterface').style.display = 'block';
+            }
+        }
+
+        // Main application code
+        const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
+        const START_BYTE = 0x73;
+        const IDENTIFIER_BYTE = 0x23;
+        
+        let device = null;
+        let server = null;
+        let characteristics = {};
+        let isConnected = false;
+        let deviceType = 'unknown'; // 'battery', 'meter', or 'unknown'
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            if (!logDiv) return;
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected, deviceName = null) {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const runAllBtn = document.getElementById('runAllBtn');
+            
+            if (!statusEl) return;
+            
+            if (connected && deviceName) {
+                statusEl.textContent = `Connected to ${deviceName}`;
+            } else {
+                statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            }
+            statusEl.className = connected ? 'connected' : 'disconnected';
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            runAllBtn.disabled = !connected;
+            
+            const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
+            buttons.forEach(btn => btn.disabled = !connected);
+            
+            isConnected = connected;
+        }
+
+        function createCommandMessage(commandType, payload = null) {
+            const header = [START_BYTE, 0, IDENTIFIER_BYTE, commandType];
+            const payloadArray = payload ? Array.from(payload) : [];
+            const messageLength = header.length + payloadArray.length + 1;
+            header[1] = messageLength;
+            const message = [...header, ...payloadArray];
+            const checksum = message.reduce((xor, byte) => xor ^ byte, 0);
+            message.push(checksum);
+            return new Uint8Array(message);
+        }
+
+        function createMeterIPMessage(commandType, payload = null) {
+            // Alternative format for meter IP commands based on protocol analysis
+            // Frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD] [XOR]
+            // LEN = count of bytes from 0x23 through checksum
+            // XOR = 0x23 ^ CMD ^ PAYLOAD bytes
+            
+            const payloadArray = payload ? Array.from(payload) : [];
+            const len = 4 + payloadArray.length; // 0x23 + cmd + payload + checksum = 4 + payload length
+            
+            const message = [START_BYTE, len, IDENTIFIER_BYTE, commandType, ...payloadArray];
+            
+            // XOR only over [0x23, cmd, payload] - not including 0x73, len, or checksum
+            let checksum = IDENTIFIER_BYTE ^ commandType;
+            for (const byte of payloadArray) {
+                checksum ^= byte;
+            }
+            message.push(checksum);
+            
+            return new Uint8Array(message);
+        }
+
+        function formatBytes(data) {
+            return Array.from(new Uint8Array(data.buffer || data))
+                .map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        }
+
+        function parseRuntimeInfo(payload) {
+            const view = new DataView(payload.buffer, payload.byteOffset);
+            
+            if (deviceType === 'meter') {
+                // CT002 Meter - shorter response, different scaling
+                if (payload.length < 15) return null;
+                
+                return {
+                    totalPower: (view.getUint16(2, true) / 100).toFixed(2) + 'W',  // ÷100 scaling
+                    current: (view.getUint16(4, true) / 100).toFixed(2) + 'A',     // ÷100 scaling  
+                    phasePower: (view.getUint16(6, true) / 100).toFixed(2) + 'W',   // ÷100 scaling
+                    voltage: view.getUint16(8, true) + 'V',                        // Raw voltage
+                    unknownValue1: view.getUint16(10, true),
+                    unknownValue2: view.getUint16(12, true),
+                    deviceType: 'CT002 Power Meter'
+                };
+            } else {
+                // Battery - full response with battery-specific data
+                if (payload.length < 40) return null;
+                
+                return {
+                    in1Power: view.getUint16(2, true) + 'W',                       // Raw watts
+                    in2Power: (view.getUint16(4, true) / 100).toFixed(2) + 'W',   // ÷100 scaling
+                    unknownValue1: view.getUint16(6, true),
+                    unknownValue2: view.getUint16(8, true),
+                    devVersion: view.getUint8(10),
+                    out1Power: view.getUint16(20, true) + 'W',                     // Raw watts
+                    out2Power: (view.getUint16(24, true) / 10).toFixed(1) + 'W',  // ÷10 scaling
+                    temperatureLow: (view.getInt16(33, true) / 10).toFixed(1) + '°C',
+                    temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1) + '°C',
+                    wifiConnected: !!(view.getUint8(15) & 0x01),
+                    mqttConnected: !!(view.getUint8(15) & 0x02),
+                    deviceType: 'Battery System'
+                };
+            }
+        }
+
+        function parseBMSData(payload) {
+            if (deviceType === 'meter') {
+                // Meter has minimal BMS data - just basic status
+                if (payload.length < 3) return null;
+                const view = new DataView(payload.buffer, payload.byteOffset);
+                return {
+                    status: 'Meter - No Battery Management',
+                    rawData: Array.from(payload).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+                };
+            }
+            
+            if (payload.length < 80) return null;
+            
+            const view = new DataView(payload.buffer, payload.byteOffset);
+            const cellVoltages = [];
+            
+            for (let i = 48; i < 82 && i < payload.length - 1; i += 2) {
+                const voltage = view.getUint16(i, true);
+                if (voltage > 0 && voltage < 5000) {
+                    cellVoltages.push((voltage / 1000).toFixed(3));
+                }
+            }
+            
+            return {
+                bmsVersion: (view.getUint16(0, true)),
+                voltageLimit: (view.getUint16(2, true) / 10).toFixed(1) + 'V',
+                chargeCurrentLimit: (view.getUint16(4, true) / 10).toFixed(1),
+                dischargeCurrentLimit: (view.getInt16(6, true) / 10).toFixed(1),
+                remainingCapacity: view.getUint16(8, true) + '%',
+                stateOfHealth: view.getUint16(10, true) + '%',
+                designCapacity: view.getUint16(12, true) + 'Wh',
+                voltage: (view.getUint16(14, true) / 100).toFixed(2) + 'V',
+                batteryCurrent: (view.getInt16(16, true) / 10).toFixed(1) + 'A',
+                batteryTemperature: view.getUint16(18, true) + '°C',
+                b_chf: view.getUint16(20, true),
+                b_slf: view.getUint16(22, true),
+                b_cpc: view.getUint16(24, true),
+                errorCode: view.getUint16(26, true), // Probable not really an integer
+                warningCode: view.getUint32(28, true), // Probable not really an integer
+                runtime: view.getUint32(32, true) + 'ms',
+                b_ent: view.getUint16(36, true),
+                mosfetTemperature: view.getUint16(38, true) + '°C',
+                temperature1: view.getUint16(40, true) + '°C',
+                temperature2: view.getUint16(42, true) + '°C',
+                temperature3: view.getUint16(44, true) + '°C',
+                temperature4: view.getUint16(46, true) + '°C',
+                cellVoltages: cellVoltages
+            };
+        }
+
+        function parseEventLog(payload) {
+            const events = [];
+            let offset = 0;
+            
+            while (offset + 8 <= payload.length) {
+                const view = new DataView(payload.buffer, payload.byteOffset + offset);
+                
+                const year = view.getUint16(0, true);
+                const month = view.getUint8(2);
+                const day = view.getUint8(3);
+                const hour = view.getUint8(4);
+                const minute = view.getUint8(5);
+                const eventType = view.getUint8(6);
+                const eventCode = view.getUint8(7);
+                
+                if (year > 2000 && year < 2100 && month >= 1 && month <= 12) {
+                    events.push({
+                        timestamp: `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`,
+                        type: `0x${eventType.toString(16).padStart(2,'0')}`,
+                        code: `0x${eventCode.toString(16).padStart(2,'0')}`
+                    });
+                }
+                
+                offset += 8;
+                if (events.length > 20) break;
+            }
+            
+            return events;
+        }
+
+        function parseErrorCodes(payload) {
+            const errors = [];
+            let offset = 0;
+            
+            while (offset + 14 <= payload.length) {
+                const view = new DataView(payload.buffer, payload.byteOffset + offset);
+                
+                const year = view.getUint16(0, true);
+                const month = view.getUint8(2);
+                const day = view.getUint8(3);
+                const hour = view.getUint8(4);
+                const minute = view.getUint8(5);
+                const errorCode = view.getUint8(6);
+                
+                if (year > 2000 && year < 2100 && month >= 1 && month <= 12 && errorCode !== 0) {
+                    errors.push({
+                        timestamp: `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`,
+                        code: `0x${errorCode.toString(16).padStart(2,'0')} (${errorCode})`
+                    });
+                }
+                
+                offset += 14;
+                if (errors.length > 15) break;
+            }
+            
+            return errors;
+        }
+
+        function displayData(title, data) {
+            const displayDiv = document.getElementById('dataDisplay');
+            if (!displayDiv) return;
+            
+            const card = document.createElement('div');
+            card.className = 'data-card';
+            
+            let html = `<h3>${title}</h3>`;
+            
+            if (typeof data === 'object' && !Array.isArray(data)) {
+                html += '<div class="data-grid"><div>';
+                for (const [key, value] of Object.entries(data)) {
+                    if (key === 'cellVoltages' && Array.isArray(value)) {
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">Cell Voltages:</span>
+                                <span class="data-value">${value.map(v => v + 'V').join(', ')}</span>
+                            </div>
+                        `;
+                    } else {
+                        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : 
+                                           typeof value === 'string' && value.includes('W') ? value :
+                                           typeof value === 'string' && value.includes('°C') ? value :
+                                           typeof value === 'string' && value.includes('%') ? value :
+                                           typeof value === 'string' && value.includes('V') ? value :
+                                           typeof value === 'number' && key.includes('ower') ? value + 'W' :
+                                           typeof value === 'number' && key.includes('emperature') ? value + '°C' :
+                                           typeof value === 'number' && key.includes('oltage') && !key.includes('ell') ? value + 'V' :
+                                           typeof value === 'number' && key === 'unknownValue' ? value + ' (counter?)' :
+                                           value;
+                        
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</span>
+                                <span class="data-value">${displayValue}</span>
+                            </div>
+                        `;
+                    }
+                }
+                html += '</div></div>';
+            } else if (Array.isArray(data)) {
+                if (data.length > 0 && data[0].timestamp) {
+                    data.forEach(item => {
+                        const className = title.includes('Error') ? 'error-entry' : 'event-log';
+                        html += `<div class="${className}">${item.timestamp} - Type: ${item.type || item.code}${item.code && item.type ? ', Code: ' + item.code : ''}</div>`;
+                    });
+                } else {
+                    html += `<div class="data-item"><span class="data-value">${data.join(', ')}</span></div>`;
+                }
+            } else {
+                html += `<div class="data-item"><span class="data-value">${data}</span></div>`;
+            }
+            
+            card.innerHTML = html;
+            displayDiv.appendChild(card);
+            
+            while (displayDiv.children.length > 10) {
+                displayDiv.removeChild(displayDiv.firstChild);
+            }
+        }
+
+        function formatHexDump(bytes) {
+            let hexDump = '';
+            for (let i = 0; i < bytes.length; i += 16) {
+                // Address
+                hexDump += i.toString(16).padStart(4, '0') + ': ';
+                
+                // Hex bytes
+                let hexPart = '';
+                let asciiPart = '';
+                for (let j = 0; j < 16; j++) {
+                    if (i + j < bytes.length) {
+                        const byte = bytes[i + j];
+                        hexPart += byte.toString(16).padStart(2, '0') + ' ';
+                        // ASCII representation (printable chars only)
+                        asciiPart += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+                    } else {
+                        hexPart += '   ';
+                    }
+                    // Add extra space in middle
+                    if (j === 7) hexPart += ' ';
+                }
+                
+                hexDump += hexPart + ' |' + asciiPart + '|\n';
+            }
+            return hexDump;
+        }
+        
+        function parseResponse(data, commandName) {
+            const bytes = new Uint8Array(data.buffer);
+            
+            if (bytes.length < 5 || bytes[0] !== START_BYTE || bytes[2] !== IDENTIFIER_BYTE) {
+                log('⚠️ Invalid response format');
+                return;
+            }
+            
+            const command = bytes[3];
+            const payload = bytes.slice(4, -1);
+            
+            log(`✅ ${commandName} response: ${payload.length} bytes`);
+            
+            // Log hex dump for all commands
+            log('📊 Hex dump:\n' + formatHexDump(bytes));
+            
+            // Add offset annotations for known fields (in payload, not full message)
+            if (command === 0x03) {
+                log('Payload offsets: [2-3]=In1Power, [4-5]=In2Power÷100, [20-21]=Out1Power, [24-25]=Out2Power÷10');
+            } else if (command === 0x14) {
+                log('Payload offsets: [8-9]=RemainCapacity%, [10-11]=TotalCapacity%, [46+]=CellVoltages');
+            }
+            
+            switch (command) {
+                case 0x03:
+                    const runtime = parseRuntimeInfo(payload);
+                    if (runtime) {
+                        displayData('⚡ Runtime Information', runtime);
+                    }
+                    break;
+                    
+                case 0x04:
+                    try {
+                        const deviceStr = new TextDecoder().decode(payload);
+                        const pairs = deviceStr.split(',');
+                        const info = {};
+                        pairs.forEach(pair => {
+                            const [key, value] = pair.split('=');
+                            if (key && value) info[key.trim()] = value.trim();
+                        });
+                        
+                        // Detect device type based on 'type' field
+                        if (info.type) {
+                            if (info.type.startsWith('HME')) {
+                                deviceType = 'meter';
+                                log(`🔍 Detected device type: CT002 Meter (${info.type})`);
+                            } else if (info.type.startsWith('HMG') || info.type.startsWith('HM')) {
+                                deviceType = 'battery';
+                                log(`🔍 Detected device type: Battery System (${info.type})`);
+                            } else {
+                                deviceType = 'unknown';
+                                log(`🔍 Unknown device type: ${info.type}`);
+                            }
+                        }
+                        
+                        displayData('📱 Device Information', info);
+                    } catch (e) {
+                        log('❌ Error parsing device info');
+                    }
+                    break;
+                    
+                case 0x08:
+                    try {
+                        const wifiName = new TextDecoder().decode(payload);
+                        displayData('📶 WiFi Information', { 'Connected Network': wifiName });
+                    } catch (e) {
+                        displayData('📶 WiFi Information', { 'Raw Data': formatBytes(payload) });
+                    }
+                    break;
+                    
+                case 0x0D:
+                    const view0D = new DataView(payload.buffer, payload.byteOffset);
+                    const systemData = {
+                        'System Status': view0D.getUint8(0),
+                        'Value 1': view0D.getUint16(1, true),
+                        'Value 2': view0D.getUint16(3, true),
+                        'Value 3': view0D.getUint16(5, true),
+                        'Value 4': view0D.getUint16(7, true),
+                        'Value 5': view0D.getUint16(9, true),
+                    };
+                    displayData('🔧 System Data', systemData);
+                    break;
+                    
+                case 0x13:
+                    const errors = parseErrorCodes(payload);
+                    if (errors.length > 0) {
+                        displayData('🚨 Error Codes', errors);
+                    } else {
+                        displayData('🚨 Error Codes', { 'Status': 'No active errors found' });
+                    }
+                    break;
+                    
+                case 0x14:
+                    const bms = parseBMSData(payload);
+                    if (bms) {
+                        displayData('🔋 BMS Data', bms);
+                    }
+                    break;
+                    
+                case 0x1A:
+                    const view1A = new DataView(payload.buffer, payload.byteOffset);
+                    // Parse as individual bytes/words based on hex: 61 00 00 00 9f ff ff ff 01 00 00 00 01 00 00 00 51 00
+                    const config = {
+                        'Config Mode': view1A.getUint8(0),  // 0x61 = 97
+                        'Config Flags': '0x' + view1A.getUint8(1).toString(16).padStart(2, '0'),  // 0x00
+                        'Reserved1': view1A.getUint16(2, true),  // 0x0000
+                        'Config Status': view1A.getInt8(4),  // 0x9F = -97 (signed)
+                        'Status Bytes': '0xFF FF FF',  // bytes 5-7 all 0xFF
+                        'Enable Flag 1': view1A.getUint8(8),  // 0x01 = 1
+                        'Reserved2': view1A.getUint8(9) + ',' + view1A.getUint8(10) + ',' + view1A.getUint8(11),  // 0,0,0
+                        'Enable Flag 2': view1A.getUint8(12),  // 0x01 = 1  
+                        'Reserved3': view1A.getUint8(13) + ',' + view1A.getUint8(14) + ',' + view1A.getUint8(15),  // 0,0,0
+                        'Config Value': view1A.getUint8(16),  // 0x51 = 81
+                        'Reserved4': view1A.getUint8(17)  // 0x00
+                    };
+                    displayData('⚙️ Configuration Data', config);
+                    break;
+                    
+                case 0x1C:
+                    const events = parseEventLog(payload);
+                    if (events.length > 0) {
+                        displayData('📝 Event Log', events);
+                    } else {
+                        displayData('📝 Event Log', { 'Status': 'No recent events' });
+                    }
+                    break;
+                    
+                case 0x21:
+                    const allFF = payload.every(byte => byte === 0xFF);
+                    if (allFF) {
+                        displayData('🌐 Meter IP', { 'Status': 'No meter IP configured' });
+                    } else {
+                        try {
+                            const ip = new TextDecoder().decode(payload.filter(b => b !== 0));
+                            displayData('🌐 Meter IP', { 'IP Address': ip });
+                        } catch (e) {
+                            displayData('🌐 Meter IP', { 'Raw Data': formatBytes(payload) });
+                        }
+                    }
+                    break;
+                    
+                case 0x24:
+                    try {
+                        const networkStr = new TextDecoder().decode(payload.filter(b => b !== 0));
+                        const networkInfo = {};
+                        networkStr.split(',').forEach(item => {
+                            const [key, value] = item.split(':');
+                            if (key && value) networkInfo[key.trim()] = value.trim();
+                        });
+                        displayData('🔗 Network Information', networkInfo);
+                    } catch (e) {
+                        displayData('🔗 Network Information', { 'Raw Data': formatBytes(payload) });
+                    }
+                    break;
+                    
+                case 0x28:
+                    // Local API configuration response
+                    if (payload.length >= 3) {
+                        const view = new DataView(payload.buffer, payload.byteOffset);
+                        const apiEnabled = view.getUint8(0);
+                        const apiPort = view.getUint16(1, true); // Little-endian
+                        displayData('🌐 Local API Configuration', {
+                            'API Enabled': apiEnabled === 1 ? 'Yes' : 'No',
+                            'API Port': apiPort
+                        });
+                    } else {
+                        displayData('🌐 Local API Configuration', { 'Status': 'Configuration updated' });
+                    }
+                    break;
+                
+                case 0x22:
+                    // CT Polling Rate response
+                    if (payload.length >= 1) {
+                        const pollingRate = payload[0];
+                        let rateText = 'Unknown';
+                        let rateDescription = '';
+                        switch (pollingRate) {
+                            case 0: 
+                                rateText = 'Rate 0 (Fastest)';
+                                rateDescription = 'Fastest polling rate setting';
+                                break;
+                            case 1: 
+                                rateText = 'Rate 1 (Medium)';
+                                rateDescription = 'Medium polling rate setting';
+                                break;
+                            case 2: 
+                                rateText = 'Rate 2 (Slowest)';
+                                rateDescription = 'Slowest polling rate setting';
+                                break;
+                            default: 
+                                rateText = `Rate ${pollingRate} (Unknown)`;
+                                rateDescription = 'Unexpected value';
+                                break;
+                        }
+                        displayData('📊 CT Polling Rate Configuration', {
+                            'Current Rate': rateText,
+                            'Description': rateDescription,
+                            'Raw Value': `0x${pollingRate.toString(16).padStart(2, '0')}`
+                        });
+                    } else {
+                        displayData('📊 CT Polling Rate', { 'Status': 'Configuration updated' });
+                    }
+                    break;
+                    
+                default:
+                    displayData(`📊 Command 0x${command.toString(16).padStart(2,'0')}`, { 'Raw Data': formatBytes(payload) });
+            }
+        }
+
+        function createNotificationHandler(charUuid) {
+            return function(event) {
+                const data = event.target.value;
+                if (window.currentCommand) {
+                    parseResponse(data, window.currentCommand);
+                    window.currentCommand = null;
+                }
+            };
+        }
+
+        async function connect() {
+            try {
+                log('🔍 Connecting to Marstek device...');
+                
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'MST' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                
+                const chars = await service.getCharacteristics();
+                characteristics = {};
+                
+                for (const char of chars) {
+                    characteristics[char.uuid] = char;
+                    
+                    if (char.properties.notify) {
+                        await char.startNotifications();
+                        char.addEventListener('characteristicvaluechanged', 
+                            createNotificationHandler(char.uuid));
+                    }
+                }
+
+                device.addEventListener('gattserverdisconnected', () => {
+                    log('❌ Device disconnected');
+                    updateStatus(false);
+                });
+
+                updateStatus(true, device.name);
+                log(`✅ Connected to ${device.name}!`);
+                log(`📱 Device Info: ${device.name} (${device.id || 'Unknown ID'})`);
+
+            } catch (error) {
+                log(`❌ Connection failed: ${error.message}`);
+            }
+        }
+
+        async function sendCommand(commandType, commandName, payload = null) {
+            if (!isConnected) return;
+            
+            try {
+                const command = createCommandMessage(commandType, payload);
+                window.currentCommand = commandName;
+                
+                log(`📤 Sending ${commandName}...`);
+                log(`📋 Frame: ${formatBytes(command)}`);
+                
+                const writeChars = Object.values(characteristics).filter(char => 
+                    char.properties.write || char.properties.writeWithoutResponse
+                );
+                
+                if (writeChars.length === 0) {
+                    log('❌ No writable characteristics found');
+                    return;
+                }
+                
+                const writeChar = writeChars[0];
+                await writeChar.writeValueWithoutResponse(command);
+                
+            } catch (error) {
+                log(`❌ Failed to send ${commandName}: ${error.message}`);
+            }
+        }
+
+        async function sendMeterIPCommand(commandType, commandName, payload = null) {
+            if (!isConnected) return;
+            
+            try {
+                const command = createMeterIPMessage(commandType, payload);
+                window.currentCommand = commandName;
+                
+                log(`📤 Sending ${commandName} (Alternative Protocol)...`);
+                log(`📋 Frame: ${formatBytes(command)}`);
+                
+                const writeChars = Object.values(characteristics).filter(char => 
+                    char.properties.write || char.properties.writeWithoutResponse
+                );
+                
+                if (writeChars.length === 0) {
+                    log('❌ No writable characteristics found');
+                    return;
+                }
+                
+                const writeChar = writeChars[0];
+                await writeChar.writeValueWithoutResponse(command);
+                
+            } catch (error) {
+                log(`❌ Failed to send ${commandName}: ${error.message}`);
+            }
+        }
+
+        function disconnect() {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+            }
+            deviceType = 'unknown'; // Reset device type on disconnect
+            updateStatus(false);
+        }
+
+        function clearAll() {
+            const logDiv = document.getElementById('log');
+            const displayDiv = document.getElementById('dataDisplay');
+            if (logDiv) logDiv.textContent = '';
+            if (displayDiv) displayDiv.innerHTML = '';
+        }
+        
+        function setCurrentDateTime() {
+            if (!isConnected) return;
+            
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            const second = now.getSeconds();
+            
+            // Format: [year_low, year_high, month, day, hour, minute, second]
+            const payload = [
+                year & 0xFF,           // Year low byte
+                (year >> 8) & 0xFF,    // Year high byte  
+                month,
+                day,
+                hour,
+                minute,
+                second
+            ];
+            
+            log(`🕐 Setting time to ${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}:${second.toString().padStart(2,'0')}`);
+            sendCommand(0x0B, 'Set Date/Time', payload);
+        }
+        
+        function setLocalApiPort() {
+            if (!isConnected) return;
+            
+            const portInput = prompt('Enter the local API port number (1-65535):', '8080');
+            if (!portInput) return;
+            
+            const port = parseInt(portInput);
+            if (isNaN(port) || port < 1 || port > 65535) {
+                log('❌ Invalid port number. Must be between 1 and 65535.');
+                return;
+            }
+            
+            // Format: [enable_flag, port_low, port_high]
+            const payload = [
+                0x01,                  // Enable flag (1 = enable with port)
+                port & 0xFF,           // Port low byte
+                (port >> 8) & 0xFF     // Port high byte
+            ];
+            
+            log(`🌐 Setting local API port to ${port}`);
+            sendCommand(0x28, `Set Local API Port ${port}`, payload);
+        }
+        
+        // OTA Firmware Update Functions
+        let firmwareData = null;
+        let otaEnabled = false;
+        
+        function calculateXORChecksum(bytes) {
+            let xor = 0;
+            for (let i = 0; i < bytes.length; i++) {
+                xor ^= bytes[i];
+            }
+            return xor;
+        }
+        
+        function createOTAFrame(command, payload = []) {
+            // OTA protocol: 0x73 [len] 0x23 [cmd] [payload...] [checksum]
+            const frame = [];
+            frame.push(0x73);                    // Start byte
+            frame.push(payload.length + 4);      // Length (includes 0x23, cmd, and checksum)
+            frame.push(0x23);                    // Protocol identifier
+            frame.push(command);                 // Command byte
+            frame.push(...payload);              // Payload
+            
+            // Calculate XOR checksum (all bytes except checksum itself)
+            const checksum = calculateXORChecksum(frame);
+            frame.push(checksum);
+            
+            return new Uint8Array(frame);
+        }
+        
+        async function enableOTAMode() {
+            if (!isConnected) return;
+            
+            const confirmed = confirm(
+                '⚠️ WARNING: Enabling OTA mode can brick your device!\n\n' +
+                'Only proceed if:\n' +
+                '1. You have a firmware backup\n' +
+                '2. You have RS485 recovery access\n' +
+                '3. You understand the risks\n\n' +
+                'Continue?'
+            );
+            
+            if (!confirmed) return;
+            
+            log('🔓 Enabling OTA mode...');
+            const frame = createOTAFrame(0x13, [0x0A, 0x0B, 0x0C]);
+            
+            try {
+                const writeChars = Object.values(characteristics).filter(char => 
+                    char.properties.write || char.properties.writeWithoutResponse
+                );
+                
+                if (writeChars.length === 0) {
+                    log('❌ No writable characteristics found');
+                    return;
+                }
+                
+                await writeChars[0].writeValueWithoutResponse(frame);
+                log('✅ OTA mode enable command sent');
+                otaEnabled = true;
+                document.getElementById('startOTABtn').disabled = false;
+            } catch (error) {
+                log(`❌ Failed to enable OTA: ${error.message}`);
+            }
+        }
+        
+        function handleFirmwareFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                firmwareData = new Uint8Array(e.target.result);
+                log(`📁 Firmware loaded: ${file.name} (${firmwareData.length} bytes)`);
+                
+                if (otaEnabled) {
+                    document.getElementById('startOTABtn').disabled = false;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        async function startOTAUpdate() {
+            if (!isConnected || !firmwareData || !otaEnabled) {
+                log('❌ Not ready for OTA (check connection, firmware file, and OTA mode)');
+                return;
+            }
+            
+            const confirmed = confirm(
+                '🔥 FINAL WARNING!\n\n' +
+                'Starting OTA update. This WILL modify your device firmware.\n' +
+                'Power loss or disconnection during update WILL brick your device!\n\n' +
+                'Are you ABSOLUTELY SURE?'
+            );
+            
+            if (!confirmed) return;
+            
+            log('⚡ Starting OTA firmware update...');
+            document.getElementById('otaProgress').style.display = 'block';
+            
+            try {
+                // Send start command (0x03 with 0x01)
+                const startFrame = createOTAFrame(0x03, [0x01]);
+                await sendOTAFrame(startFrame);
+                log('📤 OTA start command sent');
+                
+                // Send firmware data in chunks
+                const chunkSize = 128; // Adjust based on BLE MTU
+                let offset = 0;
+                
+                while (offset < firmwareData.length) {
+                    const chunk = firmwareData.slice(offset, offset + chunkSize);
+                    
+                    // Create data frame: 0x73 0x00 0x0E 0x50 [data...] [checksum]
+                    const dataFrame = [];
+                    dataFrame.push(0x73);
+                    dataFrame.push(0x00);  // Special length for data frames
+                    dataFrame.push(0x0E);  // Data command
+                    dataFrame.push(0x50);  // Data sub-command
+                    
+                    // Add offset information (4 bytes, little-endian)
+                    dataFrame.push(offset & 0xFF);
+                    dataFrame.push((offset >> 8) & 0xFF);
+                    dataFrame.push((offset >> 16) & 0xFF);
+                    dataFrame.push((offset >> 24) & 0xFF);
+                    
+                    // Add chunk data
+                    for (let i = 0; i < chunk.length; i++) {
+                        dataFrame.push(chunk[i]);
+                    }
+                    
+                    // Add checksum
+                    const checksum = calculateXORChecksum(dataFrame);
+                    dataFrame.push(checksum);
+                    
+                    await sendOTAFrame(new Uint8Array(dataFrame));
+                    
+                    offset += chunkSize;
+                    const progress = Math.min(100, Math.round((offset / firmwareData.length) * 100));
+                    updateOTAProgress(progress, `Sent ${offset} / ${firmwareData.length} bytes`);
+                    
+                    // Small delay between chunks
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                log('✅ OTA update complete! Device should reboot.');
+                updateOTAProgress(100, 'Update complete - waiting for device reboot');
+                
+            } catch (error) {
+                log(`❌ OTA update failed: ${error.message}`);
+                updateOTAProgress(0, 'Update failed');
+            }
+        }
+        
+        async function sendOTAFrame(frame) {
+            const writeChars = Object.values(characteristics).filter(char => 
+                char.properties.write || char.properties.writeWithoutResponse
+            );
+            
+            if (writeChars.length === 0) {
+                throw new Error('No writable characteristics found');
+            }
+            
+            await writeChars[0].writeValueWithoutResponse(frame);
+        }
+        
+        function updateOTAProgress(percent, status) {
+            document.getElementById('otaProgressBar').style.width = percent + '%';
+            document.getElementById('otaStatus').textContent = status;
+        }
+        
+        async function runAllTests() {
+            if (!isConnected) return;
+            
+            log('🧪 Starting comprehensive test sequence...');
+            clearAll();
+            
+            const commands = [
+                { cmd: 0x03, name: 'Runtime Info' },
+                { cmd: 0x04, name: 'Device Info' },
+                { cmd: 0x08, name: 'WiFi Info' },
+                { cmd: 0x0D, name: 'System Data' },
+                { cmd: 0x13, name: 'Error Codes' },
+                { cmd: 0x14, name: 'BMS Data' },
+                { cmd: 0x1A, name: 'Config Data' },
+                { cmd: 0x1C, name: 'Event Log' },
+                { cmd: 0x21, name: 'Read Meter IP', payload: [0x0B] },
+                { cmd: 0x24, name: 'Network Info' }
+            ];
+            
+            for (const test of commands) {
+                log(`\n📋 Running test: ${test.name}`);
+                await sendCommand(test.cmd, test.name, test.payload);
+                // Wait 1 second between commands to avoid overwhelming the device
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            log('\n✅ All tests completed! Check the hex dumps above for analysis.');
+        }
+
+        // Check browser compatibility
+        if (!navigator.bluetooth) {
+            log('❌ Web Bluetooth not supported');
+        }
+        
+        // Fetch and display version info
+        async function displayVersionInfo() {
+            try {
+                const response = await fetch('https://api.github.com/repos/rweijnen/marstek-venus-monitor/commits/main');
+                if (response.ok) {
+                    const data = await response.json();
+                    const commitSha = data.sha.substring(0, 7);
+                    const commitDate = new Date(data.commit.author.date).toLocaleString();
+                    const commitMessage = data.commit.message.split('\n')[0]; // First line only
+                    
+                    document.getElementById('versionInfo').innerHTML = 
+                        `<small>Version: <code>${commitSha}</code> - ${commitMessage} (${commitDate})</small>`;
+                } else {
+                    document.getElementById('versionInfo').innerHTML = 
+                        '<small>Version: Unable to fetch version info</small>';
+                }
+            } catch (error) {
+                document.getElementById('versionInfo').innerHTML = 
+                    '<small>Version: ' + window.location.hostname + '</small>';
+            }
+        }
+        
+        // Command information data
+        const commandInfo = {
+            runtime: {
+                title: '⚡ Runtime Information (0x03)',
+                description: 'Retrieves real-time operational data from the device',
+                command: '0x73 0x06 0x23 0x03 0x6B',
+                response: 'Variable length response containing power flow, temperatures, and status',
+                sampleData: `Battery Response (~101 bytes):
+  In1 Power: 78W
+  In2 Power: 2.59W
+  Out1 Power: 2W
+  Out2 Power: 391.3W
+  Temperature Low: 25.3°C
+  Temperature High: 26.1°C
+  WiFi Connected: Yes
+  MQTT Connected: No
+
+Meter Response (~19 bytes):
+  Total Power: 304.39W
+  Current: 2.32A
+  Phase Power: 2.27W
+  Voltage: 31V`,
+                notes: 'Scaling varies by device type: Battery uses raw/÷10/÷100, Meter uses ÷100 for power/current'
+            },
+            device: {
+                title: '📱 Device Information (0x04)',
+                description: 'Gets device identification and firmware versions',
+                command: '0x73 0x06 0x23 0x04 0x68',
+                response: 'Comma-separated key=value pairs in ASCII text',
+                sampleData: `type=HMG-50,id=XX9cXXcXXXXX,mac=XX:9c:XX:cX:XX:XX,dev_ver=151,bms_ver=120,fc_ver=2024-03-15`,
+                notes: 'Device type HMG=Battery, HME=Meter. IDs are anonymized for privacy.'
+            },
+            wifi: {
+                title: '📶 WiFi Information (0x08)',
+                description: 'Returns the connected WiFi network name',
+                command: '0x73 0x06 0x23 0x08 0x64',
+                response: 'ASCII text string containing SSID',
+                sampleData: 'WiFi-IoT-24-5G',
+                notes: 'Returns empty if not connected to WiFi'
+            },
+            system: {
+                title: '🔧 System Data (0x0D)',
+                description: 'Retrieves system operational parameters',
+                command: '0x73 0x06 0x23 0x0D 0x61',
+                response: '19 bytes of system status data',
+                sampleData: `System Status: 1 (Normal)
+Value 1: 1234
+Value 2: 5678
+Value 3: 9012
+Value 4: 3456
+Value 5: 7890`,
+                notes: 'Values are internal system parameters, exact meaning varies by firmware version'
+            },
+            errors: {
+                title: '🚨 Error Codes (0x13)',
+                description: 'Retrieves historical error codes with timestamps',
+                command: '0x73 0x06 0x23 0x13 0x77',
+                response: '280 bytes containing up to 20 error records (14 bytes each)',
+                sampleData: `2024-12-15 14:32 - Code: 0x80 (128)
+2024-12-14 09:15 - Code: 0x94 (148)
+2024-12-13 22:47 - Code: 0x95 (149)`,
+                notes: 'Common codes: 0x80=General fault, 0x94=Overload, 0x95=Temperature warning'
+            },
+            bms: {
+                title: '🔋 Battery Management System Data (0x14)',
+                description: 'Comprehensive battery status including cell voltages',
+                command: '0x73 0x06 0x23 0x14 0x76',
+                response: '80 bytes for battery, 3 bytes for meter',
+                sampleData: `Battery Response:
+  Total Voltage: 57.1V
+  Current: 100.0A
+  Remaining Capacity: 62%
+  Total Capacity: 99%
+  Design Capacity: 5120Wh
+  Temperature 1: 32°C
+  Temperature 2: 25°C
+  Cell Voltages: 3.325V, 3.324V, 3.326V... (16 cells)
+
+Meter Response:
+  Status: Meter - No Battery Management`,
+                notes: 'Cell voltages scaled by ÷1000, temperatures in Celsius'
+            },
+            config: {
+                title: '⚙️ Configuration Data (0x1A)',
+                description: 'System configuration parameters',
+                command: '0x73 0x06 0x23 0x1A 0x7C',
+                response: '18 bytes of configuration data',
+                sampleData: `Config Mode: 0x61 (97)
+Config Flags: 0x00
+Config Status: 0x9F (-97)
+Enable Flag 1: 0x01 (enabled)
+Enable Flag 2: 0x01 (enabled)
+Config Value: 0x51 (81)`,
+                notes: '0xFF values typically indicate unconfigured parameters'
+            },
+            events: {
+                title: '📝 Event Log (0x1C)',
+                description: 'System event history with timestamps',
+                command: '0x73 0x06 0x23 0x1C 0x7E',
+                response: '180 bytes containing event records (8 bytes each)',
+                sampleData: `2024-12-15 16:45 - Type: 0x94, Code: 0x01
+2024-12-15 12:30 - Type: 0x95, Code: 0x02
+2024-12-14 08:15 - Type: 0x99, Code: 0x00
+2024-12-13 19:22 - Type: 0x9a, Code: 0x03`,
+                notes: 'Event types: 0x94=Power event, 0x95=Temperature event, 0x99=System event, 0x9a=Network event'
+            },
+            meterip: {
+                title: '🌐 Read Meter IP (0x21)',
+                description: 'Reads the configured meter IP address',
+                command: '0x73 0x07 0x23 0x21 0x0B 0x4A',
+                response: '16 bytes containing IP address or 0xFF if not configured',
+                sampleData: '192.168.1.100 or "No meter IP configured" (all 0xFF)',
+                notes: 'Payload[0]=0x0B for READ operation'
+            },
+            writemeter: {
+                title: '🌐 Write Test IP (0x21)',
+                description: 'Writes a test IP address to meter configuration',
+                command: '0x73 0x12 0x23 0x21 0x0A 0x31 0x39 0x32 0x2E 0x31 0x36 0x38 0x2E 0x31 0x2E 0x31 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Writing: 192.168.1.1 (ASCII encoded in hex)',
+                notes: '⚠️ WARNING: Modifies meter network configuration. Payload[0]=0x0A for WRITE operation.'
+            },
+            network: {
+                title: '🔗 Network Information (0x24)',
+                description: 'Retrieves complete network configuration',
+                command: '0x73 0x06 0x23 0x24 0x4A',
+                response: 'Comma-separated network parameters in ASCII',
+                sampleData: 'ip:192.168.1.50,gate:192.168.1.1,mask:255.255.255.0,dns:8.8.8.8',
+                notes: 'Returns device\'s current network configuration'
+            },
+            // Power Management Commands
+            power800: {
+                title: '⚡ Set 800W Mode (0x15)',
+                description: 'Sets maximum power output to 800W (low power mode)',
+                command: '0x73 0x08 0x23 0x15 0x20 0x03 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Device power limit set to 800W',
+                notes: '⚠️ WARNING: Reduces maximum output power. May affect connected loads.'
+            },
+            power2500: {
+                title: '⚡ Set 2500W Mode (0x15)',
+                description: 'Sets maximum power output to 2500W (high power mode)',
+                command: '0x73 0x08 0x23 0x15 0xC4 0x09 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Device power limit set to 2500W',
+                notes: '⚠️ WARNING: Increases maximum output power. Ensure wiring and loads can handle increased power.'
+            },
+            acpower: {
+                title: '⚡ Set AC Power Limit (0x16)',
+                description: 'Sets AC input power limit to 2500W',
+                command: '0x73 0x08 0x23 0x16 0xC4 0x09 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'AC input power limit set to 2500W',
+                notes: '⚠️ WARNING: Modifies AC input power consumption limit.'
+            },
+            totalpower: {
+                title: '⚡ Set Total Power Limit (0x17)',
+                description: 'Sets total system power limit to 2500W',
+                command: '0x73 0x08 0x23 0x17 0xC4 0x09 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Total system power limit set to 2500W',
+                notes: '⚠️ WARNING: Limits combined power from all sources.'
+            },
+            // System Configuration Commands
+            servertype: {
+                title: '🌐 Set Server Type (0x02)',
+                description: 'Configures server connection type (0 = default)',
+                command: '0x73 0x07 0x23 0x02 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Server type set to 0',
+                notes: '⚠️ WARNING: May affect cloud connectivity and monitoring.'
+            },
+            epsenable: {
+                title: '🔌 Enable EPS (0x0F)',
+                description: 'Enables Emergency Power Supply mode for backup power',
+                command: '0x73 0x07 0x23 0x0F 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'EPS mode enabled - device will provide backup power during outages',
+                notes: '⚠️ WARNING: Changes backup power behavior. Battery will reserve capacity for emergency use.'
+            },
+            epsdisable: {
+                title: '🔌 Disable EPS (0x0F)',
+                description: 'Disables Emergency Power Supply mode',
+                command: '0x73 0x07 0x23 0x0F 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'EPS mode disabled - full battery capacity available',
+                notes: '⚠️ WARNING: Disables backup power function during grid outages.'
+            },
+            acmode0: {
+                title: '🔌 AC Input Mode 0 (0x19)',
+                description: 'Sets AC input to mode 0 (standard grid connection)',
+                command: '0x73 0x07 0x23 0x19 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'AC input mode set to 0',
+                notes: '⚠️ WARNING: Changes how device handles AC input power.'
+            },
+            acmode1: {
+                title: '🔌 AC Input Mode 1 (0x19)',
+                description: 'Sets AC input to mode 1 (alternative AC handling)',
+                command: '0x73 0x07 0x23 0x19 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'AC input mode set to 1',
+                notes: '⚠️ WARNING: Alternative AC input handling mode.'
+            },
+            workmode: {
+                title: '⚙️ Set Working Mode (0x1E)',
+                description: 'Configures device operational mode',
+                command: '0x73 0x07 0x23 0x1E 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Working mode set to 1',
+                notes: '⚠️ WARNING: Changes fundamental device operation.'
+            },
+            genenable: {
+                title: '⛽ Enable Generator (0x23)',
+                description: 'Enables generator input for charging',
+                command: '0x73 0x07 0x23 0x23 0x01 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Generator input enabled',
+                notes: '⚠️ WARNING: Allows charging from generator source.'
+            },
+            gendisable: {
+                title: '⛽ Disable Generator (0x23)',
+                description: 'Disables generator input',
+                command: '0x73 0x07 0x23 0x23 0x00 [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Generator input disabled',
+                notes: '⚠️ WARNING: Prevents charging from generator source.'
+            },
+            // Time & Network Commands
+            settime: {
+                title: '🕰 Set Date/Time (0x0B)',
+                description: 'Synchronizes device clock with browser time',
+                command: '0x73 0x0D 0x23 0x0B [year_low] [year_high] [month] [day] [hour] [minute] [second] [checksum]',
+                response: 'Confirmation or error response',
+                sampleData: 'Time set to 2024-12-15 14:30:45',
+                notes: '⚠️ WARNING: Changes device clock. May affect scheduled operations and logging.'
+            },
+            // Advanced/Dangerous Commands
+            reset: {
+                title: '🚫 System Reset (0x0C)',
+                description: 'Forces immediate device restart',
+                command: '0x73 0x09 0x23 0x0C 0x0A 0x0B 0x0C 0x01 [checksum]',
+                response: 'Device will restart immediately',
+                sampleData: 'System reset initiated...',
+                notes: '🚫 DANGER: Device will restart immediately. All connections will be lost. Unsaved data may be lost.'
+            },
+            upgrade: {
+                title: '🚫 Upgrade Mode (0x1F)',
+                description: 'Enters firmware upgrade mode',
+                command: '0x73 0x08 0x23 0x1F 0x0A 0x0B 0x0C [checksum]',
+                response: 'Device enters upgrade mode',
+                sampleData: 'Entering firmware upgrade mode...',
+                notes: '🚫 DANGER: Device enters special mode for firmware updates. May require physical access to recover if interrupted.'
+            },
+            parallel: {
+                title: '🚫 Parallel Ready (0x20)',
+                description: 'Configures device for parallel operation with other units',
+                command: '0x73 0x09 0x23 0x20 0x0A 0x0B 0x0C 0x01 [checksum]',
+                response: 'Parallel mode configuration',
+                sampleData: 'Device configured for parallel operation',
+                notes: '🚫 DANGER: Changes multi-unit operation. Incorrect configuration may damage equipment.'
+            },
+            // BLE OTA Firmware Update
+            otaactivate: {
+                title: '🔄 Activate OTA Mode (0x3A)',
+                description: 'Activates OTA mode with fixed pattern validation',
+                command: '0x73 [len_low] [len_high] 0x3A [reserved] [00 05 00 03 02]',
+                response: 'Device ACKs with cmd=0x3A, payload=0x01 for success',
+                sampleData: 'OTA state set to 1, ready for firmware size',
+                notes: '🚫 DANGER: Device validates fixed pattern (buf[1]==5, buf[3]==3, buf[4]==2) before entering OTA mode.'
+            },
+            otasize: {
+                title: '📏 Send Firmware Size & Checksum',
+                description: 'Sends firmware size and ones\' complement checksum for validation',
+                command: '0x73 [len_low] [len_high] 0x50 [reserved] [size_4bytes] [checksum_4bytes]',
+                response: 'Device ACKs with same cmd=0x50, echoing size and checksum',
+                sampleData: 'Size: 73,728 bytes, Checksum: 0xFF92A61B (~sum32). OTA state set to 2.',
+                notes: '⚠️ Resets counters, erases flash region. Checksum = ones\' complement of 32-bit sum. Device enters state 2.'
+            },
+            otadata: {
+                title: '📦 Send Data Block (0x51)',
+                description: 'Sends 128-byte firmware chunk with 4-byte offset prefix',
+                command: '0x73 [len_low] [len_high] 0x51 [reserved] [offset_4bytes] [data_128bytes]',
+                response: 'Device ACKs with cmd=0x51, echoing the 4-byte offset',
+                sampleData: 'Offset: 0x00001000, Data: 128 bytes written to flash in 16-byte chunks',
+                notes: '⚠️ Adds bytes to running sum. If offset+128 == total size, sets last block flag and inverts sum.'
+            },
+            otafinalize: {
+                title: '🏁 Finalize OTA Update (0x52)',
+                description: 'Device validates checksum and configures based on firmware type',
+                command: '0x73 [len_low] [len_high] 0x52 [reserved] []',
+                response: 'Device ACKs with cmd=0x52, payload=0x01 for success',
+                sampleData: 'Checksum verified, device configured as BMS or EMS based on firmware type',
+                notes: '⚠️ Device validates checksum and reads VenusC signature at 0x8050004 to determine if it should operate as BMS (no VenusC) or EMS (has VenusC). Commits and reboots on success.'
+            },
+            ctpollread: {
+                title: '📊 Read CT Polling Rate (0x22)',
+                description: 'Read current CT (Current Transformer) meter polling rate configuration',
+                command: '0x73 0x04 0x23 0x22 [checksum]',
+                response: '1 byte: polling rate value (0=fastest, 1=medium, 2=slowest)',
+                sampleData: '0x01 = medium polling rate',
+                notes: '📡 Controls how often the device polls connected CT power meters. Lower values = faster polling rates. Stored persistently in firmware memory at 0x37B.'
+            },
+            ctpoll0: {
+                title: '📊 Set CT Polling Rate 0 (0x22)',
+                description: 'Set CT meter polling rate to 0 (fastest setting)',
+                command: '0x73 0x05 0x23 0x22 0x00 [checksum]',
+                response: 'ACK or current polling rate',
+                sampleData: 'Rate set to 0',
+                notes: '⚡ Value 0: Fastest polling rate setting. Actual timing intervals to be determined through testing.'
+            },
+            ctpoll1: {
+                title: '📊 Set CT Polling Rate 1 (0x22)',
+                description: 'Set CT meter polling rate to 1 (medium setting)',
+                command: '0x73 0x05 0x23 0x22 0x01 [checksum]',
+                response: 'ACK or current polling rate',
+                sampleData: 'Rate set to 1',
+                notes: '⚖️ Value 1: Medium polling rate setting. Actual timing intervals to be determined through testing.'
+            },
+            ctpoll2: {
+                title: '📊 Set CT Polling Rate 2 (0x22)',
+                description: 'Set CT meter polling rate to 2 (slowest setting)',
+                command: '0x73 0x05 0x23 0x22 0x02 [checksum]',
+                response: 'ACK or current polling rate',
+                sampleData: 'Rate set to 2',
+                notes: '🔋 Value 2: Slowest polling rate setting. Actual timing intervals to be determined through testing.'
+            },
+            apiread: {
+                title: '🌐 Read Local API Status (0x28)',
+                description: 'Read current Local API configuration and status',
+                command: '0x73 0x04 0x23 0x28 [checksum]',
+                response: '3 bytes: [enable_flag, port_low, port_high]',
+                sampleData: '0x01 0x50 0x1F = Enabled on port 8080',
+                notes: '🔍 Returns current API state (0x00=disabled, 0x01=enabled) and configured port number in little-endian format. Use this to verify API settings before making changes.'
+            }
+        };
+
+        // BLE OTA Update Implementation
+        let otaInProgress = false;
+        let otaCurrentChunk = 0;
+        let otaTotalChunks = 0;
+        let txCharacteristic = null;  // ff01 - write without response
+        let rxCharacteristic = null;  // ff02 - notifications
+        let otaChunkSize = 132;       // Default, calculated from MTU
+        let pendingAckResolve = null;
+        let firmwareChecksum = 0;
+
+        function analyzeFirmware(firmwareArrayBuffer) {
+            // Calculate ones' complement checksum as expected by Marstek bootloader
+            // sum32(bytes) then ones' complement: ~sum mod 2^32
+            const bytes = new Uint8Array(firmwareArrayBuffer);
+            let sum = 0;
+            
+            // Sum all bytes (JavaScript handles 32-bit overflow automatically)
+            for (let i = 0; i < bytes.length; i++) {
+                sum += bytes[i];
+            }
+            
+            // Apply 32-bit mask and ones' complement
+            sum = sum >>> 0; // Convert to unsigned 32-bit
+            const checksum = (~sum) >>> 0; // Ones' complement and convert to unsigned 32-bit
+            
+            // Detect firmware type by checking for VenusC signature at offset 0x50004
+            let firmwareType = 'Unknown';
+            const signatureOffset = 0x50004;
+            
+            if (bytes.length > signatureOffset + 10) {
+                const signatureBytes = bytes.slice(signatureOffset, signatureOffset + 10);
+                const signatureStr = new TextDecoder('utf-8', { fatal: false }).decode(signatureBytes);
+                
+                if (signatureStr.includes('VenusC')) {
+                    firmwareType = 'EMS/Control Firmware (VenusC signature found)';
+                } else {
+                    // Check if the area contains mostly null bytes or valid data
+                    const hasData = signatureBytes.some(b => b !== 0x00 && b !== 0xFF);
+                    if (hasData) {
+                        firmwareType = 'BMS Firmware (no VenusC signature)';
+                    } else {
+                        firmwareType = 'Unknown (signature area empty)';
+                    }
+                }
+            } else {
+                firmwareType = 'Unknown (file too small)';
+            }
+            
+            log(`📊 Firmware analysis:`);
+            log(`   Size: ${bytes.length} bytes`);
+            log(`   Type: ${firmwareType}`);
+            log(`   Sum: 0x${sum.toString(16).padStart(8, '0')}`);
+            log(`   Checksum: 0x${checksum.toString(16).padStart(8, '0')} (~sum)`);
+            
+            return { checksum, type: firmwareType, size: bytes.length };
+        }
+
+        function createBLEOTAFrame(command, reserved, payload = []) {
+            const frame = [];
+            frame.push(0x73);                    // Header byte
+            
+            // Calculate total frame length: payload + 6 bytes overhead
+            const totalLength = payload.length + 6;
+            frame.push(totalLength & 0xFF);      // Length low byte (LE)
+            frame.push((totalLength >> 8) & 0xFF); // Length high byte (LE)
+            
+            frame.push(command);                 // Command byte (0x50, 0x51, 0x52)
+            frame.push(reserved);                // Reserved byte (0x10)
+            frame.push(...payload);              // Payload
+            
+            // Calculate XOR checksum over all previous bytes
+            let checksum = 0;
+            for (const byte of frame) {
+                checksum ^= byte;
+            }
+            frame.push(checksum);
+            
+            return new Uint8Array(frame);
+        }
+
+        function handleNotification(event) {
+            const value = new Uint8Array(event.target.value.buffer);
+            
+            // Parse OTA frame from notification
+            if (value.length < 6 || value[0] !== 0x73) {
+                log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+                return;
+            }
+            
+            const declaredLength = value[1] | (value[2] << 8);
+            if (declaredLength !== value.length) {
+                log(`❌ Length mismatch: declared ${declaredLength}, got ${value.length}`);
+                return;
+            }
+            
+            const cmd = value[3];
+            const reserved = value[4];
+            
+            // Verify XOR checksum
+            let xor = 0;
+            for (let i = 0; i < value.length - 1; i++) {
+                xor ^= value[i];
+            }
+            if (xor !== value[value.length - 1]) {
+                log(`❌ Bad XOR checksum: expected ${xor.toString(16)}, got ${value[value.length - 1].toString(16)}`);
+                return;
+            }
+            
+            const payload = value.slice(5, -1);
+            log(`📥 Received ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+            
+            // Resolve pending ACK promise
+            if (pendingAckResolve) {
+                pendingAckResolve({
+                    ok: true,
+                    cmd: cmd,
+                    reserved: reserved,
+                    payload: payload
+                });
+                pendingAckResolve = null;
+            }
+        }
+
+        async function waitForAck(expectedCmd, timeoutMs = 2000) {
+            return new Promise((resolve, reject) => {
+                pendingAckResolve = (ack) => {
+                    if (ack.cmd === expectedCmd) {
+                        resolve(ack);
+                    } else {
+                        resolve({
+                            ok: false,
+                            reason: `unexpected cmd: expected 0x${expectedCmd.toString(16)}, got 0x${ack.cmd.toString(16)}`
+                        });
+                    }
+                };
+                
+                setTimeout(() => {
+                    if (pendingAckResolve) {
+                        pendingAckResolve = null;
+                        resolve({ ok: false, reason: "timeout" });
+                    }
+                }, timeoutMs);
+            });
+        }
+
+        async function connectAndPrepareOTA() {
+            if (!currentDevice) {
+                throw new Error("No device connected");
+            }
+            
+            // Find TX and RX characteristics
+            const service = await currentDevice.gatt.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
+            txCharacteristic = await service.getCharacteristic('0000ff01-0000-1000-8000-00805f9b34fb');
+            rxCharacteristic = await service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
+            
+            // Enable notifications on RX characteristic
+            await rxCharacteristic.startNotifications();
+            rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+            log('✅ Notifications enabled on RX characteristic (ff02)');
+            
+            // Use fixed 128-byte chunks as per protocol specification
+            otaChunkSize = 128;
+            log(`📏 Using protocol chunk size: ${otaChunkSize} bytes (128 data + 4 offset)`);
+            
+            // Note: Total BLE payload will be 128 + 4 = 132 bytes, plus frame overhead
+            
+            // Analyze firmware: checksum + type detection
+            const analysis = analyzeFirmware(firmwareData);
+            firmwareChecksum = analysis.checksum;
+            log(`🔑 Firmware ready for upload`);
+        }
+
+        async function sendOTAActivate() {
+            if (!txCharacteristic) {
+                log('❌ TX characteristic not ready');
+                return false;
+            }
+
+            try {
+                log('🔄 Activating OTA mode with cmd 0x3A...');
+                // Step 1: Send activation command 0x3A with fixed pattern
+                // Expects: buf[1]==5, buf[3]==3, buf[4]==2
+                const activatePayload = [0x00, 0x05, 0x00, 0x03, 0x02];
+                const frame = createBLEOTAFrame(0x3A, 0x10, activatePayload);
+                await txCharacteristic.writeValueWithoutResponse(frame);
+                log('✅ OTA activation (0x3A) sent, waiting for ACK...');
+                
+                // Wait for ACK with cmd=0x3A and status 0x01
+                const ack = await waitForAck(0x3A, 2000);
+                if (!ack.ok) {
+                    log(`❌ Activation ACK failed: ${ack.reason}`);
+                    return false;
+                }
+                
+                // Check for status byte 0x01 indicating success
+                if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
+                    log('✅ OTA activation confirmed - device entered state 1');
+                    return true;
+                } else {
+                    const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
+                    log(`❌ OTA activation failed - status: ${status}`);
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Failed to activate OTA mode: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function sendFirmwareSize(firmwareSize) {
+            if (!txCharacteristic) {
+                log('❌ TX characteristic not ready');
+                return false;
+            }
+
+            try {
+                log(`📏 Sending firmware size: ${firmwareSize} bytes with checksum: 0x${firmwareChecksum.toString(16)}`);
+                
+                // Step 2: Send firmware length in 8-byte payload: size LE (4) + checksum LE (4)
+                // Checksum = ones' complement of 32-bit sum of all firmware bytes
+                const sizePayload = [
+                    firmwareSize & 0xFF,
+                    (firmwareSize >> 8) & 0xFF,
+                    (firmwareSize >> 16) & 0xFF,
+                    (firmwareSize >> 24) & 0xFF,
+                    firmwareChecksum & 0xFF,
+                    (firmwareChecksum >> 8) & 0xFF,
+                    (firmwareChecksum >> 16) & 0xFF,
+                    (firmwareChecksum >> 24) & 0xFF
+                ];
+                
+                const frame = createBLEOTAFrame(0x50, 0x10, sizePayload);
+                await txCharacteristic.writeValueWithoutResponse(frame);
+                log('✅ Firmware size sent, waiting for ACK...');
+                
+                // Wait for ACK (device should echo the same cmd=0x50)
+                const ack = await waitForAck(0x50, 2000);
+                if (!ack.ok) {
+                    log(`❌ Size ACK failed: ${ack.reason}`);
+                    return false;
+                }
+                
+                // Verify device echoed our firmware checksum in the ACK payload
+                if (ack.payload.length >= 8) {
+                    const echoedChecksum = ack.payload[4] | (ack.payload[5] << 8) | (ack.payload[6] << 16) | (ack.payload[7] << 24);
+                    if (echoedChecksum === firmwareChecksum) {
+                        log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
+                    } else {
+                        log(`⚠️ Firmware checksum mismatch: sent 0x${firmwareChecksum.toString(16)}, got 0x${echoedChecksum.toString(16)}`);
+                    }
+                }
+                
+                log('✅ Firmware size confirmed');
+                return true;
+            } catch (error) {
+                log(`❌ Failed to send firmware size: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
+            if (!txCharacteristic) {
+                log('❌ TX characteristic not ready');
+                return false;
+            }
+
+            try {
+                // Step 3: Send firmware chunk with cmd=0x51
+                // Payload: 4-byte offset (LE) + 128 bytes of firmware data
+                const payload = [
+                    offset & 0xFF,
+                    (offset >> 8) & 0xFF,
+                    (offset >> 16) & 0xFF,
+                    (offset >> 24) & 0xFF,
+                    ...Array.from(chunkData)
+                ];
+                
+                const frame = createBLEOTAFrame(0x51, 0x10, payload);
+                await txCharacteristic.writeValueWithoutResponse(frame);
+                
+                // Update progress
+                const progress = Math.round((chunkIndex / totalChunks) * 100);
+                if (document.getElementById('otaProgress')) {
+                    document.getElementById('otaProgress').style.width = `${progress}%`;
+                }
+                if (document.getElementById('otaStatus')) {
+                    document.getElementById('otaStatus').textContent = 
+                        `Uploading: ${chunkIndex}/${totalChunks} chunks (${progress}%)`;
+                }
+                
+                log(`📤 Sent chunk ${chunkIndex}/${totalChunks} at offset 0x${offset.toString(16)} (${chunkData.length} bytes)`);
+                
+                // Wait for ACK (cmd=0x51) with echoed offset
+                const ack = await waitForAck(0x51, 1500);
+                if (!ack.ok) {
+                    log(`❌ Chunk ${chunkIndex} ACK failed: ${ack.reason}`);
+                    return false;
+                }
+                
+                // Verify device echoed back the correct offset
+                if (ack.payload.length >= 4) {
+                    const echoedOffset = ack.payload[0] | (ack.payload[1] << 8) | (ack.payload[2] << 16) | (ack.payload[3] << 24);
+                    if (echoedOffset === offset) {
+                        log(`✅ Chunk ${chunkIndex} confirmed at offset 0x${offset.toString(16)}`);
+                    } else {
+                        log(`⚠️ Offset mismatch: sent 0x${offset.toString(16)}, got 0x${echoedOffset.toString(16)}`);
+                    }
+                } else {
+                    log(`✅ Chunk ${chunkIndex} confirmed (no offset echo)`);
+                }
+                
+                return true;
+            } catch (error) {
+                log(`❌ Failed to send chunk ${chunkIndex}: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function sendOTAFinalize() {
+            if (!txCharacteristic) {
+                log('❌ TX characteristic not ready');
+                return false;
+            }
+
+            try {
+                log('🏁 Sending OTA finalization command...');
+                // Step 4: Send finalize command with cmd=0x52 and empty payload
+                const frame = createBLEOTAFrame(0x52, 0x10, []);
+                await txCharacteristic.writeValueWithoutResponse(frame);
+                log('✅ OTA finalize command sent, waiting for confirmation...');
+                
+                // Wait for ACK (cmd=0x52) with payload indicating success (0x01) or failure
+                const ack = await waitForAck(0x52, 3000);
+                if (!ack.ok) {
+                    log(`❌ Finalize ACK failed: ${ack.reason}`);
+                    return false;
+                }
+                
+                // For 0x52 ACK: payload[0] == 0x01 means success
+                if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
+                    log('✅ OTA finalization successful - device will restart');
+                    return true;
+                } else {
+                    const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
+                    log(`❌ OTA finalization failed - status: ${status}`);
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Failed to finalize OTA update: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function performOTAUpdate() {
+            if (!firmwareData) {
+                log('❌ No firmware file selected');
+                return;
+            }
+
+            if (otaInProgress) {
+                log('⚠️ OTA update already in progress');
+                return;
+            }
+
+            otaInProgress = true;
+            otaCurrentChunk = 0;
+            
+            try {
+                log(`🚀 Starting OTA update...`);
+                log(`📄 Firmware size: ${firmwareData.byteLength} bytes`);
+                
+                // Step 0: Connect and prepare OTA characteristics
+                await connectAndPrepareOTA();
+                
+                // Calculate chunks using computed chunk size
+                otaTotalChunks = Math.ceil(firmwareData.byteLength / otaChunkSize);
+                log(`📦 Total chunks: ${otaTotalChunks} (${otaChunkSize} bytes each)`);
+                
+                // Step 1: Send activation command 0x3A to enter OTA mode
+                if (!await sendOTAActivate()) {
+                    throw new Error('Failed to activate OTA mode');
+                }
+                
+                // Step 2: Send firmware size with session token
+                if (!await sendFirmwareSize(firmwareData.byteLength)) {
+                    throw new Error('Failed to send firmware size');
+                }
+                
+                // Step 3: Send firmware data in chunks
+                log('📤 Starting firmware data transfer...');
+                let offset = 0;
+                let chunkIndex = 0;
+                
+                while (offset < firmwareData.byteLength) {
+                    const end = Math.min(offset + otaChunkSize, firmwareData.byteLength);
+                    const chunk = new Uint8Array(firmwareData.slice(offset, end));
+                    
+                    let retryCount = 0;
+                    let chunkSent = false;
+                    
+                    while (!chunkSent && retryCount < 3) {
+                        try {
+                            if (!await sendFirmwareChunk(chunk, offset, chunkIndex + 1, otaTotalChunks)) {
+                                throw new Error(`Failed to send chunk ${chunkIndex + 1}`);
+                            }
+                            chunkSent = true;
+                            offset += chunk.length;
+                            chunkIndex++;
+                        } catch (error) {
+                            retryCount++;
+                            log(`⚠️ Retry ${retryCount}/3 for chunk ${chunkIndex + 1}: ${error.message}`);
+                            if (retryCount >= 3) {
+                                throw new Error(`Failed to send chunk ${chunkIndex + 1} after 3 retries`);
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 100)); // Small backoff
+                        }
+                    }
+                }
+                
+                // Step 4: Finalize OTA update
+                log('🏁 Finalizing OTA update...');
+                if (!await sendOTAFinalize()) {
+                    throw new Error('Failed to finalize OTA update');
+                }
+                
+                log('✅ OTA update completed successfully!');
+                document.getElementById('otaStatus').textContent = 'Update completed! Device will restart...';
+                
+            } catch (error) {
+                log(`❌ OTA update failed: ${error.message}`);
+                document.getElementById('otaStatus').textContent = `Update failed: ${error.message}`;
+            } finally {
+                otaInProgress = false;
+            }
+        }
+
+        function handleFirmwareFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            log(`📁 Selected firmware file: ${file.name} (${file.size} bytes)`);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                firmwareData = e.target.result;
+                
+                // Analyze firmware to get type and checksum info
+                const analysis = analyzeFirmware(firmwareData);
+                
+                // Update UI with detailed firmware info
+                document.getElementById('otaFileInfo').innerHTML = `
+                    <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
+                    <strong>Type:</strong> ${analysis.type}<br>
+                    <strong>Checksum:</strong> 0x${analysis.checksum.toString(16).padStart(8, '0').toUpperCase()}
+                `;
+                
+                // Enable start button only if connected and file loaded
+                const startBtn = document.getElementById('otaStartBtn');
+                if (currentDevice && currentCharacteristic) {
+                    startBtn.disabled = false;
+                }
+                
+                // Show progress container
+                document.getElementById('otaProgressContainer').style.display = 'block';
+                document.getElementById('otaStatus').textContent = 'Ready to start...';
+                
+                log('✅ Firmware file analyzed and ready for upload');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function showCommandInfo(cmdKey) {
+            const info = commandInfo[cmdKey];
+            if (!info) return;
+            
+            const modal = document.getElementById('infoModal');
+            const details = document.getElementById('commandDetails');
+            
+            details.innerHTML = `
+                <h3>${info.title}</h3>
+                <div class="detail-section">
+                    <strong>Description:</strong><br>
+                    ${info.description}
+                </div>
+                <div class="detail-section">
+                    <strong>Command Sent:</strong><br>
+                    <code>${info.command}</code>
+                </div>
+                <div class="detail-section">
+                    <strong>Response Format:</strong><br>
+                    ${info.response}
+                </div>
+                <div class="detail-section">
+                    <strong>Sample Data:</strong>
+                    <pre>${info.sampleData}</pre>
+                </div>
+                ${info.notes ? `
+                <div class="detail-section">
+                    <strong>Notes:</strong><br>
+                    ${info.notes}
+                </div>` : ''}
+            `;
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeInfoModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const infoModal = document.getElementById('infoModal');
+            if (event.target == infoModal) {
+                infoModal.style.display = 'none';
+            }
+        }
+        
+        // Load version info on page load
+        displayVersionInfo();
+    </script>
+</body>
+</html>

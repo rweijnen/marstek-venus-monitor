@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "mcp__ida-pro-mcp__check_connection",
+      "mcp__ida-pro-mcp__get_function_by_address",
+      "mcp__ida-pro-mcp__decompile_function"
+    ],
+    "deny": []
+  }
+}
