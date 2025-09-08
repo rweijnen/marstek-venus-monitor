@@ -577,9 +577,9 @@ function parseRuntimeInfo(payload) {
             meter2: view.getUint16(0x16, true), // Secondary meter value
             meter3: view.getUint16(0x1A, true), // Tertiary meter value
             
-            // Energy accumulators (32-bit counters)
-            energyTotal1: view.getUint32(0x2E, true), // Total energy counter 1
-            energyTotal2: view.getUint32(0x32, true), // Total energy counter 2
+            // Energy accumulators (32-bit LE, zero-padded high word)
+            energyTotal1: view.getUint32(0x2E, true), // 0x2E-0x31: Energy counter 1
+            energyTotal2: view.getUint32(0x32, true), // 0x32-0x35: Energy counter 2
             
             // Counter/flag at 0x44
             counter: view.getUint16(0x44, true),
@@ -590,15 +590,13 @@ function parseRuntimeInfo(payload) {
             buildCode: buildCode,                      // 0x4E-0x4F: Build/error code (BE)
             firmwareBuild: firmwareTimestamp,          // 0x51-0x5C: Build timestamp ASCII
             
-            // Reserved counter after build string
-            reservedCounter: view.getUint16(0x5E, true),  // 0x5E-0x5F: Reserved (0x0000)
-            
-            // Calibration/variant tags (with bounds checking)
-            calTag1: payload.length > 0x61 ? view.getUint16(0x60, true) : 0,      // 0x60-0x61: u16 LE -> 0x0001 = 1
-            calTag2: payload.length > 0x62 ? view.getUint8(0x62) : 0,             // 0x62: u8 -> 0xFF = 255
-            calTag3: payload.length > 0x64 ? view.getUint16(0x63, false) : 0,     // 0x63-0x64: u16 BE -> 0x03F2 = 1010
-            calTag4: payload.length > 0x66 ? view.getUint16(0x65, true) : 0,      // 0x65-0x66: u16 LE -> 0x0164 = 356
-            apiPort: payload.length > 0x68 ? view.getUint16(0x67, true) : 0,      // 0x67-0x68: u16 LE -> 0x7530 = 30000
+            // Tail section after build timestamp (ensure proper bounds)
+            reservedCounter: payload.length >= 0x60 ? view.getUint16(0x5E, true) : 0,  // 0x5E-0x5F: Reserved (0x0000)
+            calTag1: payload.length >= 0x62 ? view.getUint16(0x60, true) : 0,         // 0x60-0x61: u16 LE -> 0x0001 = 1
+            calTag2: payload.length >= 0x63 ? view.getUint8(0x62) : 0,                // 0x62: u8 -> 0xFF = 255
+            calTag3: payload.length >= 0x65 ? view.getUint16(0x63, false) : 0,        // 0x63-0x64: u16 BE -> 0x03F2 = 1010
+            calTag4: payload.length >= 0x67 ? view.getUint16(0x65, true) : 0,         // 0x65-0x66: u16 LE -> 0x0164 = 356
+            apiPort: payload.length >= 0x69 ? view.getUint16(0x67, true) : 0,         // 0x67-0x68: u16 LE -> 0x7530 = 30000
             
             // Device type string
             deviceType: `${modelType} Battery System`
