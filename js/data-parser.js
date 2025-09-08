@@ -519,7 +519,7 @@ function parseRuntimeInfo(payload) {
         };
     } else {
         // Battery - full response with corrected field parsing
-        if (payload.length < 104) return null;  // Need at least 104 bytes for full runtime data
+        if (payload.length < 100) return null;  // Need at least 100 bytes for basic runtime data
         
         // Parse power rating from offset 0x4A-0x4B (74-75)
         const powerRating = view.getUint16(0x4A, true);
@@ -593,12 +593,12 @@ function parseRuntimeInfo(payload) {
             // Reserved counter after build string
             reservedCounter: view.getUint16(0x5E, true),  // 0x5E-0x5F: Reserved (0x0000)
             
-            // Calibration/variant tags
-            calTag1: view.getUint16(0x60, true),      // 0x60-0x61: u16 LE -> 0x0001 = 1
-            calTag2: view.getUint8(0x62),             // 0x62: u8 -> 0xFF = 255
-            calTag3: view.getUint16(0x63, false),     // 0x63-0x64: u16 BE -> 0x03F2 = 1010
-            calTag4: view.getUint16(0x65, true),      // 0x65-0x66: u16 LE -> 0x0164 = 356
-            apiPort: view.getUint16(0x67, true),      // 0x67-0x68: u16 LE -> 0x7530 = 30000
+            // Calibration/variant tags (with bounds checking)
+            calTag1: payload.length > 0x61 ? view.getUint16(0x60, true) : 0,      // 0x60-0x61: u16 LE -> 0x0001 = 1
+            calTag2: payload.length > 0x62 ? view.getUint8(0x62) : 0,             // 0x62: u8 -> 0xFF = 255
+            calTag3: payload.length > 0x64 ? view.getUint16(0x63, false) : 0,     // 0x63-0x64: u16 BE -> 0x03F2 = 1010
+            calTag4: payload.length > 0x66 ? view.getUint16(0x65, true) : 0,      // 0x65-0x66: u16 LE -> 0x0164 = 356
+            apiPort: payload.length > 0x68 ? view.getUint16(0x67, true) : 0,      // 0x67-0x68: u16 LE -> 0x7530 = 30000
             
             // Device type string
             deviceType: `${modelType} Battery System`
