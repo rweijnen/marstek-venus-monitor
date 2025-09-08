@@ -87,8 +87,8 @@
                     const baseUrl = 'https://rweijnen.github.io/marstek-venus-monitor';
                     
                     if (version === 'v1.0.0') {
-                        // Stable version via JSDelivr CDN (works for static files)
-                        window.location.href = `https://cdn.jsdelivr.net/gh/rweijnen/marstek-venus-monitor@v1.0.0/`;
+                        // Stable version redirect page
+                        window.location.href = `${baseUrl}/stable.html`;
                     } else if (version === 'main') {
                         // Main branch (current beta) served from root
                         window.location.href = baseUrl;

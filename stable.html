@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Stable Version...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 40px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 80vh;
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        a { color: white; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔋 Marstek Venus E Monitor</h1>
+        <div class="spinner"></div>
+        <p>Redirecting to stable version (v1.0.0)...</p>
+        <p><small>If you're not redirected automatically, <a href="https://github.com/rweijnen/marstek-venus-monitor/releases/tag/v1.0.0" id="manualLink">click here</a></small></p>
+    </div>
+    
+    <script>
+        // Redirect to GitHub release page for v1.0.0 which has proper files
+        setTimeout(() => {
+            window.location.href = 'https://github.com/rweijnen/marstek-venus-monitor/releases/tag/v1.0.0';
+        }, 2000);
+    </script>
+</body>
+</html>
