@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy Multiple Branches to GitHub Pages
 
 on:
   push:
@@ -11,57 +11,99 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
+  build_matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.generate-matrix.outputs.branches }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Generate Matrix
+        id: generate-matrix
+        run: |
+          # Only build specific branches we care about
+          branches='["main", "gh-pages-stable"]'
+          echo "branches=${branches}" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    needs:
+      - build_matrix
+    strategy:
+      matrix:
+        branch: ${{ fromJSON(needs.build_matrix.outputs.branches) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+      - name: Build branch content
+        run: |
+          # Clean up unnecessary files
+          rm -rf .git .github test .claude
+          mkdir -p dist
+          cp -r * dist/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: branch-${{ strategy.job-index }}-${{ matrix.branch }}
+          path: dist/
+
   deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    needs:
+      - build_matrix
+      - build
     steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          path: main
-
-      - name: Checkout stable branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages-stable
-          path: stable
-
+      - uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: branches
 
-      - name: Build combined site
+      - name: Create unified deployment
         run: |
-          mkdir -p _site
+          mkdir public
           
-          # Copy main branch content to root
-          cp -r main/* _site/ 2>/dev/null || true
-          rm -rf _site/.git _site/.github _site/test _site/.claude
+          # Get branch list
+          branches='${{ needs.build_matrix.outputs.branches }}'
+          echo "Building site with branches: ${branches}"
           
-          # Copy stable branch content to /stable directory  
-          mkdir -p _site/stable
-          cp -r stable/* _site/stable/ 2>/dev/null || true
-          rm -rf _site/stable/.git _site/stable/.github
+          # Copy main branch to root
+          if [ -d "branches/branch-0-main" ]; then
+            cp -r branches/branch-0-main/* public/
+          fi
           
-          # Remove the complex stable.html redirect since we have real content
-          rm -f _site/stable.html
+          # Copy stable branch to /stable directory  
+          if [ -d "branches/branch-1-gh-pages-stable" ]; then
+            mkdir -p public/stable
+            cp -r branches/branch-1-gh-pages-stable/* public/stable/
+          fi
           
-          echo "✅ Site structure built:"
-          find _site -name "index.html" -type f
-
+          # Create version info
+          echo "🚀 Multi-version deployment complete!"
+          echo "📂 Site structure:"
+          find public -name "index.html" -type f
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
-
+          path: ./public/
+          
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
