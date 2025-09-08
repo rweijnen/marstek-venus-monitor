@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - stable
   workflow_dispatch:
 
 permissions:
@@ -13,41 +12,47 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages-${{ github.ref }}"
+  group: "pages"
   cancel-in-progress: false
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Checkout stable branch  
+        uses: actions/checkout@v4
+        with:
+          ref: stable
+          path: stable
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Determine deployment path
-        id: path
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/stable" ]]; then
-            echo "path=stable" >> $GITHUB_OUTPUT
-          else
-            echo "path=." >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create deployment directory structure
+      - name: Create deployment with both versions
         run: |
           mkdir -p _site
-          if [[ "${{ steps.path.outputs.path }}" == "." ]]; then
-            cp -r * _site/ 2>/dev/null || true
-          else
-            mkdir -p _site/${{ steps.path.outputs.path }}
-            cp -r * _site/${{ steps.path.outputs.path }}/ 2>/dev/null || true
-          fi
+          
+          # Copy main branch to root (beta version)
+          cp -r main/* _site/ 2>/dev/null || true
+          rm -rf _site/.git _site/.github
+          
+          # Copy stable branch to /stable directory
+          mkdir -p _site/stable
+          cp -r stable/* _site/stable/ 2>/dev/null || true
+          rm -rf _site/stable/.git _site/stable/.github
+          
+          # Create index.html redirect for /stable/ path
+          echo "Deployment structure:"
+          find _site -name "index.html" -type f
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
