@@ -47,9 +47,9 @@ export class FrameHeader implements IFrameHeader {
             return false;
         }
 
-        // Verify XOR checksum
+        // Verify XOR checksum (include start byte)
         let calculatedChecksum = 0;
-        for (let i = 1; i < data.length - 1; i++) {
+        for (let i = 0; i < data.length - 1; i++) {
             calculatedChecksum ^= data[i];
         }
 
