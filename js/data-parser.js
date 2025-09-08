@@ -533,10 +533,10 @@ function parseRuntimeInfo(payload) {
         // Parse build code at 0x4E-0x4F (78-79) - Big Endian
         const buildCode = view.getUint16(0x4E, false); // false = big endian
         
-        // Parse firmware timestamp from offset 0x51 (81) - note: ASCII string starts at 0x51, not 0x52
+        // Parse firmware timestamp from offset 0x51 (81) - 12 bytes ASCII string
         let firmwareTimestamp = 'Unknown';
         try {
-            const timestampBytes = payload.slice(0x51, 0x5D); // 12 bytes of ASCII
+            const timestampBytes = payload.slice(0x51, 0x5D); // 12 bytes of ASCII + NUL
             const timestampStr = new TextDecoder().decode(timestampBytes);
             if (timestampStr.length >= 12 && /^\d+/.test(timestampStr)) {
                 // Format: YYYYMMDDhhmm -> YYYY-MM-DD hh:mm
@@ -559,35 +559,45 @@ function parseRuntimeInfo(payload) {
         const productCode = view.getUint16(0x0C, true);
         
         return {
-            // First field is signed 16-bit at offset 0 - grid/input power
-            gridPower: view.getInt16(0, true) + 'W',
-            // Second field at offset 2 - PV/solar power (signed)
-            solarPower: view.getInt16(2, true) + 'W',
-            // Status flags
-            workMode: `0x${statusA.toString(16).padStart(2, '0')}`,
-            statusFlags: `${statusB}/${statusC}/${statusD}`,
-            // Product/model code
-            productCode: `0x${productCode.toString(16).padStart(4, '0')}`,
-            // Various meter/telemetry values
-            telemetry1: view.getUint16(0x12, true),
-            telemetry2: view.getUint16(0x16, true),
-            telemetry3: view.getUint16(0x1A, true),
-            // Energy accumulators
-            energyAccum1: view.getUint32(0x2E, true),
-            energyAccum2: view.getUint32(0x32, true),
-            // Temperature readings if present (might be at different offsets)
-            temperature1: payload.length > 0x21 ? (view.getInt16(0x21, true) / 10).toFixed(1) + '°C' : 'N/A',
-            temperature2: payload.length > 0x23 ? (view.getInt16(0x23, true) / 10).toFixed(1) + '°C' : 'N/A',
-            // Device information
-            powerRating: modelType,
-            firmwareVersion: fwVersion,
-            buildCode: buildCode,
-            firmwareBuild: firmwareTimestamp,
-            // Constants at end (for verification)
-            const1: view.getUint16(0x60, true), // Should be 0x00FF
-            const2: view.getUint16(0x62, true), // Should be 0x03F2 (1010)
-            const3: view.getUint16(0x64, true), // Should be 0x0164 (356)
-            apiPort: view.getUint16(0x66, true), // Should be 0x7530 (30000)
+            // Power readings (signed, can be negative for import/export)
+            gridPower: view.getInt16(0x00, true) + 'W',  // Grid/line power
+            solarPower: view.getInt16(0x02, true) + 'W', // PV/second input power
+            
+            // Status/mode flags
+            workMode: `0x${statusA.toString(16).padStart(2, '0')}`, // 0x04: Work/server mode
+            statusB: statusB,     // 0x05: Status flag B
+            statusC: statusC,     // 0x06: Status flag C  
+            statusD: statusD,     // 0x07: Status flag D
+            
+            // Product identification
+            productCode: `0x${productCode.toString(16).padStart(4, '0')}`, // 0x0C-0x0D: Model code
+            
+            // Telemetry/meter values
+            meter1: view.getUint16(0x12, true), // Voltage or energy counter
+            meter2: view.getUint16(0x16, true), // Secondary meter value
+            meter3: view.getUint16(0x1A, true), // Tertiary meter value
+            
+            // Energy accumulators (32-bit counters)
+            energyTotal1: view.getUint32(0x2E, true), // Total energy counter 1
+            energyTotal2: view.getUint32(0x32, true), // Total energy counter 2
+            
+            // Counter/flag at 0x44
+            counter: view.getUint16(0x44, true),
+            
+            // Device specifications
+            powerRating: modelType,                    // 0x4A-0x4B: Rated power (W)
+            firmwareVersion: fwVersion,                // 0x4C-0x4D: FW major.minor
+            buildCode: buildCode,                      // 0x4E-0x4F: Build/error code (BE)
+            firmwareBuild: firmwareTimestamp,          // 0x51-0x5C: Build timestamp ASCII
+            
+            // Calibration/variant tags at end
+            calTag1: view.getUint16(0x5E, true),      // 0x5E-0x5F: Should be 1
+            calTag2: view.getUint16(0x60, true),      // 0x60-0x61: Should be 255
+            calTag3: view.getUint16(0x62, true),      // 0x62-0x63: Should be 1010
+            calTag4: view.getUint16(0x64, true),      // 0x64-0x65: Should be 356
+            apiPort: view.getUint16(0x66, true),      // 0x66-0x67: Local API port (30000)
+            
+            // Device type string
             deviceType: `${modelType} Battery System`
         };
     }
