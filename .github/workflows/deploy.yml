@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - stable
-      - develop
   workflow_dispatch:
 
 permissions:
@@ -19,6 +18,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -35,8 +35,6 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/stable" ]]; then
             echo "path=stable" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            echo "path=beta" >> $GITHUB_OUTPUT
           else
             echo "path=." >> $GITHUB_OUTPUT
           fi
