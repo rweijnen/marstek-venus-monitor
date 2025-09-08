@@ -67,6 +67,51 @@
             <h1>🔋 Marstek Venus E - BLE Test Tool</h1>
             <p class="subtitle">Advanced BLE monitoring and diagnostics for Marstek battery systems</p>
             
+            <!-- Version Selector -->
+            <div style="text-align: center; margin: 15px 0;">
+                <label for="versionSelect" style="margin-right: 10px;">Version:</label>
+                <select id="versionSelect" onchange="switchVersion(this)" style="padding: 5px 10px; border-radius: 5px; border: 1px solid #ccc;">
+                    <option value="">Select Version</option>
+                    <option value="v1.0.0">v1.0.0 (Stable)</option>
+                    <option value="main">v2.0.0-beta (Current)</option>
+                </select>
+                <span id="versionNote" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+            </div>
+            
+            <script>
+                // Version switching functionality
+                function switchVersion(select) {
+                    const version = select.value;
+                    if (!version) return;
+                    
+                    const baseUrl = 'https://rweijnen.github.io/marstek-venus-monitor';
+                    const currentUrl = window.location.href;
+                    
+                    if (version === 'v1.0.0') {
+                        // GitHub serves tags at cdn.jsdelivr.net for specific versions
+                        window.location.href = `https://cdn.jsdelivr.net/gh/rweijnen/marstek-venus-monitor@v1.0.0/index.html`;
+                    } else if (version === 'main') {
+                        // Main branch (current beta)
+                        window.location.href = baseUrl;
+                    }
+                }
+                
+                // Set current version in dropdown
+                document.addEventListener('DOMContentLoaded', function() {
+                    const versionSelect = document.getElementById('versionSelect');
+                    const versionNote = document.getElementById('versionNote');
+                    
+                    // Detect current version
+                    if (window.location.href.includes('jsdelivr.net')) {
+                        versionSelect.value = 'v1.0.0';
+                        versionNote.textContent = '(Stable Release)';
+                    } else {
+                        versionSelect.value = 'main';
+                        versionNote.textContent = '(Beta - Latest Features)';
+                    }
+                });
+            </script>
+            
             <div class="status">
                 <span>Status: <span id="status" class="disconnected">Disconnected</span></span>
                 <div>
