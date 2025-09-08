@@ -41,11 +41,11 @@ let firmwareData = null;
 // ========================================
 
 /**
- * Connect to a Marstek BLE device
+ * Connect to a Marstek BLE device with retry logic
  */
 async function connect() {
     try {
-        log('🔍 Connecting to Marstek device...');
+        log('🔍 Searching for Marstek devices...');
         
         // Request device with MST prefix filter
         device = await navigator.bluetooth.requestDevice({
@@ -53,25 +53,80 @@ async function connect() {
             optionalServices: [SERVICE_UUID]
         });
 
-        // Connect to GATT server
-        server = await device.gatt.connect();
-        const service = await server.getPrimaryService(SERVICE_UUID);
+        log(`📱 Found device: ${device.name}`);
         
-        // Get all characteristics
-        const chars = await service.getCharacteristics();
-        characteristics = {};
+        // Try to connect with retry logic
+        const maxRetries = 3;
+        let connected = false;
+        let lastError = null;
         
-        // Set up characteristics and notifications
-        for (const char of chars) {
-            characteristics[char.uuid] = char;
-            
-            // Enable notifications for readable characteristics
-            if (char.properties.notify) {
-                await char.startNotifications();
-                char.addEventListener('characteristicvaluechanged', 
-                    createNotificationHandler(char.uuid));
-                log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                log(`🔄 Connection attempt ${attempt}/${maxRetries}...`);
+                
+                // Connect to GATT server with timeout
+                const connectPromise = device.gatt.connect();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Connection timeout')), 10000)
+                );
+                
+                server = await Promise.race([connectPromise, timeoutPromise]);
+                
+                // Small delay to ensure connection is stable
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Get service with retry on failure
+                let service;
+                try {
+                    service = await server.getPrimaryService(SERVICE_UUID);
+                } catch (serviceError) {
+                    log('⚠️ Service not immediately available, waiting...');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    service = await server.getPrimaryService(SERVICE_UUID);
+                }
+                
+                // Get all characteristics
+                const chars = await service.getCharacteristics();
+                characteristics = {};
+                
+                // Set up characteristics and notifications
+                for (const char of chars) {
+                    characteristics[char.uuid] = char;
+                    
+                    // Enable notifications for readable characteristics
+                    if (char.properties.notify) {
+                        await char.startNotifications();
+                        char.addEventListener('characteristicvaluechanged', 
+                            createNotificationHandler(char.uuid));
+                        log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
+                    }
+                }
+                
+                connected = true;
+                break; // Success, exit retry loop
+                
+            } catch (attemptError) {
+                lastError = attemptError;
+                log(`⚠️ Attempt ${attempt} failed: ${attemptError.message}`);
+                
+                if (attempt < maxRetries) {
+                    // Disconnect if partially connected before retry
+                    if (server && server.connected) {
+                        try {
+                            server.disconnect();
+                        } catch (e) {}
+                    }
+                    
+                    // Wait before retry (longer wait for each attempt)
+                    const waitTime = attempt * 2000;
+                    log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                }
             }
+        }
+        
+        if (!connected) {
+            throw lastError || new Error('Failed to connect after multiple attempts');
         }
 
         // Handle disconnection
@@ -102,6 +157,11 @@ async function connect() {
         if (window.uiController && window.uiController.updateStatus) {
             window.uiController.updateStatus(false);
         }
+        
+        // Clean up on failure
+        device = null;
+        server = null;
+        characteristics = {};
     }
 }
 
@@ -122,6 +182,46 @@ function disconnect() {
     
     if (window.uiController && window.uiController.updateStatus) {
         window.uiController.updateStatus(false);
+    }
+}
+
+/**
+ * Disconnect from all paired Bluetooth devices
+ */
+async function disconnectAll() {
+    log('🔌 Disconnecting from all Bluetooth devices...');
+    
+    try {
+        // First disconnect current device
+        disconnect();
+        
+        // Get all paired devices and disconnect them
+        if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+            const devices = await navigator.bluetooth.getDevices();
+            let disconnectedCount = 0;
+            
+            for (const pairedDevice of devices) {
+                try {
+                    if (pairedDevice.gatt && pairedDevice.gatt.connected) {
+                        await pairedDevice.gatt.disconnect();
+                        disconnectedCount++;
+                        log(`🔌 Disconnected from ${pairedDevice.name || 'Unknown Device'}`);
+                    }
+                } catch (error) {
+                    log(`⚠️ Error disconnecting from ${pairedDevice.name || 'Unknown Device'}: ${error.message}`);
+                }
+            }
+            
+            if (disconnectedCount > 0) {
+                log(`✅ Disconnected from ${disconnectedCount} device(s)`);
+            } else {
+                log('ℹ️ No connected devices found');
+            }
+        } else {
+            log('ℹ️ Bluetooth device enumeration not available in this browser');
+        }
+    } catch (error) {
+        log(`❌ Error during disconnect all: ${error.message}`);
     }
 }
 
@@ -960,6 +1060,34 @@ function setLocalApiPort() {
 }
 
 /**
+ * Disconnect from all Bluetooth devices
+ */
+async function disconnectAll() {
+    log('🔌 Disconnecting from all Bluetooth devices...');
+    try {
+        disconnect();
+        if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+            const devices = await navigator.bluetooth.getDevices();
+            let disconnectedCount = 0;
+            for (const pairedDevice of devices) {
+                if (pairedDevice.gatt && pairedDevice.gatt.connected) {
+                    await pairedDevice.gatt.disconnect();
+                    disconnectedCount++;
+                }
+            }
+            if (disconnectedCount > 0) {
+                log(`✅ Disconnected from ${disconnectedCount} additional paired device(s)`);
+            } else {
+                log('ℹ️ No additional paired devices were connected');
+            }
+        }
+        log('✅ Disconnect all completed');
+    } catch (error) {
+        log(`❌ Error during disconnect all: ${error.message}`);
+    }
+}
+
+/**
  * Run comprehensive test sequence
  */
 async function runAllTests() {
@@ -1098,6 +1226,7 @@ if (typeof window !== 'undefined') {
     // Connection functions
     window.connect = connect;
     window.disconnect = disconnect;
+    window.disconnectAll = disconnectAll;
     
     // Command sending functions
     window.sendCommand = sendCommand;

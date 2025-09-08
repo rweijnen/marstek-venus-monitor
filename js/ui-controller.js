@@ -99,6 +99,7 @@ function updateStatus(connected, deviceName = null) {
     const statusEl = document.getElementById('status');
     const connectBtn = document.getElementById('connectBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
+    const disconnectAllBtn = document.getElementById('disconnectAllBtn');
     const runAllBtn = document.getElementById('runAllBtn');
     
     if (!statusEl) return;
@@ -111,6 +112,7 @@ function updateStatus(connected, deviceName = null) {
     statusEl.className = connected ? 'connected' : 'disconnected';
     connectBtn.disabled = connected;
     disconnectBtn.disabled = !connected;
+    disconnectAllBtn.disabled = !connected;
     runAllBtn.disabled = !connected;
     
     const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
