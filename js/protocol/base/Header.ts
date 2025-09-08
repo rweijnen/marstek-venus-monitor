@@ -29,9 +29,6 @@ export class FrameHeader implements IFrameHeader {
     }
 
     private validateFrame(data: Uint8Array): boolean {
-        // Debug logging to identify the problematic frame
-        console.log(`🔍 Validating frame: cmd=0x${this.command.toString(16)}, len=${this.length}, actual=${data.length}, data=[${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}]`);
-        
         // Check start byte
         if (this.startByte !== PROTOCOL_CONSTANTS.START_BYTE) {
             console.warn(`Invalid start byte: 0x${this.startByte.toString(16)}, expected 0x${PROTOCOL_CONSTANTS.START_BYTE.toString(16)}`);
@@ -46,7 +43,7 @@ export class FrameHeader implements IFrameHeader {
 
         // Check length matches actual data
         if (this.length !== data.length) {
-            console.warn(`Length mismatch for cmd=0x${this.command.toString(16)}: header says ${this.length}, got ${data.length}`);
+            console.warn(`Length mismatch: header says ${this.length}, got ${data.length}`);
             return false;
         }
 

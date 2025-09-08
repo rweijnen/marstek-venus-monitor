@@ -63,8 +63,8 @@ function runIntegrationTest() {
                     return false;
                 }
                 
-                // Test parsing a simple response
-                const testData = new Uint8Array([0x73, 0x08, 0x23, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00]);
+                // Test parsing a simple response (corrected length: 9 bytes total)
+                const testData = new Uint8Array([0x73, 0x09, 0x23, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00]);
                 const result = window.dataParser.parseResponse(testData, 'Test Command');
                 return typeof result === 'string' && result.length > 0;
             } catch (error) {

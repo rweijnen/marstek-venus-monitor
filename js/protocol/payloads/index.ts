@@ -16,7 +16,6 @@ export function createPayload(data: Uint8Array): BasePayload {
     }
 
     const command = data[3]; // Command byte at index 3
-    console.log(`🏭 Payload factory: creating parser for cmd=0x${command.toString(16)} (${data.length} bytes)`);
 
     switch (command) {
         case CommandType.RUNTIME_INFO:
