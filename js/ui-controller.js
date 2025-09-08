@@ -112,7 +112,8 @@ function updateStatus(connected, deviceName = null) {
     statusEl.className = connected ? 'connected' : 'disconnected';
     connectBtn.disabled = connected;
     disconnectBtn.disabled = !connected;
-    disconnectAllBtn.disabled = !connected;
+    // Disconnect All should always be enabled to clean up lingering connections
+    disconnectAllBtn.disabled = false;
     runAllBtn.disabled = !connected;
     
     const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
