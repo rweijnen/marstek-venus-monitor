@@ -519,50 +519,75 @@ function parseRuntimeInfo(payload) {
         };
     } else {
         // Battery - full response with corrected field parsing
-        if (payload.length < 85) return null;  // Need at least 85 bytes for firmware timestamp
+        if (payload.length < 104) return null;  // Need at least 104 bytes for full runtime data
         
         // Parse power rating from offset 0x4A-0x4B (74-75)
         const powerRating = view.getUint16(0x4A, true);
         const modelType = powerRating === 2500 ? '2500W' : powerRating === 800 ? '800W' : `${powerRating}W`;
         
-        // Parse firmware timestamp from offset 0x52 (82)
+        // Parse firmware version at 0x4C-0x4D (76-77)
+        const fwMajor = view.getUint8(0x4C);
+        const fwMinor = view.getUint8(0x4D);
+        const fwVersion = `v${fwMajor}.${fwMinor}`;
+        
+        // Parse build code at 0x4E-0x4F (78-79) - Big Endian
+        const buildCode = view.getUint16(0x4E, false); // false = big endian
+        
+        // Parse firmware timestamp from offset 0x51 (81) - note: ASCII string starts at 0x51, not 0x52
         let firmwareTimestamp = 'Unknown';
         try {
-            const timestampBytes = payload.slice(0x52);
-            const nullIndex = timestampBytes.indexOf(0);
-            if (nullIndex > 0) {
-                const timestampStr = new TextDecoder().decode(timestampBytes.slice(0, nullIndex));
-                if (timestampStr.length === 12 && /^\d+$/.test(timestampStr)) {
-                    // Format: YYYYMMDDhhmm -> YYYY-MM-DD hh:mm
-                    firmwareTimestamp = `${timestampStr.slice(0,4)}-${timestampStr.slice(4,6)}-${timestampStr.slice(6,8)} ${timestampStr.slice(8,10)}:${timestampStr.slice(10,12)}`;
+            const timestampBytes = payload.slice(0x51, 0x5D); // 12 bytes of ASCII
+            const timestampStr = new TextDecoder().decode(timestampBytes);
+            if (timestampStr.length >= 12 && /^\d+/.test(timestampStr)) {
+                // Format: YYYYMMDDhhmm -> YYYY-MM-DD hh:mm
+                const cleaned = timestampStr.replace(/\x00/g, '').slice(0, 12);
+                if (cleaned.length === 12) {
+                    firmwareTimestamp = `${cleaned.slice(0,4)}-${cleaned.slice(4,6)}-${cleaned.slice(6,8)} ${cleaned.slice(8,10)}:${cleaned.slice(10,12)}`;
                 }
             }
         } catch (e) {
             // Keep as 'Unknown' if parsing fails
         }
         
+        // Parse status flags at offset 0x04-0x07
+        const statusA = view.getUint8(0x04);
+        const statusB = view.getUint8(0x05);
+        const statusC = view.getUint8(0x06);
+        const statusD = view.getUint8(0x07);
+        
+        // Parse model/product code at 0x0C-0x0D
+        const productCode = view.getUint16(0x0C, true);
+        
         return {
-            // First field is signed 16-bit at offset 0
+            // First field is signed 16-bit at offset 0 - grid/input power
             gridPower: view.getInt16(0, true) + 'W',
-            // Second field at offset 2 - scaled
-            solarPower: (view.getUint16(2, true) / 100).toFixed(2) + 'W',
-            // Status values at offset 6 and 8  
-            statusValue1: view.getUint16(6, true),
-            statusValue2: view.getUint16(8, true),
-            // Device version at offset 10
-            deviceVersion: view.getUint8(10),
-            // Output power fields
-            loadPower: view.getUint16(20, true) + 'W',
-            batteryPower: (view.getUint16(24, true) / 10).toFixed(1) + 'W',
-            // Temperature readings (signed, scaled by 10)
-            temperatureLow: (view.getInt16(33, true) / 10).toFixed(1) + '°C',
-            temperatureHigh: (view.getInt16(35, true) / 10).toFixed(1) + '°C',
-            // Connection status flags at offset 15
-            wifiConnected: !!(view.getUint8(15) & 0x01),
-            mqttConnected: !!(view.getUint8(15) & 0x02),
+            // Second field at offset 2 - PV/solar power (signed)
+            solarPower: view.getInt16(2, true) + 'W',
+            // Status flags
+            workMode: `0x${statusA.toString(16).padStart(2, '0')}`,
+            statusFlags: `${statusB}/${statusC}/${statusD}`,
+            // Product/model code
+            productCode: `0x${productCode.toString(16).padStart(4, '0')}`,
+            // Various meter/telemetry values
+            telemetry1: view.getUint16(0x12, true),
+            telemetry2: view.getUint16(0x16, true),
+            telemetry3: view.getUint16(0x1A, true),
+            // Energy accumulators
+            energyAccum1: view.getUint32(0x2E, true),
+            energyAccum2: view.getUint32(0x32, true),
+            // Temperature readings if present (might be at different offsets)
+            temperature1: payload.length > 0x21 ? (view.getInt16(0x21, true) / 10).toFixed(1) + '°C' : 'N/A',
+            temperature2: payload.length > 0x23 ? (view.getInt16(0x23, true) / 10).toFixed(1) + '°C' : 'N/A',
             // Device information
             powerRating: modelType,
+            firmwareVersion: fwVersion,
+            buildCode: buildCode,
             firmwareBuild: firmwareTimestamp,
+            // Constants at end (for verification)
+            const1: view.getUint16(0x60, true), // Should be 0x00FF
+            const2: view.getUint16(0x62, true), // Should be 0x03F2 (1010)
+            const3: view.getUint16(0x64, true), // Should be 0x0164 (356)
+            apiPort: view.getUint16(0x66, true), // Should be 0x7530 (30000)
             deviceType: `${modelType} Battery System`
         };
     }
