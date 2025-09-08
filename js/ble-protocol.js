@@ -531,6 +531,7 @@ function analyzeFirmware(firmwareArrayBuffer) {
     
     // Detect firmware type by checking for VenusC signature at offset 0x50004
     let firmwareType = 'Unknown';
+    let sizeWarning = '';
     const signatureOffset = 0x50004;
     
     if (bytes.length > signatureOffset + 10) {
@@ -550,11 +551,16 @@ function analyzeFirmware(firmwareArrayBuffer) {
             }
         }
     } else if (bytes.length >= 32768) {
-        // Smaller firmware files (32KB+) - likely BMS firmware
+        // Smaller firmware files - likely BMS firmware
         firmwareType = 'BMS Firmware (size suggests BMS)';
+    } else if (bytes.length >= 1024) {
+        // Small files - could be firmware but unusual
+        firmwareType = 'Unknown (small size - proceed with caution)';
+        sizeWarning = '⚠️ File size is unusually small for firmware';
     } else {
-        // Very small files - likely not valid firmware
-        firmwareType = 'Unknown (file too small for firmware)';
+        // Very small files - likely not firmware but allow user to proceed
+        firmwareType = 'Unknown (very small - likely not firmware)';
+        sizeWarning = '⚠️ File size is very small - this may not be valid firmware';
     }
     
     log(`📊 Firmware analysis:`);
@@ -562,8 +568,11 @@ function analyzeFirmware(firmwareArrayBuffer) {
     log(`   Type: ${firmwareType}`);
     log(`   Sum: 0x${sum.toString(16).padStart(8, '0')}`);
     log(`   Checksum: 0x${checksum.toString(16).padStart(8, '0')} (~sum)`);
+    if (sizeWarning) {
+        log(`   ${sizeWarning}`);
+    }
     
-    return { checksum, type: firmwareType, size: bytes.length };
+    return { checksum, type: firmwareType, size: bytes.length, warning: sizeWarning };
 }
 
 /**
@@ -979,10 +988,14 @@ function handleFirmwareFile(event) {
         
         // Update UI with detailed firmware info
         if (document.getElementById('otaFileInfo')) {
+            let warningHtml = '';
+            if (analysis.warning) {
+                warningHtml = `<br><span style="color: #ff6b35; font-weight: bold;">${analysis.warning}</span>`;
+            }
             document.getElementById('otaFileInfo').innerHTML = `
                 <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
                 <strong>Type:</strong> ${analysis.type}<br>
-                <strong>Checksum:</strong> 0x${analysis.checksum.toString(16).padStart(8, '0').toUpperCase()}
+                <strong>Checksum:</strong> 0x${analysis.checksum.toString(16).padStart(8, '0').toUpperCase()}${warningHtml}
             `;
         }
         
