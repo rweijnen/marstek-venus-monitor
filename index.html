@@ -67,49 +67,14 @@
             <h1>🔋 Marstek Venus E - BLE Test Tool</h1>
             <p class="subtitle">Advanced BLE monitoring and diagnostics for Marstek battery systems</p>
             
-            <!-- Version Selector -->
-            <div style="text-align: center; margin: 15px 0;">
-                <label for="versionSelect" style="margin-right: 10px;">Version:</label>
-                <select id="versionSelect" onchange="switchVersion(this)" style="padding: 5px 10px; border-radius: 5px; border: 1px solid #ccc;">
-                    <option value="">Select Version</option>
-                    <option value="stable">v1.0.0 (Stable)</option>
-                    <option value="latest">v2.0.0-beta (Latest)</option>
-                </select>
-                <span id="versionNote" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+            <!-- Version Links -->
+            <div style="text-align: center; margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                <span style="color: #666; font-size: 14px;">📍 You're using: <strong>v2.0.0-beta (Latest)</strong></span>
+                <span style="margin: 0 10px;">|</span>
+                <a href="https://rweijnen.github.io/marstek-venus-monitor/" style="color: #007bff; text-decoration: none;">
+                    🔒 Switch to v1.0.0 (Stable)
+                </a>
             </div>
-            
-            <script>
-                // Version switching functionality
-                function switchVersion(select) {
-                    const version = select.value;
-                    if (!version) return;
-                    
-                    const baseUrl = 'https://rweijnen.github.io/marstek-venus-monitor';
-                    
-                    if (version === 'stable') {
-                        // Stable version served from root path
-                        window.location.href = baseUrl;
-                    } else if (version === 'latest') {
-                        // Latest beta version served from /latest path
-                        window.location.href = `${baseUrl}/latest/`;
-                    }
-                }
-                
-                // Set current version in dropdown
-                document.addEventListener('DOMContentLoaded', function() {
-                    const versionSelect = document.getElementById('versionSelect');
-                    const versionNote = document.getElementById('versionNote');
-                    
-                    // Detect current version based on URL path
-                    if (window.location.pathname.includes('/latest')) {
-                        versionSelect.value = 'latest';
-                        versionNote.textContent = '(Latest Beta Features)';
-                    } else {
-                        versionSelect.value = 'stable';
-                        versionNote.textContent = '(Stable Production Release)';
-                    }
-                });
-            </script>
             
             <div class="status">
                 <span>Status: <span id="status" class="disconnected">Disconnected</span></span>
