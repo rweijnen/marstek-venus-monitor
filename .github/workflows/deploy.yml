@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - gh-pages-stable
   workflow_dispatch:
 
 permissions:
@@ -22,16 +23,44 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Checkout stable branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages-stable
+          path: stable
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      - name: Build combined site
+        run: |
+          mkdir -p _site
+          
+          # Copy main branch content to root
+          cp -r main/* _site/ 2>/dev/null || true
+          rm -rf _site/.git _site/.github _site/test _site/.claude
+          
+          # Copy stable branch content to /stable directory  
+          mkdir -p _site/stable
+          cp -r stable/* _site/stable/ 2>/dev/null || true
+          rm -rf _site/stable/.git _site/stable/.github
+          
+          # Remove the complex stable.html redirect since we have real content
+          rm -f _site/stable.html
+          
+          echo "✅ Site structure built:"
+          find _site -name "index.html" -type f
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
