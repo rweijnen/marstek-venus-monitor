@@ -521,22 +521,22 @@ function parseRuntimeInfo(payload) {
         // Battery - full response with corrected field parsing
         if (payload.length < 100) return null;  // Need at least 100 bytes for basic runtime data
         
-        // Parse power rating from offset 0x4A-0x4B (74-75)
-        const powerRating = view.getUint16(0x4A, true);
+        // Parse power rating (Payload 0x46 = Raw 0x4A)
+        const powerRating = view.getUint16(0x46, true);
         const modelType = powerRating === 2500 ? '2500W' : powerRating === 800 ? '800W' : `${powerRating}W`;
         
-        // Parse firmware version at 0x4C-0x4D (76-77)
-        const fwMajor = view.getUint8(0x4C);
-        const fwMinor = view.getUint8(0x4D);
+        // Parse firmware version (Payload 0x48-0x49 = Raw 0x4C-0x4D)
+        const fwMajor = view.getUint8(0x48);
+        const fwMinor = view.getUint8(0x49);
         const fwVersion = `v${fwMajor}.${fwMinor}`;
         
-        // Parse build code at 0x4E-0x4F (78-79) - Big Endian
-        const buildCode = view.getUint16(0x4E, false); // false = big endian
+        // Parse build code (Payload 0x4A-0x4B = Raw 0x4E-0x4F) - Big Endian
+        const buildCode = view.getUint16(0x4A, false); // false = big endian
         
-        // Parse firmware timestamp from offset 0x51 (81) - 12 bytes ASCII string
+        // Parse firmware timestamp (Payload 0x4D = Raw 0x51) - 12 bytes ASCII string
         let firmwareTimestamp = 'Unknown';
         try {
-            const timestampBytes = payload.slice(0x51, 0x5D); // 12 bytes of ASCII + NUL
+            const timestampBytes = payload.slice(0x4D, 0x59); // 12 bytes of ASCII + NUL
             const timestampStr = new TextDecoder().decode(timestampBytes);
             if (timestampStr.length >= 12 && /^\d+/.test(timestampStr)) {
                 // Format: YYYYMMDDhhmm -> YYYY-MM-DD hh:mm
@@ -578,29 +578,26 @@ function parseRuntimeInfo(payload) {
             meter3: view.getUint16(0x1A, true), // Tertiary meter value
             
             // Energy accumulators (32-bit LE, zero-padded high word)
-            energyTotal1: view.getUint32(0x2E, true), // 0x2E-0x31: Energy counter 1
-            energyTotal2: view.getUint32(0x32, true), // 0x32-0x35: Energy counter 2
+            // Note: These are PAYLOAD offsets, not raw frame offsets
+            energyTotal1: view.getUint32(0x2A, true), // Payload 0x2A = Raw 0x2E
+            energyTotal2: view.getUint32(0x2E, true), // Payload 0x2E = Raw 0x32
             
-            // Counter/flag at 0x44
-            counter: view.getUint16(0x44, true),
-            
-            // Debug - let's see what we're actually reading
-            debugEnergy1Bytes: `${payload[0x2E]?.toString(16)} ${payload[0x2F]?.toString(16)} ${payload[0x30]?.toString(16)} ${payload[0x31]?.toString(16)}`,
-            debugTailBytes: `@5E=${payload[0x5E]?.toString(16)} @60=${payload[0x60]?.toString(16)} @62=${payload[0x62]?.toString(16)}`,
+            // Counter/flag (Payload 0x40 = Raw 0x44)
+            counter: view.getUint16(0x40, true),
             
             // Device specifications
-            powerRating: modelType,                    // 0x4A-0x4B: Rated power (W)
-            firmwareVersion: fwVersion,                // 0x4C-0x4D: FW major.minor
-            buildCode: buildCode,                      // 0x4E-0x4F: Build/error code (BE)
-            firmwareBuild: firmwareTimestamp,          // 0x51-0x5C: Build timestamp ASCII
+            powerRating: modelType,                    // Payload 0x46 = Raw 0x4A
+            firmwareVersion: fwVersion,                // Payload 0x48-0x49 = Raw 0x4C-0x4D
+            buildCode: buildCode,                      // Payload 0x4A-0x4B = Raw 0x4E-0x4F (BE)
+            firmwareBuild: firmwareTimestamp,          // Payload 0x4D-0x58 = Raw 0x51-0x5C
             
-            // Tail section after build timestamp (ensure proper bounds)
-            reservedCounter: payload.length > 0x5F ? view.getUint16(0x5E, true) : 0,  // 0x5E-0x5F: Reserved (0x0000)
-            calTag1: payload.length > 0x61 ? view.getUint16(0x60, true) : 0,         // 0x60-0x61: u16 LE -> 0x0001 = 1
-            calTag2: payload.length > 0x62 ? view.getUint8(0x62) : 0,                // 0x62: u8 -> 0xFF = 255
-            calTag3: payload.length > 0x64 ? view.getUint16(0x63, false) : 0,        // 0x63-0x64: u16 BE -> 0x03F2 = 1010
-            calTag4: payload.length > 0x66 ? view.getUint16(0x65, true) : 0,         // 0x65-0x66: u16 LE -> 0x0164 = 356
-            apiPort: payload.length > 0x68 ? view.getUint16(0x67, true) : 0,         // 0x67-0x68: u16 LE -> 0x7530 = 30000
+            // Tail section after build timestamp (PAYLOAD offsets, not raw)
+            reservedCounter: payload.length > 0x5B ? view.getUint16(0x5A, true) : 0,  // Payload 0x5A = Raw 0x5E
+            calTag1: payload.length > 0x5D ? view.getUint16(0x5C, true) : 0,         // Payload 0x5C = Raw 0x60
+            calTag2: payload.length > 0x5E ? view.getUint8(0x5E) : 0,                // Payload 0x5E = Raw 0x62
+            calTag3: payload.length > 0x60 ? view.getUint16(0x5F, false) : 0,        // Payload 0x5F = Raw 0x63 (BE)
+            calTag4: payload.length > 0x62 ? view.getUint16(0x61, true) : 0,         // Payload 0x61 = Raw 0x65
+            apiPort: payload.length > 0x64 ? view.getUint16(0x63, true) : 0,         // Payload 0x63 = Raw 0x67
             
             // Device type string
             deviceType: `${modelType} Battery System`
