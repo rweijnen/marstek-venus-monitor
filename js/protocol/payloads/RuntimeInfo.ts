@@ -35,30 +35,30 @@ export class RuntimeInfoPayload extends BasePayload {
         const energyTotal2 = this.readUint32LE(0x2E); // Energy counter 2
 
         // Parse counter/flag
-        const counter = this.safeReadUint16LE(0x40); // Counter at raw offset 0x44
+        const counter = this.safeReadUint16LE(0x40); // Counter at payload offset 0x40
 
         // Parse device specifications
-        const powerRatingRaw = this.safeReadUint16LE(0x46); // Raw offset 0x4A
+        const powerRatingRaw = this.safeReadUint16LE(0x4A); // Power rating at payload offset 0x4A (raw 0x4E)
         const powerRating = powerRatingRaw;
         
         // Parse firmware version
-        const fwMajor = this.safeReadUint8(0x48);   // Raw offset 0x4C
-        const fwMinor = this.safeReadUint8(0x49);   // Raw offset 0x4D
+        const fwMajor = this.safeReadUint8(0x4C);   // FW major at payload offset 0x4C (raw 0x50)
+        const fwMinor = this.safeReadUint8(0x4D);   // FW minor at payload offset 0x4D (raw 0x51)
         const firmwareVersion = `v${fwMajor}.${fwMinor}`;
 
-        // Parse build code (big endian)
-        const buildCode = this.safeReadUint16BE(0x4A); // Raw offset 0x4E-0x4F
+        // Parse build code (little endian based on test)
+        const buildCode = this.safeReadUint16LE(0x4E); // Build code at payload offset 0x4E (raw 0x52)
 
         // Parse firmware timestamp (12 ASCII bytes)
-        const firmwareBuild = this.parseFirmwareTimestamp(0x4D); // Raw offset 0x51
+        const firmwareBuild = this.parseFirmwareTimestamp(0x50); // Timestamp at payload offset 0x50 (raw 0x54)
 
         // Parse calibration tags with bounds checking
-        const reservedCounter = this.safeReadUint16LE(0x5A); // Raw offset 0x5E
-        const calTag1 = this.safeReadUint16LE(0x5C);        // Raw offset 0x60
-        const calTag2 = this.safeReadUint8(0x5E);           // Raw offset 0x62
-        const calTag3 = this.safeReadUint16BE(0x5F);        // Raw offset 0x63 (BE)
-        const calTag4 = this.safeReadUint16LE(0x61);        // Raw offset 0x65
-        const apiPort = this.safeReadUint16LE(0x63);        // Raw offset 0x67
+        const reservedCounter = this.safeReadUint16LE(0x5C); // Reserved at payload offset 0x5C
+        const calTag1 = this.safeReadUint16LE(0x5E);        // Cal tag 1 at payload offset 0x5E
+        const calTag2 = this.safeReadUint8(0x60);           // Cal tag 2 at payload offset 0x60
+        const calTag3 = this.safeReadUint16BE(0x61);        // Cal tag 3 at payload offset 0x61 (BE)
+        const calTag4 = this.safeReadUint16LE(0x63);        // Cal tag 4 at payload offset 0x63
+        const apiPort = this.safeReadUint16LE(0x66);        // API port at payload offset 0x66 (raw 0x6A)
 
         return {
             gridPower,

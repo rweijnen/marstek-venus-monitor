@@ -3,7 +3,7 @@
     "target": "ES2020",
     "module": "ES2020",
     "lib": ["ES2020", "DOM"],
-    "outDir": "./js/compiled",
+    "outDir": "./js/dist",
     "rootDir": "./js",
     "strict": true,
     "esModuleInterop": true,
@@ -11,14 +11,15 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "declaration": true
+    "sourceMap": false,
+    "declaration": false,
+    "allowJs": true
   },
   "include": [
     "js/**/*.ts"
   ],
   "exclude": [
-    "js/compiled/**/*",
+    "js/dist/**/*",
     "node_modules"
   ]
 }
