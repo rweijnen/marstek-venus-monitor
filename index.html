@@ -2223,12 +2223,12 @@ Config Value: 0x51 (81)`,
         }
 
         async function connectAndPrepareOTA() {
-            if (!currentDevice) {
+            if (!device) {
                 throw new Error("No device connected");
             }
             
             // Find TX and RX characteristics
-            const service = await currentDevice.gatt.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
+            const service = await device.gatt.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
             txCharacteristic = await service.getCharacteristic('0000ff01-0000-1000-8000-00805f9b34fb');
             rxCharacteristic = await service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
             
@@ -2539,7 +2539,7 @@ Config Value: 0x51 (81)`,
                 
                 // Enable start button only if connected and file loaded
                 const startBtn = document.getElementById('otaStartBtn');
-                if (startBtn && isConnected && currentDevice && currentDevice.gatt && currentDevice.gatt.connected) {
+                if (startBtn && isConnected && device && device.gatt && device.gatt.connected) {
                     startBtn.disabled = false;
                 }
                 
