@@ -135,8 +135,8 @@
                     <span class="cmd-button-text">📊 Read CT Polling Rate</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpollread')">i</span>
                 </button>
-                <button onclick="sendCommand(0x28, 'Read Local API Status')" disabled data-tooltip="Read current Local API configuration" class="cmd-button">
-                    <span class="cmd-button-text">🌐 Read Local API Status</span>
+                <button onclick="sendCommand(0x03, 'Local API Status (Runtime Info)')" disabled data-tooltip="Check Local API status from runtime information" class="cmd-button">
+                    <span class="cmd-button-text">🌐 Local API Status</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>
                 </button>
                 <button onclick="sendCommand(0x10, 'Read Configuration')" disabled class="cmd-button" data-tooltip="Read device configuration including server credentials (~80 bytes)">
