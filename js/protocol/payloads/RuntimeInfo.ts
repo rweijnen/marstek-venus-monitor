@@ -138,7 +138,12 @@ export class RuntimeInfoPayload extends BasePayload {
             html += `<div><strong>Cal Tag 2:</strong> ${data.calTag2}</div>`;
             html += `<div><strong>Cal Tag 3:</strong> ${data.calTag3}</div>`;
             html += `<div><strong>Cal Tag 4:</strong> ${data.calTag4}</div>`;
-            html += `<div><strong>API Port:</strong> ${data.apiPort}</div>`;
+            
+            // API Status based on port value
+            const apiStatus = data.apiPort === 0 ? 
+                '<span style="color: #dc3545;">🔒 DISABLED</span>' : 
+                `<span style="color: #28a745;">🔓 ENABLED (Port: ${data.apiPort})</span>`;
+            html += `<div><strong>Local API Status:</strong> ${apiStatus}</div>`;
             
             html += `<div><strong>Device Type:</strong> ${modelType} Battery System</div>`;
             html += '</div>';
