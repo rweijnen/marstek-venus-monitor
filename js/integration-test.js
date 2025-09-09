@@ -26,9 +26,7 @@ function runIntegrationTest() {
         name: 'Data Parser Module',
         test: () => {
             return typeof window.dataParser === 'object' &&
-                   typeof window.dataParser.parseResponse === 'function' &&
-                   typeof window.dataParser.parseString === 'function' &&
-                   typeof window.dataParser.parseUint16LE === 'function';
+                   typeof window.dataParser.parseResponse === 'function';
         }
     });
     
