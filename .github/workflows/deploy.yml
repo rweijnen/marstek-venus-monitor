@@ -63,19 +63,20 @@ jobs:
             # Create dist directory for compiled JS
             mkdir -p js/dist
             
-            # Compile TypeScript files
-            tsc --target ES2020 --module ES2020 --outDir js/dist --allowJs --skipLibCheck js/**/*.ts || true
+            # Compile TypeScript files using tsconfig.json
+            if [ -f "tsconfig.json" ]; then
+              echo "📋 Using tsconfig.json for compilation"
+              tsc || true
+            else
+              echo "⚠️ No tsconfig.json found, using default settings"
+              tsc --target ES2020 --module ES2020 --outDir js/dist --allowJs --skipLibCheck js/**/*.ts || true
+            fi
             
-            # Copy compiled files with proper extensions
-            find js -name "*.ts" -type f | while read tsfile; do
-              jsfile="${tsfile%.ts}.js"
-              distfile="js/dist/$(basename ${jsfile})"
-              if [ -f "$distfile" ]; then
-                echo "✅ Compiled: $tsfile -> $distfile"
-              fi
-            done
+            # List compiled files for verification
+            echo "📦 Compiled files:"
+            find js/dist -name "*.js" -type f | head -20
             
-            echo "📦 TypeScript compilation completed"
+            echo "✅ TypeScript compilation completed"
           else
             echo "ℹ️ No TypeScript files found, skipping compilation"
           fi
