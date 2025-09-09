@@ -405,13 +405,15 @@ function createBLEOTAFrame(command, reserved, payload = []) {
  * @param {number} commandType - Command type byte
  * @param {string} commandName - Human-readable command name for logging
  * @param {Array|null} payload - Optional payload bytes
+ * @param {number} retryCount - Number of retry attempts (default 0)
  */
-async function sendCommand(commandType, commandName, payload = null) {
+async function sendCommand(commandType, commandName, payload = null, retryCount = 0) {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     try {
         const command = createCommandMessage(commandType, payload);
         window.currentCommand = commandName;
+        window.lastCommandTime = Date.now();
         
         log(`📤 Sending ${commandName}...`);
         log(`📋 Frame: ${formatBytes(command)}`);
@@ -428,8 +430,32 @@ async function sendCommand(commandType, commandName, payload = null) {
         const writeChar = writeChars[0];
         await writeChar.writeValueWithoutResponse(command);
         
+        // Set up timeout for retry
+        setTimeout(async () => {
+            // Check if we got a response (currentCommand gets cleared when response arrives)
+            if (window.currentCommand === commandName && 
+                Date.now() - window.lastCommandTime > 2900) {
+                
+                if (retryCount < 2) {
+                    log(`⏱️ No response, retrying ${commandName} (attempt ${retryCount + 2}/3)...`);
+                    await sendCommand(commandType, commandName, payload, retryCount + 1);
+                } else {
+                    log(`❌ No response for ${commandName} after 3 attempts`);
+                    window.currentCommand = null;
+                }
+            }
+        }, 3000);
+        
     } catch (error) {
         log(`❌ Failed to send ${commandName}: ${error.message}`);
+        
+        // Retry on error
+        if (retryCount < 2) {
+            log(`🔄 Retrying ${commandName} due to error (attempt ${retryCount + 2}/3)...`);
+            setTimeout(() => {
+                sendCommand(commandType, commandName, payload, retryCount + 1);
+            }, 1000);
+        }
     }
 }
 
@@ -438,13 +464,15 @@ async function sendCommand(commandType, commandName, payload = null) {
  * @param {number} commandType - Command type byte
  * @param {string} commandName - Human-readable command name for logging
  * @param {Array|null} payload - Optional payload bytes
+ * @param {number} retryCount - Number of retry attempts (default 0)
  */
-async function sendMeterIPCommand(commandType, commandName, payload = null) {
+async function sendMeterIPCommand(commandType, commandName, payload = null, retryCount = 0) {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
     try {
         const command = createMeterIPMessage(commandType, payload);
         window.currentCommand = commandName;
+        window.lastCommandTime = Date.now();
         
         log(`📤 Sending ${commandName} (Alternative Protocol)...`);
         log(`📋 Frame: ${formatBytes(command)}`);
@@ -461,8 +489,32 @@ async function sendMeterIPCommand(commandType, commandName, payload = null) {
         const writeChar = writeChars[0];
         await writeChar.writeValueWithoutResponse(command);
         
+        // Set up timeout for retry
+        setTimeout(async () => {
+            // Check if we got a response (currentCommand gets cleared when response arrives)
+            if (window.currentCommand === commandName && 
+                Date.now() - window.lastCommandTime > 2900) {
+                
+                if (retryCount < 2) {
+                    log(`⏱️ No response, retrying ${commandName} (attempt ${retryCount + 2}/3)...`);
+                    await sendMeterIPCommand(commandType, commandName, payload, retryCount + 1);
+                } else {
+                    log(`❌ No response for ${commandName} after 3 attempts`);
+                    window.currentCommand = null;
+                }
+            }
+        }, 3000);
+        
     } catch (error) {
         log(`❌ Failed to send ${commandName}: ${error.message}`);
+        
+        // Retry on error
+        if (retryCount < 2) {
+            log(`🔄 Retrying ${commandName} due to error (attempt ${retryCount + 2}/3)...`);
+            setTimeout(() => {
+                sendMeterIPCommand(commandType, commandName, payload, retryCount + 1);
+            }, 1000);
+        }
     }
 }
 

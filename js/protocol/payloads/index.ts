@@ -9,6 +9,7 @@ import { RuntimeInfoPayload } from './RuntimeInfo.js';
 import { DeviceInfoPayload } from './DeviceInfo.js';
 import { WiFiInfoPayload } from './WiFiInfo.js';
 import { BMSDataPayload } from './BMSData.js';
+import { NetworkInfoPayload } from './NetworkInfo.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -29,6 +30,9 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.BMS_DATA:
             return new BMSDataPayload(data);
+            
+        case CommandType.NETWORK_INFO:
+            return new NetworkInfoPayload(data);
         
         // Add other payload types as we implement them
         
@@ -63,4 +67,4 @@ class GenericPayload extends BasePayload {
     }
 }
 
-export { RuntimeInfoPayload, DeviceInfoPayload, WiFiInfoPayload, BMSDataPayload };
+export { RuntimeInfoPayload, DeviceInfoPayload, WiFiInfoPayload, BMSDataPayload, NetworkInfoPayload };
