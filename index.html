@@ -2264,11 +2264,21 @@ Config Value: 0x51 (81)`,
                 await txCharacteristic.writeValueWithoutResponse(frame);
                 log('✅ OTA activation (0x3A) sent, waiting for ACK...');
                 
-                // Wait for ACK with cmd=0x3A and status 0x01
-                const ack = await waitForAck(0x3A, 2000);
+                // Wait for ACK with cmd=0x3A and status 0x01 (longer timeout for activation)
+                let ack = await waitForAck(0x3A, 5000);
                 if (!ack.ok) {
                     log(`❌ Activation ACK failed: ${ack.reason}`);
-                    return false;
+                    log('🔄 Retrying activation once...');
+                    
+                    // Try once more with longer timeout
+                    await txCharacteristic.writeValueWithoutResponse(frame);
+                    log('✅ OTA activation (0x3A) retry sent, waiting for ACK...');
+                    
+                    ack = await waitForAck(0x3A, 8000);
+                    if (!ack.ok) {
+                        log(`❌ Activation retry ACK failed: ${ack.reason}`);
+                        return false;
+                    }
                 }
                 
                 // Check for status byte 0x01 indicating success
