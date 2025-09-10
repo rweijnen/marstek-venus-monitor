@@ -1123,7 +1123,7 @@ async function performOTAUpdate() {
         log('🔍 Discovering OTA channel with 0x3A probe...');
         
         // Send simple 0x3A probe with correct checksum
-        const otaProbeFrame = new Uint8Array([0x73, 0x00, 0x06, 0x3A, 0x00, 0x45]); // XOR: 0x73^0x00^0x06^0x3A^0x00 = 0x45
+        const otaProbeFrame = new Uint8Array([0x73, 0x00, 0x06, 0x3A, 0x00, 0x4F]); // XOR: 0x73^0x00^0x06^0x3A^0x00 = 0x4F
         logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A)');
         await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
         
