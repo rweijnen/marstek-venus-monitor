@@ -431,34 +431,17 @@ function xorChecksum(bytes) {
  * @returns {Uint8Array} Complete OTA frame
  */
 function buildOtaFrame(cmdByte, payload) {
-    const len = 6 + payload.length;           // includes checksum
+    const len = 5 + payload.length;           // no reserved byte
     const frame = new Uint8Array(len);
     frame[0] = 0x73;
     frame[1] = (len >>> 8) & 0xFF;            // big-endian length
     frame[2] =  len        & 0xFF;
-    frame[3] = cmdByte;                       // 0x50/0x51/0x52/0x3A
-    frame[4] = 0x00;
-    frame.set(payload, 5);
-    frame[len - 1] = xorChecksum(frame.slice(0, len - 1));
-    return frame;
-}
-
-/**
- * Build 0x54 activation frame (special format without reserved byte)
- * @param {Uint8Array} payload - Payload bytes
- * @returns {Uint8Array} Complete 0x54 frame
- */
-function build54Frame(payload) {
-    const len = 5 + payload.length;           // no reserved byte for 0x54
-    const frame = new Uint8Array(len);
-    frame[0] = 0x73;
-    frame[1] = (len >>> 8) & 0xFF;            // big-endian length
-    frame[2] =  len        & 0xFF;
-    frame[3] = 0x54;                          // command
+    frame[3] = cmdByte;                       // command
     frame.set(payload, 4);                    // payload directly after command
     frame[len - 1] = xorChecksum(frame.slice(0, len - 1));
     return frame;
 }
+
 
 /**
  * Build transition HM frame (uses big-endian length like OTA frames)
@@ -1199,10 +1182,10 @@ async function sendOTAActivate() {
     try {
         log('🔄 Activating upgrade mode with Wireshark-verified sequence...');
         
-        // Step 1: Send 0x54 command in special format (Frame 103)
+        // Step 1: Send 0x54 command in OTA format (Frame 103)
         // Frame 103: 730006541031 -> [0x73][0x00][0x06][0x54][0x10][0x31] (no reserved byte)
         log('📤 Sending 0x54 OTA activation command...');
-        const cmd54Frame = build54Frame(new Uint8Array([0x10]));
+        const cmd54Frame = buildOtaFrame(0x54, new Uint8Array([0x10]));
         logOutgoing(cmd54Frame, 'OTA Activation (0x54)');
         await txCharacteristic.writeValueWithoutResponse(cmd54Frame);
         
