@@ -805,6 +805,14 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
     return new Promise((resolve, reject) => {
         pendingAckResolve = (ack) => {
             if (ack.cmd === expectedCmd) {
+                // For OTA commands, also check payload[0] === 0x01 for success
+                if (expectedCmd === 0x50 && ack.payload.length > 0 && ack.payload[0] !== 0x01) {
+                    resolve({
+                        ok: false,
+                        reason: `cmd 0x${expectedCmd.toString(16)} ACK with wrong payload: expected [0x01], got [${Array.from(ack.payload).map(b => '0x' + b.toString(16)).join(', ')}]`
+                    });
+                    return;
+                }
                 resolve(ack);
             } else {
                 resolve({
@@ -894,12 +902,14 @@ async function sendFirmwareSize(firmwareSize) {
         log(`📏 Sending firmware size: ${firmwareSize} bytes with checksum: 0x${firmwareChecksum.toString(16)}`);
         
         // Step 2: Send firmware length in 8-byte payload: size LE (4) + checksum LE (4)
+        // Create HM/BLE format payload: [0x10, size LE 4B, checksum LE 4B]
         const sizePayload = [
-            firmwareSize & 0xFF,
+            0x10,                               // Subtype
+            firmwareSize & 0xFF,                // Size LE (little-endian)
             (firmwareSize >> 8) & 0xFF,
             (firmwareSize >> 16) & 0xFF,
             (firmwareSize >> 24) & 0xFF,
-            firmwareChecksum & 0xFF,
+            firmwareChecksum & 0xFF,            // Checksum LE (little-endian)
             (firmwareChecksum >> 8) & 0xFF,
             (firmwareChecksum >> 16) & 0xFF,
             (firmwareChecksum >> 24) & 0xFF
@@ -907,14 +917,15 @@ async function sendFirmwareSize(firmwareSize) {
         
         log(`🔍 Size payload (${sizePayload.length} bytes): [${sizePayload.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
         
-        const frame = createBLEOTAFrame(0x50, 0x10, sizePayload);
+        // Use HM frame format for OTA size command (not BLE OTA format)
+        const frame = createHMFrame(0x50, sizePayload);
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
-        logOutgoing(frame, 'Size Command');
+        logOutgoing(frame, 'Size Command (HM format)');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ Firmware size sent, waiting for ACK...');
         
-        // Wait for ACK (device should echo the same cmd=0x50)
-        const ack = await waitForAck(0x50, 2000);
+        // Wait for ACK (device should echo cmd=0x50 with payload 0x01)
+        const ack = await waitForAck(0x50, 5000); // Increased timeout to 5s
         if (!ack.ok) {
             log(`❌ Size ACK failed: ${ack.reason}`);
             return false;
@@ -1077,6 +1088,10 @@ async function performOTAUpdate() {
         if (!await sendOTAActivate()) {
             throw new Error('Failed to activate upgrade mode');
         }
+        
+        // Small delay after activation before sending size (recommended 50-150ms)
+        log('⏱️ Waiting 100ms after OTA activation...');
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Step 2: Send firmware size with session token
         if (!await sendFirmwareSize(firmwareData.byteLength)) {
