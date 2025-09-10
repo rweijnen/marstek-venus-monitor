@@ -1152,9 +1152,10 @@ async function sendOTAActivate() {
         // Brief delay between commands
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Step 2: Send 0x10 command in HM format (Frame 105)  
-        // Frame 105: 7300072310aaed -> [0x73][0x07][0x23][0x10][0xaa][0xed] (HM format)
-        log('📤 Sending 0x10 HM activation command...');
+        // Step 2: Send 0x10 command in HM format (Frame 105)
+        // Frame 105: 7300072310aaed -> payload [0xaa] from working capture
+        // Note: Firmware disassembly shows check for [0x0A, 0x0B, 0x0C] but working app uses [0xaa]
+        log('📤 Sending 0x10 HM activation command with Wireshark payload...');
         const cmd23Frame = createHMFrame(0x10, [0xaa]);
         logOutgoing(cmd23Frame, 'HM Activation (0x10)');
         await txCharacteristic.writeValueWithoutResponse(cmd23Frame);
