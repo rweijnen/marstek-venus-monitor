@@ -1151,8 +1151,9 @@ async function performOTAUpdate() {
         // Step 2: Discover and activate BLE OTA channel
         log('🔍 Discovering OTA channel with 0x3A probe...');
         
-        // Send 0x3A probe with empty payload as per analysis: 73 00 06 3A 00 4F
-        const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array(0));
+        // Send 0x3A handshake with correct payload [0x03, 0x02] as per firmware analysis
+        // Expected frame: 73 00 08 3A 00 03 02 40
+        const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x03, 0x02]));
         logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A)');
         log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF06 (${otaCharacteristic ? 'available' : 'null'})`);
         await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
