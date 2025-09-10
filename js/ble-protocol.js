@@ -1119,7 +1119,20 @@ async function performOTAUpdate() {
         log('⏱️ Waiting 100ms after OTA activation...');
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Step 2: Send firmware size with session token
+        // Step 2: Activate BLE OTA mode with 0x3A command to FF06
+        log('🔧 Activating BLE OTA mode with 0x3A command...');
+        const otaActivationFrame = createBLEOTAFrame(0x3A, 0x00, [0x05, 0x03, 0x02]); // Magic bytes from firmware
+        logOutgoing(otaActivationFrame, 'BLE OTA Activation (0x3A)');
+        await otaCharacteristic.writeValueWithoutResponse(otaActivationFrame);
+        
+        // Wait for 0x3A ACK
+        const otaAck = await waitForAck(0x3A, 2000);
+        if (!otaAck.ok) {
+            throw new Error(`BLE OTA activation failed: ${otaAck.reason}`);
+        }
+        log('✅ BLE OTA mode activated');
+        
+        // Step 3: Send firmware size with session token
         if (!await sendFirmwareSize(firmwareData.byteLength)) {
             throw new Error('Failed to send firmware size');
         }
