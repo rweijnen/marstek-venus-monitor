@@ -16,6 +16,7 @@ import { URLConfig } from './URLConfig.js';
 import { WorkModeConfig } from './WorkModeConfig.js';
 import { FactoryResetResponse } from './FactoryResetResponse.js';
 import { OTAActivation } from './OTAActivation.js';
+import { DeveloperModeInfo } from './DeveloperModeInfo.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -45,6 +46,9 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.TIME_SETTINGS:
             return new TimeSettings(data);
+            
+        case CommandType.SYSTEM_DATA:
+            return new DeveloperModeInfo(data);
             
         case CommandType.BMS_DATA:
             return new BMSDataPayload(data);
@@ -102,5 +106,6 @@ export {
     URLConfig,
     WorkModeConfig,
     FactoryResetResponse,
-    OTAActivation
+    OTAActivation,
+    DeveloperModeInfo
 };

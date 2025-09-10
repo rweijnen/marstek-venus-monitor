@@ -77,7 +77,7 @@ export class FrameHeader implements IFrameHeader {
             [CommandType.RUNTIME_INFO]: 'Runtime Info',
             [CommandType.DEVICE_INFO]: 'Device Info',
             [CommandType.WIFI_INFO]: 'WiFi Info',
-            [CommandType.SYSTEM_DATA]: 'System Data',
+            [CommandType.SYSTEM_DATA]: 'Developer Mode Info',
             [CommandType.ERROR_CODES]: 'Error Codes',
             [CommandType.OTA_ACTIVATION]: 'OTA Activation',
             [CommandType.BMS_DATA]: 'BMS Data',
