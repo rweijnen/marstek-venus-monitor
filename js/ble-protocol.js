@@ -1119,18 +1119,20 @@ async function performOTAUpdate() {
         log('⏱️ Waiting 100ms after OTA activation...');
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Step 2: Activate BLE OTA mode with 0x3A command to FF06
-        log('🔧 Activating BLE OTA mode with 0x3A command...');
-        const otaActivationFrame = createBLEOTAFrame(0x3A, 0x00, [0x05, 0x03, 0x02]); // Magic bytes from firmware
-        logOutgoing(otaActivationFrame, 'BLE OTA Activation (0x3A)');
-        await otaCharacteristic.writeValueWithoutResponse(otaActivationFrame);
+        // Step 2: Discover and activate BLE OTA channel
+        log('🔍 Discovering OTA channel with 0x3A probe...');
         
-        // Wait for 0x3A ACK
+        // Send simple 0x3A probe: 73 00 06 3A 00 3F (minimal frame with just checksum)
+        const otaProbeFrame = new Uint8Array([0x73, 0x00, 0x06, 0x3A, 0x00, 0x3F]);
+        logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A)');
+        await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
+        
+        // Wait for ':' ACK on FF02 (should come via regular notification handler)
         const otaAck = await waitForAck(0x3A, 2000);
         if (!otaAck.ok) {
-            throw new Error(`BLE OTA activation failed: ${otaAck.reason}`);
+            throw new Error(`OTA channel discovery failed: ${otaAck.reason}`);
         }
-        log('✅ BLE OTA mode activated');
+        log('✅ OTA channel discovered and activated');
         
         // Step 3: Send firmware size with session token
         if (!await sendFirmwareSize(firmwareData.byteLength)) {
