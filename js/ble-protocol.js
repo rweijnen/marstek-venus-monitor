@@ -1268,47 +1268,22 @@ async function performOTAUpdate() {
         log('⏱️ Waiting 500ms after OTA activation for mode switch...');
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Step 2: Discover and activate BLE OTA channel with retry logic
-        log('🔍 Discovering OTA channel with 0x3A probe...');
+        // Step 2: Send 0x3A probe with correct payload from Wireshark analysis
+        log('🔍 Sending 0x3A probe with Wireshark-verified payload...');
         
-        let otaAck = null;
-        const maxRetries = 3;
+        // From Wireshark: 73000b3a10d70003aabb97
+        // Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]
+        const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]));
+        logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A) - Wireshark format');
+        log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF06`);
+        await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
         
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            log(`🔄 0x3A probe attempt ${attempt}/${maxRetries}...`);
-            
-            let otaProbeFrame;
-            if (attempt === 1) {
-                // Try raw format first: [??, 0x05, 0x3A, 0x03, 0x02] as firmware expects
-                // a1+2=0x3A (command), a1+1=5, a1+3=3, a1+4=2
-                otaProbeFrame = new Uint8Array([0x00, 0x05, 0x3A, 0x03, 0x02]);
-                logOutgoing(otaProbeFrame, `OTA Discovery Probe (0x3A) - RAW format attempt ${attempt}`);
-            } else {
-                // Try OTA frame format: 73 00 09 3A 00 05 03 02 checksum
-                otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x05, 0x03, 0x02]));
-                logOutgoing(otaProbeFrame, `OTA Discovery Probe (0x3A) - OTA format attempt ${attempt}`);
-            }
-            
-            log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF06 (${otaCharacteristic ? 'available' : 'null'})`);
-            await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
-            
-            // Wait for 0x3A ACK on FF06 notifications
-            otaAck = await waitForAck(0x3A, 2000);
-            if (otaAck.ok) {
-                log(`✅ OTA channel discovered and activated with ${attempt === 1 ? 'RAW' : 'OTA'} format`);
-                break;
-            } else {
-                log(`❌ Attempt ${attempt} (${attempt === 1 ? 'RAW' : 'OTA'} format) failed: ${otaAck.reason}`);
-                if (attempt < maxRetries) {
-                    log('⏱️ Waiting 200ms before retry...');
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-            }
-        }
-        
+        // Wait for 0x3A ACK - expect response with payload [0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
+        const otaAck = await waitForAck(0x3A, 3000);
         if (!otaAck.ok) {
-            throw new Error(`OTA channel discovery failed after ${maxRetries} attempts: ${otaAck.reason}`);
+            throw new Error(`OTA channel discovery failed: ${otaAck.reason}`);
         }
+        log('✅ OTA channel discovered and activated with Wireshark-verified format');
         
         // Step 3: Send firmware size with session token
         if (!await sendFirmwareSize(firmwareData.byteLength)) {
