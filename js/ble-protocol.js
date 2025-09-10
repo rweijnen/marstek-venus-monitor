@@ -754,7 +754,127 @@ function analyzeFirmware(firmwareArrayBuffer) {
 }
 
 /**
- * Handle OTA notification responses
+ * Handle incoming HM notification data (FF02 characteristic)
+ * @param {Event} event - BLE characteristic change event
+ */
+function handleHMNotification(event) {
+    const value = new Uint8Array(event.target.value.buffer);
+    
+    // Log all incoming data
+    logIncoming(value, 'HM Notification (FF02)');
+    
+    // Check basic frame requirements
+    if (value.length < 6 || value[0] !== 0x73) {
+        log(`❌ Bad HM notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        return;
+    }
+    
+    // HM frames should have 0x23 at position [2]
+    if (value[2] !== 0x23) {
+        log(`❌ Invalid HM frame: expected 0x23 at position 2, got 0x${value[2].toString(16)}`);
+        return;
+    }
+    
+    const hmLength = value[1];
+    if (value.length !== hmLength) {
+        log(`❌ HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
+        return;
+    }
+    
+    const cmd = value[3];
+    const payload = value.slice(4, -1);
+    const checksum = value[value.length - 1];
+    
+    log(`📨 HM frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    
+    // Verify XOR checksum
+    let xor = 0;
+    for (let i = 0; i < value.length - 1; i++) {
+        xor ^= value[i];
+    }
+    if (xor !== checksum) {
+        log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
+        return;
+    }
+    
+    log(`✅ Valid HM ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
+    
+    // Resolve pending HM ACK promise
+    if (pendingAckResolve) {
+        pendingAckResolve({
+            ok: true,
+            cmd: cmd,
+            payload: payload
+        });
+        pendingAckResolve = null;
+    }
+}
+
+/**
+ * Handle incoming OTA notification data (FF06 characteristic)
+ * @param {Event} event - BLE characteristic change event
+ */
+function handleOTANotification(event) {
+    const value = new Uint8Array(event.target.value.buffer);
+    
+    // Log all incoming data
+    logIncoming(value, 'OTA Notification (FF06)');
+    
+    // Check basic frame requirements
+    if (value.length < 6 || value[0] !== 0x73) {
+        log(`❌ Bad OTA notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        return;
+    }
+    
+    // OTA frames should NOT have 0x23 at position [2] (that's HM format)
+    if (value[2] === 0x23) {
+        log(`❌ Invalid OTA frame: unexpected HM format (0x23) in OTA notification`);
+        return;
+    }
+    
+    // BLE OTA frame: [0x73] [LEN_LO] [LEN_HI] [CMD] [RESERVED] [PAYLOAD...] [CHECKSUM]
+    const declaredLength = value[1] | (value[2] << 8);
+    const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
+    
+    if (declaredLength !== contentLength) {
+        log(`❌ BLE OTA length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
+        log(`❌ Problem frame (${value.length} bytes): ${Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+        return;
+    }
+    
+    const cmd = value[3];
+    const reserved = value[4];
+    const payload = value.slice(5, -1);
+    const checksum = value[value.length - 1];
+    
+    log(`📨 BLE OTA frame received - CMD: 0x${cmd.toString(16)}, Reserved: 0x${reserved.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    
+    // Verify XOR checksum
+    let xor = 0;
+    for (let i = 0; i < value.length - 1; i++) {
+        xor ^= value[i];
+    }
+    if (xor !== checksum) {
+        log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
+        return;
+    }
+    
+    log(`✅ Valid BLE OTA ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
+    
+    // Resolve pending OTA ACK promise
+    if (pendingAckResolve) {
+        pendingAckResolve({
+            ok: true,
+            cmd: cmd,
+            reserved: reserved,
+            payload: payload
+        });
+        pendingAckResolve = null;
+    }
+}
+
+/**
+ * Handle OTA notification responses (DEPRECATED - use handleHMNotification or handleOTANotification)
  * @param {Event} event - BLE characteristic change event
  */
 function handleNotification(event) {
@@ -883,13 +1003,13 @@ async function connectAndPrepareOTA() {
     rxCharacteristic = await service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
     otaCharacteristic = await service.getCharacteristic('0000ff06-0000-1000-8000-00805f9b34fb');
     
-    // Enable notifications on RX characteristic (regular commands)
+    // Enable notifications on RX characteristic (regular HM commands)
     await rxCharacteristic.startNotifications();
-    rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+    rxCharacteristic.addEventListener('characteristicvaluechanged', handleHMNotification);
     
-    // Enable notifications on OTA characteristic (OTA commands)
+    // Enable notifications on OTA characteristic (OTA commands only)
     await otaCharacteristic.startNotifications();
-    otaCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+    otaCharacteristic.addEventListener('characteristicvaluechanged', handleOTANotification);
     log('✅ Notifications enabled on RX characteristic (ff02)');
     
     // Use fixed 128-byte chunks as per protocol specification
