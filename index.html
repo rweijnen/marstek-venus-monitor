@@ -1974,12 +1974,12 @@ Config Value: 0x51 (81)`,
             },
             // BLE OTA Firmware Update
             otaactivate: {
-                title: '🔄 Activate OTA Mode (0x3A)',
-                description: 'Activates OTA mode with fixed pattern validation',
-                command: '0x73 [len_low] [len_high] 0x3A [reserved] [00 05 00 03 02]',
-                response: 'Device ACKs with cmd=0x3A, payload=0x01 for success',
-                sampleData: 'OTA state set to 1, ready for firmware size',
-                notes: '🚫 DANGER: Device validates fixed pattern (buf[1]==5, buf[3]==3, buf[4]==2) before entering OTA mode.'
+                title: '🔄 Activate OTA Mode (0x1F)',
+                description: 'Activates upgrade mode with magic byte validation',
+                command: '0x73 0x09 0x23 0x1F 0x0A 0x0B 0x0C [checksum]',
+                response: 'Device ACKs with cmd=0x1F, sets byte_20001617=1 for success',
+                sampleData: 'Upgrade mode activated, ready for firmware update',
+                notes: '🚫 DANGER: Device validates magic bytes [0x0A, 0x0B, 0x0C] before entering upgrade mode.'
             },
             otasize: {
                 title: '📏 Send Firmware Size & Checksum',
@@ -2256,25 +2256,24 @@ Config Value: 0x51 (81)`,
             }
 
             try {
-                log('🔄 Activating OTA mode with cmd 0x3A...');
-                // Step 1: Send activation command 0x3A with fixed pattern
-                // Expects: buf[1]==5, buf[3]==3, buf[4]==2
-                const activatePayload = [0x00, 0x05, 0x00, 0x03, 0x02];
-                const frame = createBLEOTAFrame(0x3A, 0x10, activatePayload);
+                log('🔄 Activating upgrade mode with cmd 0x1F...');
+                // Step 1: Send activation command 0x1F with magic bytes [0x0A, 0x0B, 0x0C]
+                // This is the standard HM protocol command, not the OTA-specific 0x3A
+                const frame = createHMFrame(0x1F, [0x0A, 0x0B, 0x0C]);
                 await txCharacteristic.writeValueWithoutResponse(frame);
-                log('✅ OTA activation (0x3A) sent, waiting for ACK...');
+                log('✅ Upgrade mode activation (0x1F) sent, waiting for ACK...');
                 
-                // Wait for ACK with cmd=0x3A and status 0x01 (longer timeout for activation)
-                let ack = await waitForAck(0x3A, 5000);
+                // Wait for ACK with cmd=0x1F and status 0x01 (longer timeout for activation)
+                let ack = await waitForAck(0x1F, 5000);
                 if (!ack.ok) {
                     log(`❌ Activation ACK failed: ${ack.reason}`);
                     log('🔄 Retrying activation once...');
                     
                     // Try once more with longer timeout
                     await txCharacteristic.writeValueWithoutResponse(frame);
-                    log('✅ OTA activation (0x3A) retry sent, waiting for ACK...');
+                    log('✅ Upgrade mode activation (0x1F) retry sent, waiting for ACK...');
                     
-                    ack = await waitForAck(0x3A, 8000);
+                    ack = await waitForAck(0x1F, 8000);
                     if (!ack.ok) {
                         log(`❌ Activation retry ACK failed: ${ack.reason}`);
                         return false;
@@ -2283,11 +2282,11 @@ Config Value: 0x51 (81)`,
                 
                 // Check for status byte 0x01 indicating success
                 if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
-                    log('✅ OTA activation confirmed - device entered state 1');
+                    log('✅ Upgrade mode activated - device ready for OTA');
                     return true;
                 } else {
                     const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
-                    log(`❌ OTA activation failed - status: ${status}`);
+                    log(`❌ Upgrade mode activation failed - status: ${status}`);
                     return false;
                 }
             } catch (error) {
@@ -2465,9 +2464,9 @@ Config Value: 0x51 (81)`,
                 otaTotalChunks = Math.ceil(firmwareData.byteLength / otaChunkSize);
                 log(`📦 Total chunks: ${otaTotalChunks} (${otaChunkSize} bytes each)`);
                 
-                // Step 1: Send activation command 0x3A to enter OTA mode
+                // Step 1: Send activation command 0x1F to enter upgrade mode
                 if (!await sendOTAActivate()) {
-                    throw new Error('Failed to activate OTA mode');
+                    throw new Error('Failed to activate upgrade mode');
                 }
                 
                 // Step 2: Send firmware size with session token
