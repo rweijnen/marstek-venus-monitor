@@ -704,8 +704,9 @@ function handleNotification(event) {
     }
     
     const declaredLength = value[1] | (value[2] << 8);
-    if (declaredLength !== value.length) {
-        log(`❌ Length mismatch: declared ${declaredLength}, got ${value.length}`);
+    const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
+    if (declaredLength !== contentLength) {
+        log(`❌ Length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
         return;
     }
     
