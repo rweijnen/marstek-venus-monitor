@@ -1139,27 +1139,49 @@ async function connectAndPrepareOTA() {
  * @returns {Promise<boolean>} Success status
  */
 async function sendOTAActivate() {
-    return new Promise((resolve) => {
-        log('🔄 Activating upgrade mode with cmd 0x1F (firmware confirmed)...');
+    try {
+        log('🔄 Activating upgrade mode with Wireshark-verified sequence...');
         
-        // Set up response handler for upgrade mode activation  
-        window.otaActivationResolve = resolve;
-        window.currentCommand = 0x1F;
+        // Step 1: Send 0x54 command in OTA format (Frame 103)
+        // Frame 103: 730006541031 -> [0x73][0x00][0x06][0x54][0x10][0x31]
+        log('📤 Sending 0x54 OTA activation command...');
+        const cmd54Frame = buildOtaFrame(0x54, new Uint8Array([0x10]));
+        logOutgoing(cmd54Frame, 'OTA Activation (0x54)');
+        await txCharacteristic.writeValueWithoutResponse(cmd54Frame);
         
-        // Send OTA activation command based on firmware disassembly (both versions confirm 0x1F)
-        // Both original and v153 firmware: 0x1F checks magic bytes [0x0A, 0x0B, 0x0C]
-        // btsnoop showing 0x13 likely from different firmware/device version
-        sendCommand(0x1F, 'Upgrade Mode Activation', [0x0A, 0x0B, 0x0C]);
+        // Brief delay between commands
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Set timeout in case no response comes
-        setTimeout(() => {
-            if (window.otaActivationResolve) {
-                window.otaActivationResolve = null;
-                log('❌ OTA activation timeout - no response received');
-                resolve(false);
-            }
-        }, 5000);
-    });
+        // Step 2: Send 0x10 command in HM format (Frame 105)  
+        // Frame 105: 7300072310aaed -> [0x73][0x07][0x23][0x10][0xaa][0xed] (HM format)
+        log('📤 Sending 0x10 HM activation command...');
+        const cmd23Frame = createHMFrame(0x10, [0xaa]);
+        logOutgoing(cmd23Frame, 'HM Activation (0x10)');
+        await txCharacteristic.writeValueWithoutResponse(cmd23Frame);
+        
+        // Wait for 0x10 ACK with payload [0x01] (Frame 106)
+        log('⏳ Waiting for 0x10 activation ACK...');
+        const ack = await waitForAck(0x10, 3000);
+        
+        if (!ack || !ack.ok) {
+            throw new Error(`0x10 activation failed: ${ack ? ack.reason : 'timeout'}`);
+        }
+        
+        // Check that payload is [0x01] as in working capture
+        if (ack.payload.length !== 1 || ack.payload[0] !== 0x01) {
+            throw new Error(`Unexpected 0x10 ACK payload: expected [0x01], got [${Array.from(ack.payload).map(b => '0x' + b.toString(16)).join(', ')}]`);
+        }
+        
+        log('📥 Upgrade mode payload: [0x01]');
+        log('✅ OTA activation confirmed: device is armed for upgrade (payload 0x01)');
+        log('✅ Upgrade mode activated - device ready for OTA');
+        
+        return true;
+        
+    } catch (error) {
+        log(`❌ OTA activation failed: ${error.message}`);
+        return false;
+    }
 }
 
 /**
@@ -1376,24 +1398,41 @@ async function performOTAUpdate() {
             throw new Error('Failed to activate upgrade mode');
         }
         
-        // Longer delay after activation to allow device to switch to OTA mode
-        log('⏱️ Waiting 500ms after OTA activation for mode switch...');
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Longer delay after activation to allow device to fully switch to OTA mode
+        log('⏱️ Waiting 1500ms after OTA activation for mode switch...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
-        // Step 2: Send 0x3A probe with correct payload from Wireshark analysis
+        // Step 2: Send 0x3A probe with retry logic (based on Wireshark timing)
         log('🔍 Sending 0x3A probe with Wireshark-verified payload...');
         
-        // Use exact Wireshark payload since it's from the same BMS 215 device
-        // Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] from working session
-        const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]));
-        logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A) - Wireshark format');
-        log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF01 (write), expecting response on FF02 (notify)`);
-        await txCharacteristic.writeValueWithoutResponse(otaProbeFrame);
+        let otaAck = null;
+        const maxRetries = 3;
         
-        // Wait for 0x3A ACK - expect response with payload [0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
-        const otaAck = await waitForAck(0x3A, 3000);
-        if (!otaAck.ok) {
-            throw new Error(`OTA channel discovery failed: ${otaAck.reason}`);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Use exact Wireshark payload since it's from the same BMS 215 device
+                // Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] from working session
+                const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]));
+                logOutgoing(otaProbeFrame, `OTA Discovery Probe (0x3A) - Attempt ${attempt}/${maxRetries}`);
+                log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF01 (write), expecting response on FF02 (notify)`);
+                await txCharacteristic.writeValueWithoutResponse(otaProbeFrame);
+                
+                // Wait for 0x3A ACK - expect response with payload [0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
+                otaAck = await waitForAck(0x3A, 2000);
+                if (otaAck && otaAck.ok) {
+                    log(`✅ 0x3A handshake successful on attempt ${attempt}`);
+                    break;
+                }
+            } catch (error) {
+                log(`⚠️ 0x3A probe attempt ${attempt} failed: ${error.message}`);
+                if (attempt < maxRetries) {
+                    log('⏱️ Waiting 1000ms before retry...');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+        }
+        if (!otaAck || !otaAck.ok) {
+            throw new Error(`OTA channel discovery failed after ${maxRetries} attempts: ${otaAck ? otaAck.reason : 'timeout'}`);
         }
         log('✅ OTA channel discovered and activated with Wireshark-verified format');
         
