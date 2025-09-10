@@ -919,15 +919,16 @@ async function sendFirmwareSize(firmwareSize) {
         
         log(`🔍 Size payload (${sizePayload.length} bytes): [${sizePayload.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
         
-        // Use HM frame format for OTA size command (not BLE OTA format)
-        const frame = createHMFrame(0x50, sizePayload);
+        // After 0x1F activation, switch to BLE OTA format (no 0x23) to route to OTA handler
+        // The 0x10 in sizePayload[0] becomes the reserved byte in BLE OTA format
+        const frame = createBLEOTAFrame(0x50, sizePayload[0], sizePayload.slice(1));
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
-        logOutgoing(frame, 'Size Command (HM format)');
+        logOutgoing(frame, 'Size Command (BLE OTA format)');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ Firmware size sent, waiting for ACK...');
         
-        // Wait for ACK (device responds with cmd=0x51, not 0x50)
-        const ack = await waitForAck(0x51, 5000); // Device responds with 0x51 to size command
+        // Wait for ACK - in BLE OTA mode, device responds with 0x50 to 0x50
+        const ack = await waitForAck(0x50, 5000); // BLE OTA handler echoes the command
         if (!ack.ok) {
             log(`❌ Size ACK failed: ${ack.reason}`);
             return false;
@@ -976,7 +977,8 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
             ...Array.from(chunkData)
         ];
         
-        const frame = createHMFrame(0x51, payload);
+        // Use BLE OTA format to route to OTA handler
+        const frame = createBLEOTAFrame(0x51, 0x10, payload);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
         await txCharacteristic.writeValueWithoutResponse(frame);
         
@@ -1030,8 +1032,8 @@ async function sendOTAFinalize() {
 
     try {
         log('🏁 Sending OTA finalization command...');
-        // Step 4: Send finalize command with cmd=0x52 and empty payload
-        const frame = createHMFrame(0x52, []);
+        // Step 4: Send finalize command with cmd=0x52 in BLE OTA format
+        const frame = createBLEOTAFrame(0x52, 0x10, []);
         logOutgoing(frame, 'Finalize Command');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ OTA finalize command sent, waiting for confirmation...');
