@@ -416,36 +416,65 @@ function createHMFrame(command, payload = []) {
 }
 
 /**
- * Create BLE OTA frame for firmware update commands
- * @param {number} command - OTA command byte (0x50, 0x51, 0x52)
- * @param {number} reserved - Reserved byte (typically 0x10)
- * @param {Array} payload - Payload bytes
+ * XOR checksum helper
+ */
+function xorChecksum(bytes) {
+    let cs = 0;
+    for (const b of bytes) cs ^= b;
+    return cs & 0xFF;
+}
+
+/**
+ * Build OTA frame (correct format from analysis)
+ * @param {number} cmdByte - Command byte (0x3A, 0x50, 0x51, 0x52)
+ * @param {Uint8Array} payload - Payload bytes
  * @returns {Uint8Array} Complete OTA frame
  */
-function createBLEOTAFrame(command, reserved, payload = []) {
-    const frame = [];
-    frame.push(0x73);                    // Header byte
-    
-    // BLE OTA frame structure: [0x73] [LEN_HI] [LEN_LO] [CMD] [0x00] [PAYLOAD] [XOR]
-    // Length field = total frame size - 1 (excluding start byte)
-    // Length = 2(len bytes) + 1(cmd) + 1(0x00) + payload.length + 1(xor) = 5 + payload.length
-    // But we include the length bytes themselves, so: 6 + payload.length
-    const totalLength = 6 + payload.length;
-    frame.push((totalLength >> 8) & 0xFF); // Length high byte (BE)
-    frame.push(totalLength & 0xFF);        // Length low byte (BE)
-    
-    frame.push(command);                 // Command byte (0x50, 0x51, 0x52)
-    frame.push(0x00);                    // Reserved byte (always 0x00)
-    frame.push(...payload);              // Payload
-    
-    // Calculate XOR checksum over all previous bytes
-    let checksum = 0;
-    for (const byte of frame) {
-        checksum ^= byte;
-    }
-    frame.push(checksum);
-    
-    return new Uint8Array(frame);
+function buildOtaFrame(cmdByte, payload) {
+    const len = 6 + payload.length;           // includes checksum
+    const frame = new Uint8Array(len);
+    frame[0] = 0x73;
+    frame[1] = (len >>> 8) & 0xFF;            // big-endian length
+    frame[2] =  len        & 0xFF;
+    frame[3] = cmdByte;                       // 0x50/0x51/0x52/0x3A
+    frame[4] = 0x00;
+    frame.set(payload, 5);
+    frame[len - 1] = xorChecksum(frame.slice(0, len - 1));
+    return frame;
+}
+
+/**
+ * Little-endian 32-bit integer to bytes
+ */
+function u32le(n) {
+    return new Uint8Array([n & 0xFF, (n>>>8)&0xFF, (n>>>16)&0xFF, (n>>>24)&0xFF]);
+}
+
+/**
+ * Build "P" size frame
+ */
+function buildSizeFrame(sizeBytes, checksum) {
+    const payload = new Uint8Array(8);
+    payload.set(u32le(sizeBytes), 0);
+    payload.set(u32le(checksum >>> 0), 4);
+    return buildOtaFrame(0x50, payload);      // 'P'
+}
+
+/**
+ * Build "Q" data frame (offset + 128B)
+ */
+function buildDataFrame(offset, chunk128) {
+    const payload = new Uint8Array(4 + 128);
+    payload.set(u32le(offset), 0);
+    payload.set(chunk128, 4);
+    return buildOtaFrame(0x51, payload);      // 'Q'
+}
+
+/**
+ * Build "R" finish frame
+ */
+function buildFinishFrame() {
+    return buildOtaFrame(0x52, new Uint8Array(0)); // 'R'
 }
 
 // ========================================
@@ -943,7 +972,7 @@ async function sendFirmwareSize(firmwareSize) {
             (firmwareChecksum >> 16) & 0xFF,
             (firmwareChecksum >> 24) & 0xFF
         ];
-        const frame = createBLEOTAFrame(0x50, 0x00, otaPayload);
+        const frame = buildSizeFrame(otaPayload);
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         logOutgoing(frame, 'Size Command (BLE OTA format)');
         await otaCharacteristic.writeValueWithoutResponse(frame);
@@ -1000,7 +1029,7 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
         ];
         
         // Use BLE OTA format to route to OTA handler
-        const frame = createBLEOTAFrame(0x51, 0x00, payload);
+        const frame = buildDataFrame(payload);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
         await otaCharacteristic.writeValueWithoutResponse(frame);
         
@@ -1055,7 +1084,7 @@ async function sendOTAFinalize() {
     try {
         log('🏁 Sending OTA finalization command...');
         // Step 4: Send finalize command with cmd=0x52 in BLE OTA format
-        const frame = createBLEOTAFrame(0x52, 0x00, []);
+        const frame = buildFinishFrame();
         logOutgoing(frame, 'Finalize Command');
         await otaCharacteristic.writeValueWithoutResponse(frame);
         log('✅ OTA finalize command sent, waiting for confirmation...');
@@ -1122,8 +1151,8 @@ async function performOTAUpdate() {
         // Step 2: Discover and activate BLE OTA channel
         log('🔍 Discovering OTA channel with 0x3A probe...');
         
-        // Send simple 0x3A probe with correct checksum
-        const otaProbeFrame = new Uint8Array([0x73, 0x00, 0x06, 0x3A, 0x00, 0x4F]); // XOR: 0x73^0x00^0x06^0x3A^0x00 = 0x4F
+        // Send simple 0x3A probe with correct OTA frame format
+        const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array(0)); // Empty payload
         logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A)');
         await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
         
