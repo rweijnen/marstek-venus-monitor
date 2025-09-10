@@ -69,12 +69,13 @@ export class DeveloperModeInfo extends BasePayload {
                 <div><strong>Line Frequency:</strong> ${data.interpretations.lineFrequency}</div>
                 <div><strong>AC Voltage:</strong> ${data.interpretations.acVoltage}</div>
                 <div><strong>Work Mode:</strong> ${data.workMode}</div>
-                <br>
-                <div><strong>Temperature Sensors:</strong></div>
+            </div>
+            <div class="data-grid" style="margin-top: 10px;">
+                <div style="grid-column: 1 / -1;"><strong>Temperature Sensors:</strong></div>
                 ${data.temperatures.map((temp, idx) => {
                     const tempKey = `temp${idx + 1}`;
                     const tempValue = data.interpretations.temperatures[tempKey];
-                    return `<div style="margin-left: 20px;"><strong>Sensor ${idx + 1}:</strong> ${tempValue}</div>`;
+                    return `<div><strong>Sensor ${idx + 1}:</strong> ${tempValue}</div>`;
                 }).join('')}
             </div>
         `;
