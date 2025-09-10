@@ -707,6 +707,7 @@ function handleNotification(event) {
     const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
     if (declaredLength !== contentLength) {
         log(`❌ Length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
+        log(`❌ Problem frame (${value.length} bytes): ${Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
         return;
     }
     
