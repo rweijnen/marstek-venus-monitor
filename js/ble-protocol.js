@@ -1264,26 +1264,43 @@ async function performOTAUpdate() {
             throw new Error('Failed to activate upgrade mode');
         }
         
-        // Small delay after activation before sending size (recommended 50-150ms)
-        log('⏱️ Waiting 100ms after OTA activation...');
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Longer delay after activation to allow device to switch to OTA mode
+        log('⏱️ Waiting 500ms after OTA activation for mode switch...');
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Step 2: Discover and activate BLE OTA channel
+        // Step 2: Discover and activate BLE OTA channel with retry logic
         log('🔍 Discovering OTA channel with 0x3A probe...');
         
-        // Send 0x3A handshake with correct payload [0x03, 0x02] as per firmware analysis
-        // Expected frame: 73 00 08 3A 00 03 02 40
-        const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x03, 0x02]));
-        logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A)');
-        log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF06 (${otaCharacteristic ? 'available' : 'null'})`);
-        await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
+        let otaAck = null;
+        const maxRetries = 3;
         
-        // Wait for ':' ACK on FF02 (should come via regular notification handler)
-        const otaAck = await waitForAck(0x3A, 2000);
-        if (!otaAck.ok) {
-            throw new Error(`OTA channel discovery failed: ${otaAck.reason}`);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            log(`🔄 0x3A probe attempt ${attempt}/${maxRetries}...`);
+            
+            // Send 0x3A handshake with correct payload [0x03, 0x02] as per firmware analysis
+            // Expected frame: 73 00 08 3A 00 03 02 40
+            const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x03, 0x02]));
+            logOutgoing(otaProbeFrame, `OTA Discovery Probe (0x3A) - Attempt ${attempt}`);
+            log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF06 (${otaCharacteristic ? 'available' : 'null'})`);
+            await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
+            
+            // Wait for 0x3A ACK on FF06 notifications
+            otaAck = await waitForAck(0x3A, 2000);
+            if (otaAck.ok) {
+                log('✅ OTA channel discovered and activated');
+                break;
+            } else {
+                log(`❌ Attempt ${attempt} failed: ${otaAck.reason}`);
+                if (attempt < maxRetries) {
+                    log('⏱️ Waiting 200ms before retry...');
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
         }
-        log('✅ OTA channel discovered and activated');
+        
+        if (!otaAck.ok) {
+            throw new Error(`OTA channel discovery failed after ${maxRetries} attempts: ${otaAck.reason}`);
+        }
         
         // Step 3: Send firmware size with session token
         if (!await sendFirmwareSize(firmwareData.byteLength)) {
