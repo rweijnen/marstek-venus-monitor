@@ -391,8 +391,9 @@ function createHMFrame(command, payload = []) {
     const frame = [];
     frame.push(0x73);                           // Start byte
     
-    const contentLength = 2 + payload.length;   // 0x23 + CMD + payload
-    frame.push(contentLength);                  // Length byte
+    // HM format: length byte = total frame length (start + length + 0x23 + cmd + payload + checksum)
+    const totalLength = 1 + 1 + 1 + 1 + payload.length + 1; // 5 + payload length
+    frame.push(totalLength);                    // Total frame length
     
     frame.push(0x23);                          // Protocol identifier
     frame.push(command);                       // Command byte
@@ -975,7 +976,7 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
             ...Array.from(chunkData)
         ];
         
-        const frame = createBLEOTAFrame(0x51, 0x10, payload);
+        const frame = createHMFrame(0x51, payload);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
         await txCharacteristic.writeValueWithoutResponse(frame);
         
@@ -1030,7 +1031,7 @@ async function sendOTAFinalize() {
     try {
         log('🏁 Sending OTA finalization command...');
         // Step 4: Send finalize command with cmd=0x52 and empty payload
-        const frame = createBLEOTAFrame(0x52, 0x10, []);
+        const frame = createHMFrame(0x52, []);
         logOutgoing(frame, 'Finalize Command');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ OTA finalize command sent, waiting for confirmation...');
