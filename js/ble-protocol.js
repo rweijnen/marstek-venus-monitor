@@ -22,7 +22,7 @@ const START_BYTE = 0x73;
 // Characteristic UUIDs
 const TX_CHAR_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';  // Regular commands
 const RX_CHAR_UUID = '0000ff02-0000-1000-8000-00805f9b34fb';  // Regular responses  
-const OTA_CHAR_UUID = '0000ff06-0000-1000-8000-00805f9b34fb'; // OTA commands & responses
+// OTA commands use the same FF01/FF02 characteristics as normal BLE (from Wireshark analysis)
 
 // ========================================
 // BLE COMMUNICATION LOGGING
@@ -50,7 +50,7 @@ const IDENTIFIER_BYTE = 0x23;
 let device = null;
 let server = null;
 let characteristics = {};
-let otaCharacteristic = null; // FF06 characteristic for OTA commands
+// OTA uses the same txCharacteristic (FF01) and rxCharacteristic (FF02) as normal BLE
 // Note: (window.uiController ? window.uiController.isConnected() : false) and (window.uiController ? window.uiController.getDeviceType() : 'unknown') are managed by ui-controller.js
 
 // OTA-specific globals
@@ -754,7 +754,121 @@ function analyzeFirmware(firmwareArrayBuffer) {
 }
 
 /**
- * Handle incoming HM notification data (FF02 characteristic)
+ * Handle incoming notification data from FF02 (both HM and OTA responses)
+ * @param {Event} event - BLE characteristic change event
+ */
+function handleUnifiedNotification(event) {
+    const value = new Uint8Array(event.target.value.buffer);
+    
+    // Log all incoming data
+    logIncoming(value, 'Unified Notification (FF02)');
+    
+    // Check basic frame requirements
+    if (value.length < 6 || value[0] !== 0x73) {
+        log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        return;
+    }
+    
+    // Detect frame format: HM protocol has 0x23 at position [2], BLE OTA doesn't
+    const isHMFrame = value[2] === 0x23;
+    
+    if (isHMFrame) {
+        handleHMFrame(value);
+    } else {
+        handleOTAFrame(value);
+    }
+}
+
+/**
+ * Handle HM frame processing
+ * @param {Uint8Array} value - Frame data
+ */
+function handleHMFrame(value) {
+    // HM Protocol frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD...] [CHECKSUM]
+    const hmLength = value[1];
+    
+    if (value.length !== hmLength) {
+        log(`❌ HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
+        return;
+    }
+    
+    const cmd = value[3];
+    const payload = value.slice(4, -1);
+    const checksum = value[value.length - 1];
+    
+    log(`📨 HM frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    
+    // Verify XOR checksum
+    let xor = 0;
+    for (let i = 0; i < value.length - 1; i++) {
+        xor ^= value[i];
+    }
+    if (xor !== checksum) {
+        log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
+        return;
+    }
+    
+    log(`✅ Valid HM ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
+    
+    // Resolve pending HM ACK promise
+    if (pendingAckResolve) {
+        pendingAckResolve({
+            ok: true,
+            cmd: cmd,
+            payload: payload
+        });
+        pendingAckResolve = null;
+    }
+}
+
+/**
+ * Handle OTA frame processing
+ * @param {Uint8Array} value - Frame data
+ */
+function handleOTAFrame(value) {
+    // BLE OTA frame: [0x73] [LEN_LO] [LEN_HI] [CMD] [RESERVED] [PAYLOAD...] [CHECKSUM]
+    const declaredLength = value[1] | (value[2] << 8);
+    const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
+    
+    if (declaredLength !== contentLength) {
+        log(`❌ BLE OTA length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
+        log(`❌ Problem frame (${value.length} bytes): ${Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+        return;
+    }
+    
+    const cmd = value[3];
+    const reserved = value[4];
+    const payload = value.slice(5, -1);
+    const checksum = value[value.length - 1];
+    
+    log(`📨 BLE OTA frame received - CMD: 0x${cmd.toString(16)}, Reserved: 0x${reserved.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    
+    // Verify XOR checksum
+    let xor = 0;
+    for (let i = 0; i < value.length - 1; i++) {
+        xor ^= value[i];
+    }
+    if (xor !== checksum) {
+        log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
+        return;
+    }
+    
+    log(`✅ Valid BLE OTA ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
+    
+    // Resolve pending OTA ACK promise
+    if (pendingAckResolve) {
+        pendingAckResolve({
+            ok: true,
+            cmd: cmd,
+            reserved: reserved,
+            payload: payload
+        });
+        pendingAckResolve = null;
+    }
+}
+
+/**
+ * Handle incoming HM notification data (DEPRECATED - use handleUnifiedNotification)
  * @param {Event} event - BLE characteristic change event
  */
 function handleHMNotification(event) {
@@ -811,14 +925,14 @@ function handleHMNotification(event) {
 }
 
 /**
- * Handle incoming OTA notification data (FF06 characteristic)
+ * Handle incoming OTA notification data (DEPRECATED - use handleUnifiedNotification)
  * @param {Event} event - BLE characteristic change event
  */
 function handleOTANotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
     // Log all incoming data
-    logIncoming(value, 'OTA Notification (FF06)');
+    logIncoming(value, 'OTA Notification (DEPRECATED)');
     
     // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
@@ -1001,15 +1115,13 @@ async function connectAndPrepareOTA() {
     const service = await device.gatt.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
     txCharacteristic = await service.getCharacteristic('0000ff01-0000-1000-8000-00805f9b34fb');
     rxCharacteristic = await service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
-    otaCharacteristic = await service.getCharacteristic('0000ff06-0000-1000-8000-00805f9b34fb');
+    // OTA uses the same FF01/FF02 characteristics as normal BLE (from Wireshark analysis)
     
-    // Enable notifications on RX characteristic (regular HM commands)
+    // Enable notifications on RX characteristic (both HM and OTA responses)
     await rxCharacteristic.startNotifications();
-    rxCharacteristic.addEventListener('characteristicvaluechanged', handleHMNotification);
+    rxCharacteristic.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
     
-    // Enable notifications on OTA characteristic (OTA commands only)
-    await otaCharacteristic.startNotifications();
-    otaCharacteristic.addEventListener('characteristicvaluechanged', handleOTANotification);
+    // All communication (both HM and OTA) goes through FF01 (write) → FF02 (notify) based on Wireshark analysis
     log('✅ Notifications enabled on RX characteristic (ff02)');
     
     // Use fixed 128-byte chunks as per protocol specification
@@ -1056,7 +1168,7 @@ async function sendOTAActivate() {
  * @returns {Promise<boolean>} Success status
  */
 async function sendFirmwareSize(firmwareSize) {
-    if (!txCharacteristic || !otaCharacteristic) {
+    if (!txCharacteristic || !rxCharacteristic) {
         log('❌ BLE characteristics not ready for OTA');
         return false;
     }
@@ -1095,8 +1207,8 @@ async function sendFirmwareSize(firmwareSize) {
         const frame = buildSizeFrame(otaPayload);
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         logOutgoing(frame, 'Size Command (BLE OTA format)');
-        await otaCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ Firmware size sent to OTA characteristic (FF06), waiting for ACK...');
+        await txCharacteristic.writeValueWithoutResponse(frame);
+        log('✅ Firmware size sent to FF01 (write), expecting response on FF02 (notify)...');
         
         // Wait for ACK - in BLE OTA mode, device responds with 0x50 to 0x50
         const ack = await waitForAck(0x50, 5000); // BLE OTA handler echoes the command
@@ -1151,7 +1263,7 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
         // Use BLE OTA format to route to OTA handler
         const frame = buildDataFrame(payload);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
-        await otaCharacteristic.writeValueWithoutResponse(frame);
+        await txCharacteristic.writeValueWithoutResponse(frame);
         
         // Update progress
         const progress = Math.round((chunkIndex / totalChunks) * 100);
@@ -1206,8 +1318,8 @@ async function sendOTAFinalize() {
         // Step 4: Send finalize command with cmd=0x52 in BLE OTA format
         const frame = buildFinishFrame();
         logOutgoing(frame, 'Finalize Command');
-        await otaCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ OTA finalize command sent, waiting for confirmation...');
+        await txCharacteristic.writeValueWithoutResponse(frame);
+        log('✅ OTA finalize command sent to FF01, waiting for confirmation on FF02...');
         
         // Wait for ACK (cmd=0x52) with payload indicating success (0x01) or failure
         const ack = await waitForAck(0x52, 3000);
@@ -1271,12 +1383,12 @@ async function performOTAUpdate() {
         // Step 2: Send 0x3A probe with correct payload from Wireshark analysis
         log('🔍 Sending 0x3A probe with Wireshark-verified payload...');
         
-        // From Wireshark: 73000b3a10d70003aabb97
-        // Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]
+        // Use exact Wireshark payload since it's from the same BMS 215 device
+        // Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] from working session
         const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]));
         logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A) - Wireshark format');
-        log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF06`);
-        await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
+        log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF01 (write), expecting response on FF02 (notify)`);
+        await txCharacteristic.writeValueWithoutResponse(otaProbeFrame);
         
         // Wait for 0x3A ACK - expect response with payload [0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
         const otaAck = await waitForAck(0x3A, 3000);
