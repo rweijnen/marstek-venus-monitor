@@ -710,11 +710,11 @@ function handleNotification(event) {
     
     if (isHMFrame) {
         // HM Protocol frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD...] [CHECKSUM]
+        // Special case: OTA ACK uses total frame length in LEN field
         const hmLength = value[1];
-        const expectedLength = hmLength + 2; // header + checksum
         
-        if (value.length !== expectedLength) {
-            log(`❌ HM frame length mismatch: expected ${expectedLength}, got ${value.length}`);
+        if (value.length !== hmLength) {
+            log(`❌ HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
             return;
         }
         
