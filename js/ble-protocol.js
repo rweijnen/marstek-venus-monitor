@@ -805,8 +805,8 @@ function handleUnifiedNotification(event) {
         return;
     }
     
-    // Detect frame format: HM protocol has 0x23 at position [2], BLE OTA doesn't
-    const isHMFrame = value[2] === 0x23;
+    // Detect frame format: Check for 0x23 marker at positions [2] (normal HM) or [3] (transition HM)
+    const isHMFrame = value[2] === 0x23 || value[3] === 0x23;
     
     if (isHMFrame) {
         handleHMFrame(value);
@@ -820,17 +820,39 @@ function handleUnifiedNotification(event) {
  * @param {Uint8Array} value - Frame data
  */
 function handleHMFrame(value) {
-    // HM Protocol frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD...] [CHECKSUM]
-    const hmLength = value[1];
+    // Detect format: normal HM or transition HM with big-endian length
+    const isNormalHM = value[2] === 0x23;
+    const isTransitionHM = value[3] === 0x23;
     
-    if (value.length !== hmLength) {
-        log(`❌ HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
+    let hmLength, cmd, payload, checksum;
+    
+    if (isNormalHM) {
+        // Normal HM frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD...] [CHECKSUM]
+        hmLength = value[1];
+        cmd = value[3];
+        payload = value.slice(4, -1);
+        checksum = value[value.length - 1];
+        
+        if (value.length !== hmLength) {
+            log(`❌ Normal HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
+            return;
+        }
+    } else if (isTransitionHM) {
+        // Transition HM frame: [0x73] [LEN_HI] [LEN_LO] [0x23] [CMD] [PAYLOAD...] [CHECKSUM]
+        hmLength = (value[1] << 8) | value[2];  // big-endian length
+        cmd = value[4];
+        payload = value.slice(5, -1);
+        checksum = value[value.length - 1];
+        
+        const expectedLength = value.length - 3; // subtract header (1) + length field (2)
+        if (hmLength !== expectedLength) {
+            log(`❌ Transition HM frame length mismatch: declared ${hmLength}, got ${expectedLength} content bytes`);
+            return;
+        }
+    } else {
+        log(`❌ Invalid HM frame: no 0x23 marker found`);
         return;
     }
-    
-    const cmd = value[3];
-    const payload = value.slice(4, -1);
-    const checksum = value[value.length - 1];
     
     log(`📨 HM frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
     
