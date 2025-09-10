@@ -569,11 +569,14 @@ function createNotificationHandler(charUuid) {
             const payload = bytes.slice(4, -1); // Extract payload (skip header and checksum)
             log(`📥 Upgrade mode payload: [${Array.from(payload).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
             
+            // Firmware analysis: payload 0x01 = "OTA armed" 
             if (payload.length >= 1 && payload[0] === 0x01) {
+                log('✅ OTA activation confirmed: device is armed for upgrade (payload 0x01)');
                 log('✅ Upgrade mode activated - device ready for OTA');
                 window.otaActivationResolve(true);
             } else {
-                const status = payload.length >= 1 ? `0x${payload[0].toString(16)}` : 'empty';
+                const status = payload.length >= 1 ? `0x${payload[0].toString(16).padStart(2, '0')}` : 'empty';
+                log(`⚠️ Unexpected OTA activation payload: expected 0x01, got 0x${status}`);
                 log(`❌ Upgrade mode activation failed - status: ${status}`);
                 window.otaActivationResolve(false);
             }
