@@ -697,42 +697,69 @@ function analyzeFirmware(firmwareArrayBuffer) {
 function handleNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
-    // Parse OTA frame from notification
+    // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
         log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
         return;
     }
     
-    const declaredLength = value[1] | (value[2] << 8);
-    const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
-    if (declaredLength !== contentLength) {
-        log(`❌ Length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
-        log(`❌ Problem frame (${value.length} bytes): ${Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
-        return;
-    }
+    // Detect frame format: HM protocol has 0x23 at position [2], BLE OTA doesn't
+    const isHMFrame = value[2] === 0x23;
     
-    const cmd = value[3];
-    const reserved = value[4];
+    let cmd, payload, checksum;
+    
+    if (isHMFrame) {
+        // HM Protocol frame: [0x73] [LEN] [0x23] [CMD] [PAYLOAD...] [CHECKSUM]
+        const hmLength = value[1];
+        const expectedLength = hmLength + 2; // header + checksum
+        
+        if (value.length !== expectedLength) {
+            log(`❌ HM frame length mismatch: expected ${expectedLength}, got ${value.length}`);
+            return;
+        }
+        
+        cmd = value[3];
+        payload = value.slice(4, -1);
+        checksum = value[value.length - 1];
+        
+        log(`📨 HM frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    } else {
+        // BLE OTA frame: [0x73] [LEN_LO] [LEN_HI] [CMD] [RESERVED] [PAYLOAD...] [CHECKSUM]
+        const declaredLength = value[1] | (value[2] << 8);
+        const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
+        
+        if (declaredLength !== contentLength) {
+            log(`❌ BLE OTA length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
+            log(`❌ Problem frame (${value.length} bytes): ${Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+            return;
+        }
+        
+        cmd = value[3];
+        const reserved = value[4];
+        payload = value.slice(5, -1);
+        checksum = value[value.length - 1];
+        
+        log(`📨 BLE OTA frame received - CMD: 0x${cmd.toString(16)}, Reserved: 0x${reserved.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    }
     
     // Verify XOR checksum
     let xor = 0;
     for (let i = 0; i < value.length - 1; i++) {
         xor ^= value[i];
     }
-    if (xor !== value[value.length - 1]) {
-        log(`❌ Bad XOR checksum: expected ${xor.toString(16)}, got ${value[value.length - 1].toString(16)}`);
+    if (xor !== checksum) {
+        log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
         return;
     }
     
-    const payload = value.slice(5, -1);
-    log(`📥 Received ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+    log(`✅ Valid ${isHMFrame ? 'HM' : 'BLE OTA'} ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
     
     // Resolve pending ACK promise
     if (pendingAckResolve) {
         pendingAckResolve({
             ok: true,
             cmd: cmd,
-            reserved: reserved,
+            reserved: isHMFrame ? undefined : value[4], // reserved field only exists in BLE OTA frames
             payload: payload
         });
         pendingAckResolve = null;
