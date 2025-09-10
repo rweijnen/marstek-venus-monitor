@@ -10,6 +10,11 @@ import { DeviceInfoPayload } from './DeviceInfo.js';
 import { WiFiInfoPayload } from './WiFiInfo.js';
 import { BMSDataPayload } from './BMSData.js';
 import { NetworkInfoPayload } from './NetworkInfo.js';
+import { WiFiConfig } from './WiFiConfig.js';
+import { TimeSettings } from './TimeSettings.js';
+import { URLConfig } from './URLConfig.js';
+import { WorkModeConfig } from './WorkModeConfig.js';
+import { FactoryResetResponse } from './FactoryResetResponse.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -25,11 +30,26 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.DEVICE_INFO:
             return new DeviceInfoPayload(data);
             
+        case CommandType.WIFI_CONFIG:
+            return new WiFiConfig(data);
+            
+        case CommandType.FACTORY_RESET:
+            return new FactoryResetResponse(data);
+            
         case CommandType.WIFI_INFO:
             return new WiFiInfoPayload(data);
             
+        case CommandType.WORK_MODE:
+            return new WorkModeConfig(data);
+            
+        case CommandType.TIME_SETTINGS:
+            return new TimeSettings(data);
+            
         case CommandType.BMS_DATA:
             return new BMSDataPayload(data);
+            
+        case CommandType.URL_CONFIG:
+            return new URLConfig(data);
             
         case CommandType.NETWORK_INFO:
             return new NetworkInfoPayload(data);
@@ -67,4 +87,15 @@ class GenericPayload extends BasePayload {
     }
 }
 
-export { RuntimeInfoPayload, DeviceInfoPayload, WiFiInfoPayload, BMSDataPayload, NetworkInfoPayload };
+export { 
+    RuntimeInfoPayload, 
+    DeviceInfoPayload, 
+    WiFiInfoPayload, 
+    BMSDataPayload, 
+    NetworkInfoPayload,
+    WiFiConfig,
+    TimeSettings,
+    URLConfig,
+    WorkModeConfig,
+    FactoryResetResponse
+};

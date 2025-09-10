@@ -151,6 +151,18 @@
                     <span class="cmd-button-text">⚙️ Get Settings Info</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settingsinfo')">i</span>
                 </button>
+                <button onclick="sendCommand(0x05, 'Get WiFi Config')" disabled class="cmd-button" data-tooltip="Get WiFi configuration and credentials">
+                    <span class="cmd-button-text">📶 Get WiFi Config</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wificonfig')">i</span>
+                </button>
+                <button onclick="sendCommand(0x0B, 'Get Time Settings')" disabled class="cmd-button" data-tooltip="Get device time and power configuration settings">
+                    <span class="cmd-button-text">🕐 Get Time Settings</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('timesettings')">i</span>
+                </button>
+                <button onclick="sendCommand(0x1B, 'Get URL Config')" disabled class="cmd-button" data-tooltip="Get server URL and port configuration">
+                    <span class="cmd-button-text">🌐 Get URL Config</span>
+                    <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('urlconfig')">i</span>
+                </button>
             </div>
 
             <!-- Power Management Commands -->
@@ -246,6 +258,26 @@
                         <span class="cmd-button-text">💾 Write Configuration</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('writeconfig')">i</span>
                     </button>
+                    <button onclick="sendCommand(0x09, 'Set Work Mode 0 (Off)', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set device work mode to 0 (Off)">
+                        <span class="cmd-button-text">⚡ Work Mode: Off</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode0')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x09, 'Set Work Mode 1 (On)', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set device work mode to 1 (On) with configuration">
+                        <span class="cmd-button-text">⚡ Work Mode: On</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode1')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x18, 'Set Current Time')" disabled class="btn-warning cmd-button" data-tooltip="Set device time and date to current browser time">
+                        <span class="cmd-button-text">🕐 Sync Time</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('synctime')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x19, 'Set Battery Mode 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set battery operation mode to 0">
+                        <span class="cmd-button-text">🔋 Battery Mode 0</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('batmode0')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x19, 'Set Battery Mode 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set battery operation mode to 1">
+                        <span class="cmd-button-text">🔋 Battery Mode 1</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('batmode1')">i</span>
+                    </button>
                 </div>
             </div>
 
@@ -323,6 +355,14 @@
                     <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Configure for parallel operation">
                         <span class="cmd-button-text">⚠️ Parallel Ready</span>
                         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallel')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x06, 'Factory Reset (WiFi)', [0x01])" disabled class="btn-danger cmd-button" data-tooltip="Factory reset WiFi settings only">
+                        <span class="cmd-button-text">🏭 Factory Reset WiFi</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('factoryreset1')">i</span>
+                    </button>
+                    <button onclick="sendCommand(0x06, 'Factory Reset (Full)', [0x02])" disabled class="btn-danger cmd-button" data-tooltip="Complete factory reset - all settings">
+                        <span class="cmd-button-text">🏭 Factory Reset Full</span>
+                        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('factoryreset2')">i</span>
                     </button>
                 </div>
             </div>
