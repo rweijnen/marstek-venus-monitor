@@ -360,6 +360,33 @@ function createMeterIPMessage(commandType, payload = null) {
 }
 
 /**
+ * Create standard HM protocol frame for regular commands
+ * @param {number} command - Command byte (e.g., 0x1F)
+ * @param {Array} payload - Payload bytes
+ * @returns {Uint8Array} Complete HM protocol frame
+ */
+function createHMFrame(command, payload = []) {
+    const frame = [];
+    frame.push(0x73);                           // Start byte
+    
+    const contentLength = 2 + payload.length;   // 0x23 + CMD + payload
+    frame.push(contentLength);                  // Length byte
+    
+    frame.push(0x23);                          // Protocol identifier
+    frame.push(command);                       // Command byte
+    
+    // Add payload
+    payload.forEach(byte => frame.push(byte));
+    
+    // Calculate XOR checksum: 0x23 ^ CMD ^ payload bytes
+    let checksum = 0x23 ^ command;
+    payload.forEach(byte => checksum ^= byte);
+    frame.push(checksum);
+    
+    return new Uint8Array(frame);
+}
+
+/**
  * Create BLE OTA frame for firmware update commands
  * @param {number} command - OTA command byte (0x50, 0x51, 0x52)
  * @param {number} reserved - Reserved byte (typically 0x10)
@@ -534,6 +561,37 @@ function createNotificationHandler(charUuid) {
         
         log(`📨 Response received (${bytes.length} bytes): ${formatBytes(bytes)}`);
         
+        // Check if this is an OTA activation response (cmd 0x1F)
+        if (window.otaActivationResolve && bytes.length >= 5 && bytes[0] === 0x73 && bytes[2] === 0x23 && bytes[3] === 0x1F) {
+            log('🔍 Detected upgrade mode activation response');
+            const payload = bytes.slice(4, -1); // Extract payload (skip header and checksum)
+            log(`📥 Upgrade mode payload: [${Array.from(payload).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
+            
+            if (payload.length >= 1 && payload[0] === 0x01) {
+                log('✅ Upgrade mode activated - device ready for OTA');
+                window.otaActivationResolve(true);
+            } else {
+                const status = payload.length >= 1 ? `0x${payload[0].toString(16)}` : 'empty';
+                log(`❌ Upgrade mode activation failed - status: ${status}`);
+                window.otaActivationResolve(false);
+            }
+            
+            window.otaActivationResolve = null;
+            window.currentCommand = null;
+            return;
+        }
+        
+        // Check if this looks like an OTA/BLE frame response (for firmware update ACKs)
+        if (bytes.length >= 6 && bytes[0] === 0x73) {
+            const frameLength = bytes[1] | (bytes[2] << 8);
+            if (frameLength > 5 && bytes[3] === 0xFF && bytes[4] === 0x01) {
+                // This looks like an OTA ACK - handle it
+                handleOTAAck(bytes);
+                return;
+            }
+        }
+        
+        // Handle regular command responses
         if (window.currentCommand) {
             // Use the comprehensive data parser if available
             if (window.dataParser && window.dataParser.parseResponse) {
@@ -735,39 +793,25 @@ async function connectAndPrepareOTA() {
  * @returns {Promise<boolean>} Success status
  */
 async function sendOTAActivate() {
-    if (!txCharacteristic) {
-        log('❌ TX characteristic not ready');
-        return false;
-    }
-
-    try {
+    return new Promise((resolve) => {
         log('🔄 Activating upgrade mode with cmd 0x1F...');
-        // Step 1: Send activation command 0x1F with magic bytes [0x0A, 0x0B, 0x0C]
-        // This is the standard HM protocol command, not the OTA-specific 0x3A which doesn't exist in firmware
-        const frame = createHMFrame(0x1F, [0x0A, 0x0B, 0x0C]);
-        await txCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ Upgrade mode activation (0x1F) sent, waiting for ACK...');
         
-        // Wait for ACK with cmd=0x1F and status 0x01
-        const ack = await waitForAck(0x1F, 2000);
-        if (!ack.ok) {
-            log(`❌ Activation ACK failed: ${ack.reason}`);
-            return false;
-        }
+        // Set up response handler for upgrade mode activation  
+        window.otaActivationResolve = resolve;
+        window.currentCommand = 0x1F;
         
-        // Check for status byte 0x01 indicating success
-        if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
-            log('✅ Upgrade mode activated - device ready for OTA');
-            return true;
-        } else {
-            const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
-            log(`❌ Upgrade mode activation failed - status: ${status}`);
-            return false;
-        }
-    } catch (error) {
-        log(`❌ Failed to activate OTA mode: ${error.message}`);
-        return false;
-    }
+        // Send standard command using regular mechanism (this will get handled by the standard notification handler)
+        sendCommand(0x1F, 'Upgrade Mode Activation', [0x0A, 0x0B, 0x0C]);
+        
+        // Set timeout in case no response comes
+        setTimeout(() => {
+            if (window.otaActivationResolve) {
+                window.otaActivationResolve = null;
+                log('❌ OTA activation timeout - no response received');
+                resolve(false);
+            }
+        }, 5000);
+    });
 }
 
 /**
