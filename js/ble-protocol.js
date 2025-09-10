@@ -361,7 +361,7 @@ function createMeterIPMessage(commandType, payload = null) {
 
 /**
  * Create BLE OTA frame for firmware update commands
- * @param {number} command - OTA command byte (0x3A, 0x50, 0x51, 0x52)
+ * @param {number} command - OTA command byte (0x50, 0x51, 0x52)
  * @param {number} reserved - Reserved byte (typically 0x10)
  * @param {Array} payload - Payload bytes
  * @returns {Uint8Array} Complete OTA frame
@@ -741,16 +741,15 @@ async function sendOTAActivate() {
     }
 
     try {
-        log('🔄 Activating OTA mode with cmd 0x3A...');
-        // Step 1: Send activation command 0x3A with fixed pattern
-        // Expects: buf[1]==5, buf[3]==3, buf[4]==2
-        const activatePayload = [0x00, 0x05, 0x00, 0x03, 0x02];
-        const frame = createBLEOTAFrame(0x3A, 0x10, activatePayload);
+        log('🔄 Activating upgrade mode with cmd 0x1F...');
+        // Step 1: Send activation command 0x1F with magic bytes [0x0A, 0x0B, 0x0C]
+        // This is the standard HM protocol command, not the OTA-specific 0x3A which doesn't exist in firmware
+        const frame = createHMFrame(0x1F, [0x0A, 0x0B, 0x0C]);
         await txCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ OTA activation (0x3A) sent, waiting for ACK...');
+        log('✅ Upgrade mode activation (0x1F) sent, waiting for ACK...');
         
-        // Wait for ACK with cmd=0x3A and status 0x01
-        const ack = await waitForAck(0x3A, 2000);
+        // Wait for ACK with cmd=0x1F and status 0x01
+        const ack = await waitForAck(0x1F, 2000);
         if (!ack.ok) {
             log(`❌ Activation ACK failed: ${ack.reason}`);
             return false;
@@ -758,11 +757,11 @@ async function sendOTAActivate() {
         
         // Check for status byte 0x01 indicating success
         if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
-            log('✅ OTA activation confirmed - device entered state 1');
+            log('✅ Upgrade mode activated - device ready for OTA');
             return true;
         } else {
             const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
-            log(`❌ OTA activation failed - status: ${status}`);
+            log(`❌ Upgrade mode activation failed - status: ${status}`);
             return false;
         }
     } catch (error) {
@@ -959,9 +958,9 @@ async function performOTAUpdate() {
         otaTotalChunks = Math.ceil(firmwareData.byteLength / otaChunkSize);
         log(`📦 Total chunks: ${otaTotalChunks} (${otaChunkSize} bytes each)`);
         
-        // Step 1: Send activation command 0x3A to enter OTA mode
+        // Step 1: Send activation command 0x1F to enter upgrade mode
         if (!await sendOTAActivate()) {
-            throw new Error('Failed to activate OTA mode');
+            throw new Error('Failed to activate upgrade mode');
         }
         
         // Step 2: Send firmware size with session token
