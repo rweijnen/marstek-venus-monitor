@@ -19,6 +19,11 @@
 const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
 const START_BYTE = 0x73;
 
+// Characteristic UUIDs
+const TX_CHAR_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';  // Regular commands
+const RX_CHAR_UUID = '0000ff02-0000-1000-8000-00805f9b34fb';  // Regular responses  
+const OTA_CHAR_UUID = '0000ff06-0000-1000-8000-00805f9b34fb'; // OTA commands & responses
+
 // ========================================
 // BLE COMMUNICATION LOGGING
 // ========================================
@@ -45,6 +50,7 @@ const IDENTIFIER_BYTE = 0x23;
 let device = null;
 let server = null;
 let characteristics = {};
+let otaCharacteristic = null; // FF06 characteristic for OTA commands
 // Note: (window.uiController ? window.uiController.isConnected() : false) and (window.uiController ? window.uiController.getDeviceType() : 'unknown') are managed by ui-controller.js
 
 // OTA-specific globals
@@ -842,14 +848,19 @@ async function connectAndPrepareOTA() {
         throw new Error("No device connected");
     }
     
-    // Find TX and RX characteristics
+    // Find TX, RX, and OTA characteristics
     const service = await device.gatt.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
     txCharacteristic = await service.getCharacteristic('0000ff01-0000-1000-8000-00805f9b34fb');
     rxCharacteristic = await service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
+    otaCharacteristic = await service.getCharacteristic('0000ff06-0000-1000-8000-00805f9b34fb');
     
-    // Enable notifications on RX characteristic
+    // Enable notifications on RX characteristic (regular commands)
     await rxCharacteristic.startNotifications();
     rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+    
+    // Enable notifications on OTA characteristic (OTA commands)
+    await otaCharacteristic.startNotifications();
+    otaCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
     log('✅ Notifications enabled on RX characteristic (ff02)');
     
     // Use fixed 128-byte chunks as per protocol specification
@@ -896,8 +907,8 @@ async function sendOTAActivate() {
  * @returns {Promise<boolean>} Success status
  */
 async function sendFirmwareSize(firmwareSize) {
-    if (!txCharacteristic) {
-        log('❌ TX characteristic not ready');
+    if (!txCharacteristic || !otaCharacteristic) {
+        log('❌ BLE characteristics not ready for OTA');
         return false;
     }
 
@@ -935,8 +946,8 @@ async function sendFirmwareSize(firmwareSize) {
         const frame = createBLEOTAFrame(0x50, 0x00, otaPayload);
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         logOutgoing(frame, 'Size Command (BLE OTA format)');
-        await txCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ Firmware size sent, waiting for ACK...');
+        await otaCharacteristic.writeValueWithoutResponse(frame);
+        log('✅ Firmware size sent to OTA characteristic (FF06), waiting for ACK...');
         
         // Wait for ACK - in BLE OTA mode, device responds with 0x50 to 0x50
         const ack = await waitForAck(0x50, 5000); // BLE OTA handler echoes the command
@@ -991,7 +1002,7 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
         // Use BLE OTA format to route to OTA handler
         const frame = createBLEOTAFrame(0x51, 0x00, payload);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
-        await txCharacteristic.writeValueWithoutResponse(frame);
+        await otaCharacteristic.writeValueWithoutResponse(frame);
         
         // Update progress
         const progress = Math.round((chunkIndex / totalChunks) * 100);
@@ -1046,7 +1057,7 @@ async function sendOTAFinalize() {
         // Step 4: Send finalize command with cmd=0x52 in BLE OTA format
         const frame = createBLEOTAFrame(0x52, 0x00, []);
         logOutgoing(frame, 'Finalize Command');
-        await txCharacteristic.writeValueWithoutResponse(frame);
+        await otaCharacteristic.writeValueWithoutResponse(frame);
         log('✅ OTA finalize command sent, waiting for confirmation...');
         
         // Wait for ACK (cmd=0x52) with payload indicating success (0x01) or failure
