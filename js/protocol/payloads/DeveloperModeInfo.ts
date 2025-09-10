@@ -45,7 +45,7 @@ export class DeveloperModeInfo extends BasePayload {
             workMode,
             // Interpret values based on firmware analysis
             interpretations: {
-                systemStatus: systemStatus === 1 ? 'Development Mode Active' : `Status ${systemStatus}`,
+                systemStatus: systemStatus === 1 ? 'Dev Mode ON' : `Status ${systemStatus}`,
                 lineFrequency: `${lineFrequency} Hz`,
                 acVoltage: `${acVoltage} V`,
                 temperatures: {
@@ -68,14 +68,14 @@ export class DeveloperModeInfo extends BasePayload {
                 <div><strong>System Status:</strong> ${data.interpretations.systemStatus}</div>
                 <div><strong>Line Frequency:</strong> ${data.interpretations.lineFrequency}</div>
                 <div><strong>AC Voltage:</strong> ${data.interpretations.acVoltage}</div>
+                <div><strong>Work Mode:</strong> ${data.workMode}</div>
+                <br>
                 <div><strong>Temperature Sensors:</strong></div>
                 ${data.temperatures.map((temp, idx) => {
                     const tempKey = `temp${idx + 1}`;
                     const tempValue = data.interpretations.temperatures[tempKey];
                     return `<div style="margin-left: 20px;"><strong>Sensor ${idx + 1}:</strong> ${tempValue}</div>`;
                 }).join('')}
-                <div><strong>Work Mode:</strong> ${data.workMode}</div>
-                <div><strong>Raw Payload:</strong> ${Array.from(this.payload).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ')}</div>
             </div>
         `;
     }
