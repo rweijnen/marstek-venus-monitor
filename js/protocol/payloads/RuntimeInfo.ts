@@ -81,6 +81,21 @@ export class RuntimeInfoPayload extends BasePayload {
         };
     }
 
+    private getWorkModeString(mode: number): string {
+        // Based on cmd 0x18 mapping
+        const modes: { [key: number]: string } = {
+            0x00: 'Grid-Tie',
+            0x01: 'Off-Grid',
+            0x02: 'Self-Consumption',
+            0x03: 'Time-of-Use',
+            0x04: 'Backup',
+            0x05: 'Peak Shaving',
+            0x06: 'Battery Priority',
+            0x07: 'Load Following'
+        };
+        return modes[mode] || `Unknown (0x${mode.toString(16).padStart(2, '0')})`;
+    }
+
     private parseFirmwareTimestamp(offset: number): string {
         try {
             const timestampStr = this.readString(offset, 12);
@@ -102,38 +117,39 @@ export class RuntimeInfoPayload extends BasePayload {
             
             let html = '<h3>⚡ Runtime Information</h3><div class="data-grid">';
             
-            // Power readings
-            html += `<div><strong>Grid Power:</strong> ${data.gridPower}W</div>`;
-            html += `<div><strong>Solar Power:</strong> ${data.solarPower}W</div>`;
+            // Power readings (signed, can be negative for import/export)
+            html += `<div><strong>Grid Power:</strong> ${data.gridPower} W</div>`;
+            html += `<div><strong>Solar Power:</strong> ${data.solarPower} W</div>`;
             
             // Status
-            html += `<div><strong>Work Mode:</strong> 0x${data.workMode.toString(16).padStart(2, '0')}</div>`;
-            html += `<div><strong>Status Flags:</strong> ${data.statusB}/${data.statusC}/${data.statusD}</div>`;
+            html += `<div><strong>Work Mode:</strong> ${this.getWorkModeString(data.workMode)}</div>`;
+            html += `<div><strong>Status Flags B/C/D:</strong> ${data.statusB}/${data.statusC}/${data.statusD}</div>`;
             
             // Device info
             html += `<div><strong>Product Code:</strong> 0x${data.productCode.toString(16).padStart(4, '0')}</div>`;
-            const modelType = data.powerRating === 2500 ? '2500W' : data.powerRating === 800 ? '800W' : `${data.powerRating}W`;
-            html += `<div><strong>Power Rating:</strong> ${modelType}</div>`;
+            html += `<div><strong>Power Rating:</strong> ${data.powerRating} W</div>`;
             
             // Telemetry
             html += `<div><strong>Meter 1:</strong> ${data.meter1}</div>`;
             html += `<div><strong>Meter 2:</strong> ${data.meter2}</div>`;
             html += `<div><strong>Meter 3:</strong> ${data.meter3}</div>`;
             
-            // Energy
-            html += `<div><strong>Energy Total 1:</strong> ${data.energyTotal1}</div>`;
-            html += `<div><strong>Energy Total 2:</strong> ${data.energyTotal2}</div>`;
+            // Energy accumulators (likely Wh)
+            html += `<div><strong>Energy Total 1:</strong> ${data.energyTotal1} Wh</div>`;
+            html += `<div><strong>Energy Total 2:</strong> ${data.energyTotal2} Wh</div>`;
             
             // Firmware
             html += `<div><strong>Firmware Version:</strong> ${data.firmwareVersion}</div>`;
             html += `<div><strong>Build Code:</strong> ${data.buildCode}</div>`;
             html += `<div><strong>Firmware Build:</strong> ${data.firmwareBuild}</div>`;
             
-            // Calibration tags
-            html += `<div><strong>Cal Tag 1:</strong> ${data.calTag1}</div>`;
-            html += `<div><strong>Cal Tag 2:</strong> ${data.calTag2}</div>`;
-            html += `<div><strong>Cal Tag 3:</strong> ${data.calTag3}</div>`;
-            html += `<div><strong>Cal Tag 4:</strong> ${data.calTag4}</div>`;
+            // Calibration/variant tags (unitless)
+            html += `<div><strong>Cal/Variant Tag 1:</strong> ${data.calTag1}</div>`;
+            html += `<div><strong>Cal/Variant Tag 2:</strong> ${data.calTag2}</div>`;
+            html += `<div><strong>Cal/Variant Tag 3:</strong> ${data.calTag3}</div>`;
+            if (data.reservedCounter !== undefined) {
+                html += `<div><strong>Reserved/Counter:</strong> ${data.reservedCounter}</div>`;
+            }
             
             // API Status based on port value
             const apiStatus = data.apiPort === 0 ? 
@@ -141,7 +157,7 @@ export class RuntimeInfoPayload extends BasePayload {
                 `<span style="color: #28a745;">🔓 ENABLED (Port: ${data.apiPort})</span>`;
             html += `<div><strong>Local API Status:</strong> ${apiStatus}</div>`;
             
-            html += `<div><strong>Device Type:</strong> ${modelType} Battery System</div>`;
+            html += `<div><strong>Device Type:</strong> ${data.powerRating}W Battery System</div>`;
             html += '</div>';
             
             return html;

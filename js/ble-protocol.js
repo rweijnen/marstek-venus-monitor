@@ -18,6 +18,28 @@
 
 const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
 const START_BYTE = 0x73;
+
+// ========================================
+// BLE COMMUNICATION LOGGING
+// ========================================
+
+/**
+ * Log outgoing BLE data with clear formatting
+ */
+function logOutgoing(data, description = '') {
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+    const hexStr = Array.from(bytes).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ');
+    log(`📤 OUT ${description ? `(${description}) ` : ''}[${bytes.length}]: ${hexStr}`);
+}
+
+/**
+ * Log incoming BLE data with clear formatting  
+ */
+function logIncoming(data, description = '') {
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+    const hexStr = Array.from(bytes).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ');
+    log(`📥 IN  ${description ? `(${description}) ` : ''}[${bytes.length}]: ${hexStr}`);
+}
 const IDENTIFIER_BYTE = 0x23;
 
 let device = null;
@@ -457,6 +479,7 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
         }
         
         const writeChar = writeChars[0];
+        logOutgoing(command, `HM Command ${commandName}`);
         await writeChar.writeValueWithoutResponse(command);
         
         // Set up timeout for retry
@@ -516,6 +539,7 @@ async function sendMeterIPCommand(commandType, commandName, payload = null, retr
         }
         
         const writeChar = writeChars[0];
+        logOutgoing(command, `HM Command ${commandName}`);
         await writeChar.writeValueWithoutResponse(command);
         
         // Set up timeout for retry
@@ -561,6 +585,8 @@ function createNotificationHandler(charUuid) {
         const data = event.target.value;
         const bytes = new Uint8Array(data.buffer);
         
+        // Log all incoming data
+        logIncoming(bytes, `Response on ${charUuid.slice(-4)}`);
         log(`📨 Response received (${bytes.length} bytes): ${formatBytes(bytes)}`);
         
         // Check if this is an OTA activation response (cmd 0x1F)
@@ -696,6 +722,9 @@ function analyzeFirmware(firmwareArrayBuffer) {
  */
 function handleNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
+    
+    // Log all incoming data
+    logIncoming(value, 'Notification');
     
     // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
@@ -880,6 +909,7 @@ async function sendFirmwareSize(firmwareSize) {
         
         const frame = createBLEOTAFrame(0x50, 0x10, sizePayload);
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
+        logOutgoing(frame, 'Size Command');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ Firmware size sent, waiting for ACK...');
         
@@ -934,6 +964,7 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
         ];
         
         const frame = createBLEOTAFrame(0x51, 0x10, payload);
+        logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
         await txCharacteristic.writeValueWithoutResponse(frame);
         
         // Update progress
@@ -988,6 +1019,7 @@ async function sendOTAFinalize() {
         log('🏁 Sending OTA finalization command...');
         // Step 4: Send finalize command with cmd=0x52 and empty payload
         const frame = createBLEOTAFrame(0x52, 0x10, []);
+        logOutgoing(frame, 'Finalize Command');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ OTA finalize command sent, waiting for confirmation...');
         
@@ -1356,6 +1388,7 @@ async function sendConfigWriteCommand() {
         }
         
         const writeChar = writeChars[0];
+        logOutgoing(command, 'Config Write');
         await writeChar.writeValueWithoutResponse(command);
         log('✅ Configuration write command sent successfully');
         
