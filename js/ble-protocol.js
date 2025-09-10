@@ -805,7 +805,8 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
     return new Promise((resolve, reject) => {
         pendingAckResolve = (ack) => {
             if (ack.cmd === expectedCmd) {
-                // For OTA commands, also check payload[0] === 0x01 for success
+                // For OTA size command (0x51 response), accept any payload as success
+                // For other OTA commands, check payload[0] === 0x01 for success
                 if (expectedCmd === 0x50 && ack.payload.length > 0 && ack.payload[0] !== 0x01) {
                     resolve({
                         ok: false,
@@ -924,8 +925,8 @@ async function sendFirmwareSize(firmwareSize) {
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ Firmware size sent, waiting for ACK...');
         
-        // Wait for ACK (device should echo cmd=0x50 with payload 0x01)
-        const ack = await waitForAck(0x50, 5000); // Increased timeout to 5s
+        // Wait for ACK (device responds with cmd=0x51, not 0x50)
+        const ack = await waitForAck(0x51, 5000); // Device responds with 0x51 to size command
         if (!ack.ok) {
             log(`❌ Size ACK failed: ${ack.reason}`);
             return false;
