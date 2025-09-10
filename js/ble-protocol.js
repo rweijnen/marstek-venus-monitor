@@ -397,9 +397,10 @@ function createBLEOTAFrame(command, reserved, payload = []) {
     const frame = [];
     frame.push(0x73);                    // Header byte
     
-    // Calculate total frame length (validation expects this to match frame.length)
-    // Total: header(1) + length(2) + cmd(1) + reserved(1) + payload + checksum(1)
-    const totalLength = 1 + 2 + 1 + 1 + payload.length + 1;
+    // For BLE OTA frames, length should be the payload + overhead size
+    // Based on the frame structure: [0x73] [LEN_LO] [LEN_HI] [CMD] [RESERVED] [PAYLOAD] [CHECKSUM]
+    // Length field represents: CMD(1) + RESERVED(1) + PAYLOAD + CHECKSUM(1)
+    const totalLength = 1 + 1 + payload.length + 1;
     frame.push(totalLength & 0xFF);      // Length low byte (LE)  
     frame.push((totalLength >> 8) & 0xFF); // Length high byte (LE)
     
