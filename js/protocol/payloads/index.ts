@@ -15,6 +15,7 @@ import { TimeSettings } from './TimeSettings.js';
 import { URLConfig } from './URLConfig.js';
 import { WorkModeConfig } from './WorkModeConfig.js';
 import { FactoryResetResponse } from './FactoryResetResponse.js';
+import { OTAActivation } from './OTAActivation.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -53,6 +54,9 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.NETWORK_INFO:
             return new NetworkInfoPayload(data);
+            
+        case CommandType.OTA_ACTIVATION:
+            return new OTAActivation(data);
         
         // Add other payload types as we implement them
         
@@ -97,5 +101,6 @@ export {
     TimeSettings,
     URLConfig,
     WorkModeConfig,
-    FactoryResetResponse
+    FactoryResetResponse,
+    OTAActivation
 };

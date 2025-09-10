@@ -397,9 +397,10 @@ function createBLEOTAFrame(command, reserved, payload = []) {
     const frame = [];
     frame.push(0x73);                    // Header byte
     
-    // Calculate total frame length: payload + 6 bytes overhead
-    const totalLength = payload.length + 6;
-    frame.push(totalLength & 0xFF);      // Length low byte (LE)
+    // Calculate total frame length (validation expects this to match frame.length)
+    // Total: header(1) + length(2) + cmd(1) + reserved(1) + payload + checksum(1)
+    const totalLength = 1 + 2 + 1 + 1 + payload.length + 1;
+    frame.push(totalLength & 0xFF);      // Length low byte (LE)  
     frame.push((totalLength >> 8) & 0xFF); // Length high byte (LE)
     
     frame.push(command);                 // Command byte (0x50, 0x51, 0x52)
@@ -794,13 +795,15 @@ async function connectAndPrepareOTA() {
  */
 async function sendOTAActivate() {
     return new Promise((resolve) => {
-        log('🔄 Activating upgrade mode with cmd 0x1F...');
+        log('🔄 Activating upgrade mode with cmd 0x1F (firmware confirmed)...');
         
         // Set up response handler for upgrade mode activation  
         window.otaActivationResolve = resolve;
         window.currentCommand = 0x1F;
         
-        // Send standard command using regular mechanism (this will get handled by the standard notification handler)
+        // Send OTA activation command based on firmware disassembly (both versions confirm 0x1F)
+        // Both original and v153 firmware: 0x1F checks magic bytes [0x0A, 0x0B, 0x0C]
+        // btsnoop showing 0x13 likely from different firmware/device version
         sendCommand(0x1F, 'Upgrade Mode Activation', [0x0A, 0x0B, 0x0C]);
         
         // Set timeout in case no response comes
@@ -840,7 +843,10 @@ async function sendFirmwareSize(firmwareSize) {
             (firmwareChecksum >> 24) & 0xFF
         ];
         
+        log(`🔍 Size payload (${sizePayload.length} bytes): [${sizePayload.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
+        
         const frame = createBLEOTAFrame(0x50, 0x10, sizePayload);
+        log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ Firmware size sent, waiting for ACK...');
         
