@@ -420,15 +420,16 @@ function createBLEOTAFrame(command, reserved, payload = []) {
     const frame = [];
     frame.push(0x73);                    // Header byte
     
-    // For BLE OTA frames, length should be the payload + overhead size
-    // Based on the frame structure: [0x73] [LEN_LO] [LEN_HI] [CMD] [RESERVED] [PAYLOAD] [CHECKSUM]
-    // Length field represents: CMD(1) + RESERVED(1) + PAYLOAD + CHECKSUM(1)
-    const totalLength = 1 + 1 + payload.length + 1;
-    frame.push(totalLength & 0xFF);      // Length low byte (LE)  
-    frame.push((totalLength >> 8) & 0xFF); // Length high byte (LE)
+    // BLE OTA frame structure: [0x73] [LEN_HI] [LEN_LO] [CMD] [0x00] [PAYLOAD] [XOR]
+    // Length field = total frame size - 1 (excluding start byte)
+    // Length = 2(len bytes) + 1(cmd) + 1(0x00) + payload.length + 1(xor) = 5 + payload.length
+    // But we include the length bytes themselves, so: 6 + payload.length
+    const totalLength = 6 + payload.length;
+    frame.push((totalLength >> 8) & 0xFF); // Length high byte (BE)
+    frame.push(totalLength & 0xFF);        // Length low byte (BE)
     
     frame.push(command);                 // Command byte (0x50, 0x51, 0x52)
-    frame.push(reserved);                // Reserved byte (0x10)
+    frame.push(0x00);                    // Reserved byte (always 0x00)
     frame.push(...payload);              // Payload
     
     // Calculate XOR checksum over all previous bytes
@@ -920,8 +921,18 @@ async function sendFirmwareSize(firmwareSize) {
         log(`🔍 Size payload (${sizePayload.length} bytes): [${sizePayload.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
         
         // After 0x1F activation, switch to BLE OTA format (no 0x23) to route to OTA handler
-        // The 0x10 in sizePayload[0] becomes the reserved byte in BLE OTA format
-        const frame = createBLEOTAFrame(0x50, sizePayload[0], sizePayload.slice(1));
+        // For OTA size command: payload is just size(4) + checksum(4), no 0x10 prefix
+        const otaPayload = [
+            firmwareSize & 0xFF,
+            (firmwareSize >> 8) & 0xFF,
+            (firmwareSize >> 16) & 0xFF,
+            (firmwareSize >> 24) & 0xFF,
+            firmwareChecksum & 0xFF,
+            (firmwareChecksum >> 8) & 0xFF,
+            (firmwareChecksum >> 16) & 0xFF,
+            (firmwareChecksum >> 24) & 0xFF
+        ];
+        const frame = createBLEOTAFrame(0x50, 0x00, otaPayload);
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         logOutgoing(frame, 'Size Command (BLE OTA format)');
         await txCharacteristic.writeValueWithoutResponse(frame);
@@ -978,7 +989,7 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
         ];
         
         // Use BLE OTA format to route to OTA handler
-        const frame = createBLEOTAFrame(0x51, 0x10, payload);
+        const frame = createBLEOTAFrame(0x51, 0x00, payload);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
         await txCharacteristic.writeValueWithoutResponse(frame);
         
@@ -1033,7 +1044,7 @@ async function sendOTAFinalize() {
     try {
         log('🏁 Sending OTA finalization command...');
         // Step 4: Send finalize command with cmd=0x52 in BLE OTA format
-        const frame = createBLEOTAFrame(0x52, 0x10, []);
+        const frame = createBLEOTAFrame(0x52, 0x00, []);
         logOutgoing(frame, 'Finalize Command');
         await txCharacteristic.writeValueWithoutResponse(frame);
         log('✅ OTA finalize command sent, waiting for confirmation...');
