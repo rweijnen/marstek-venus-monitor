@@ -844,9 +844,8 @@ function handleHMFrame(value) {
         payload = value.slice(5, -1);
         checksum = value[value.length - 1];
         
-        const expectedLength = value.length - 3; // subtract header (1) + length field (2)
-        if (hmLength !== expectedLength) {
-            log(`❌ Transition HM frame length mismatch: declared ${hmLength}, got ${expectedLength} content bytes`);
+        if (hmLength !== value.length) {
+            log(`❌ Transition HM frame length mismatch: declared ${hmLength}, got ${value.length} total bytes`);
             return;
         }
     } else {
@@ -1218,17 +1217,18 @@ async function sendOTAActivate() {
         logOutgoing(cmd23Frame, 'HM Activation (0x10)');
         await txCharacteristic.writeValueWithoutResponse(cmd23Frame);
         
-        // Wait for 0x10 ACK with payload [0x01] (Frame 106)
-        log('⏳ Waiting for 0x10 activation ACK...');
-        const ack = await waitForAck(0x10, 3000);
+        // Wait for response ACK with payload [0x01] (Frame 106)
+        // Device responds with cmd=0x00 (generic response) rather than echoing 0x10
+        log('⏳ Waiting for activation ACK...');
+        const ack = await waitForAck(0x00, 3000);
         
         if (!ack || !ack.ok) {
-            throw new Error(`0x10 activation failed: ${ack ? ack.reason : 'timeout'}`);
+            throw new Error(`Activation failed: ${ack ? ack.reason : 'timeout'}`);
         }
         
-        // Check that payload is [0x01] as in working capture
-        if (ack.payload.length !== 1 || ack.payload[0] !== 0x01) {
-            throw new Error(`Unexpected 0x10 ACK payload: expected [0x01], got [${Array.from(ack.payload).map(b => '0x' + b.toString(16)).join(', ')}]`);
+        // Check that payload starts with [0x01] as in working capture
+        if (ack.payload.length < 1 || ack.payload[0] !== 0x01) {
+            throw new Error(`Unexpected activation ACK payload: expected [0x01, ...], got [${Array.from(ack.payload).map(b => '0x' + b.toString(16)).join(', ')}]`);
         }
         
         log('📥 Upgrade mode payload: [0x01]');
