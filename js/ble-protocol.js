@@ -444,6 +444,42 @@ function buildOtaFrame(cmdByte, payload) {
 }
 
 /**
+ * Build 0x54 activation frame (special format without reserved byte)
+ * @param {Uint8Array} payload - Payload bytes
+ * @returns {Uint8Array} Complete 0x54 frame
+ */
+function build54Frame(payload) {
+    const len = 5 + payload.length;           // no reserved byte for 0x54
+    const frame = new Uint8Array(len);
+    frame[0] = 0x73;
+    frame[1] = (len >>> 8) & 0xFF;            // big-endian length
+    frame[2] =  len        & 0xFF;
+    frame[3] = 0x54;                          // command
+    frame.set(payload, 4);                    // payload directly after command
+    frame[len - 1] = xorChecksum(frame.slice(0, len - 1));
+    return frame;
+}
+
+/**
+ * Build transition HM frame (uses big-endian length like OTA frames)
+ * @param {number} command - HM command byte
+ * @param {Array} payload - Payload bytes  
+ * @returns {Uint8Array} Complete transition HM frame
+ */
+function buildTransitionHMFrame(command, payload = []) {
+    const len = 6 + payload.length;           // includes checksum
+    const frame = new Uint8Array(len);
+    frame[0] = 0x73;
+    frame[1] = (len >>> 8) & 0xFF;            // big-endian length (like OTA)
+    frame[2] =  len        & 0xFF;
+    frame[3] = 0x23;                          // HM marker
+    frame[4] = command;                       // HM command
+    frame.set(payload, 5);                    // payload
+    frame[len - 1] = xorChecksum(frame.slice(0, len - 1));
+    return frame;
+}
+
+/**
  * Little-endian 32-bit integer to bytes
  */
 function u32le(n) {
@@ -1142,21 +1178,21 @@ async function sendOTAActivate() {
     try {
         log('🔄 Activating upgrade mode with Wireshark-verified sequence...');
         
-        // Step 1: Send 0x54 command in OTA format (Frame 103)
-        // Frame 103: 730006541031 -> [0x73][0x00][0x06][0x54][0x10][0x31]
+        // Step 1: Send 0x54 command in special format (Frame 103)
+        // Frame 103: 730006541031 -> [0x73][0x00][0x06][0x54][0x10][0x31] (no reserved byte)
         log('📤 Sending 0x54 OTA activation command...');
-        const cmd54Frame = buildOtaFrame(0x54, new Uint8Array([0x10]));
+        const cmd54Frame = build54Frame(new Uint8Array([0x10]));
         logOutgoing(cmd54Frame, 'OTA Activation (0x54)');
         await txCharacteristic.writeValueWithoutResponse(cmd54Frame);
         
         // Brief delay between commands
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Step 2: Send 0x10 command in HM format (Frame 105)
-        // Frame 105: 7300072310aaed -> payload [0xaa] from working capture
+        // Step 2: Send 0x10 command in transition HM format (Frame 105)
+        // Frame 105: 7300072310aaed -> uses big-endian length but has 0x23 marker
         // Note: Firmware disassembly shows check for [0x0A, 0x0B, 0x0C] but working app uses [0xaa]
         log('📤 Sending 0x10 HM activation command with Wireshark payload...');
-        const cmd23Frame = createHMFrame(0x10, [0xaa]);
+        const cmd23Frame = buildTransitionHMFrame(0x10, [0xaa]);
         logOutgoing(cmd23Frame, 'HM Activation (0x10)');
         await txCharacteristic.writeValueWithoutResponse(cmd23Frame);
         
