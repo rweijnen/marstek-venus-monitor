@@ -1122,8 +1122,8 @@ async function performOTAUpdate() {
         // Step 2: Discover and activate BLE OTA channel
         log('🔍 Discovering OTA channel with 0x3A probe...');
         
-        // Send simple 0x3A probe: 73 00 06 3A 00 3F (minimal frame with just checksum)
-        const otaProbeFrame = new Uint8Array([0x73, 0x00, 0x06, 0x3A, 0x00, 0x3F]);
+        // Send simple 0x3A probe with correct checksum
+        const otaProbeFrame = new Uint8Array([0x73, 0x00, 0x06, 0x3A, 0x00, 0x45]); // XOR: 0x73^0x00^0x06^0x3A^0x00 = 0x45
         logOutgoing(otaProbeFrame, 'OTA Discovery Probe (0x3A)');
         await otaCharacteristic.writeValueWithoutResponse(otaProbeFrame);
         
