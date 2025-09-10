@@ -2259,7 +2259,7 @@ Config Value: 0x51 (81)`,
                 log('🔄 Activating upgrade mode with cmd 0x1F...');
                 // Step 1: Send activation command 0x1F with magic bytes [0x0A, 0x0B, 0x0C]
                 // This is the standard HM protocol command, not the OTA-specific 0x3A
-                const frame = createHMFrame(0x1F, [0x0A, 0x0B, 0x0C]);
+                const frame = createOTAFrame(0x1F, [0x0A, 0x0B, 0x0C]);
                 await txCharacteristic.writeValueWithoutResponse(frame);
                 log('✅ Upgrade mode activation (0x1F) sent, waiting for ACK...');
                 
