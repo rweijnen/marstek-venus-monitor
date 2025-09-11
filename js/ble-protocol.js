@@ -483,10 +483,11 @@ function buildSizeFrame(sizeBytes, checksum) {
  * Build "Q" data frame (offset + 128B)
  */
 function buildDataFrame(offset, chunk128) {
-    const payload = new Uint8Array(4 + 128);
-    payload.set(u32le(offset), 0);
-    payload.set(chunk128, 4);
-    return buildOtaFrame(0x51, payload);      // 'Q'
+    const payload = new Uint8Array(1 + 4 + 128);  // DIR + OFFSET + DATA
+    payload[0] = 0x10;                             // Direction: host→device
+    payload.set(u32le(offset), 1);                 // Offset (little-endian)
+    payload.set(chunk128, 5);                      // Data
+    return buildOtaFrame(0x51, payload);           // 'Q'
 }
 
 /**
@@ -1314,18 +1315,8 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
     }
 
     try {
-        // Step 3: Send firmware chunk with cmd=0x51
-        // Payload: 4-byte offset (LE) + 128 bytes of firmware data
-        const payload = [
-            offset & 0xFF,
-            (offset >> 8) & 0xFF,
-            (offset >> 16) & 0xFF,
-            (offset >> 24) & 0xFF,
-            ...Array.from(chunkData)
-        ];
-        
-        // Use BLE OTA format to route to OTA handler
-        const frame = buildDataFrame(payload);
+        // Step 3: Send firmware chunk with cmd=0x51 in format: [DIR][OFFSET][DATA]
+        const frame = buildDataFrame(offset, chunkData);
         logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
         await txCharacteristic.writeValueWithoutResponse(frame);
         
@@ -1483,12 +1474,12 @@ async function performOTAUpdate() {
             throw new Error('Failed to send firmware size');
         }
         
-        // Step 3: Send firmware data in chunks
-        log('📤 Starting firmware data transfer...');
+        // Step 3: Send firmware data in chunks (LIMITED TO 3 CHUNKS FOR TESTING)
+        log('📤 Starting firmware data transfer (testing with 3 chunks only)...');
         let offset = 0;
         let chunkIndex = 0;
         
-        while (offset < firmwareData.byteLength) {
+        while (offset < firmwareData.byteLength && chunkIndex < 3) {
             const end = Math.min(offset + otaChunkSize, firmwareData.byteLength);
             const chunk = new Uint8Array(firmwareData.slice(offset, end));
             
