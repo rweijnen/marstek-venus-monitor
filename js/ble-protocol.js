@@ -165,8 +165,15 @@ async function connect() {
                 characteristics = {};
                 
                 // Set up characteristics and notifications
+                const processedChars = new Set(); // Track processed characteristics
                 for (const char of chars) {
                     characteristics[char.uuid] = char;
+                    
+                    // Skip if we've already processed this characteristic UUID
+                    if (processedChars.has(char.uuid)) {
+                        continue;
+                    }
+                    processedChars.add(char.uuid);
                     
                     // Enable notifications for readable characteristics
                     if (char.properties.notify) {
