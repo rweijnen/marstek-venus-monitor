@@ -230,36 +230,31 @@ window.switchCommandTab = switchCommandTab;
  * Update connection status area with live connection messages
  */
 window.updateConnectionStatus = function(message) {
-    // Update main status line with current connection state
-    const statusSpan = document.getElementById('status');
-    if (statusSpan) {
-        // Extract clean message without timestamp for status line
-        const cleanMessage = message.replace(/^\[[^\]]+\]\s*/, ''); // Remove timestamp
-        statusSpan.textContent = cleanMessage;
-        statusSpan.className = 'connecting'; // Add connecting class for styling
-    }
-    
-    // Also add to Activity tab with timestamp
+    // Always add to Activity tab with timestamp
     const timestampedMessage = `[${new Date().toLocaleTimeString()}] ${message}`;
     if (typeof logActivity !== 'undefined') {
         logActivity(timestampedMessage);
     }
     
-    // Hide connection status area and reset main status after successful connection
+    const statusSpan = document.getElementById('status');
+    
+    // Handle connection success - set final status and stop further updates
     if (message.includes('Connected to')) {
-        setTimeout(() => {
-            if (statusSpan) {
-                statusSpan.textContent = 'Connected';
-                statusSpan.className = 'connected';
-            }
-            // Hide the connection message area
-            const statusArea = document.getElementById('connectionStatus');
-            if (statusArea) {
-                statusArea.style.display = 'none';
-            }
-        }, 2000);
-    } else if (message.includes('Disconnected') || message.includes('cancelled')) {
-        // Reset status immediately on disconnect/cancel
+        if (statusSpan) {
+            // Keep the full "Connected to DeviceName" message
+            statusSpan.textContent = message;
+            statusSpan.className = 'connected';
+        }
+        // Hide the connection message area
+        const statusArea = document.getElementById('connectionStatus');
+        if (statusArea) {
+            statusArea.style.display = 'none';
+        }
+        return; // Don't process any further connection messages
+    }
+    
+    // Handle disconnection/cancellation
+    if (message.includes('Disconnected') || message.includes('cancelled')) {
         if (statusSpan) {
             statusSpan.textContent = 'Disconnected';
             statusSpan.className = 'disconnected';
@@ -269,5 +264,19 @@ window.updateConnectionStatus = function(message) {
         if (statusArea) {
             statusArea.style.display = 'none';
         }
+        return;
+    }
+    
+    // Skip device detection messages from status line (but keep in Activity)
+    if (message.includes('Detected:')) {
+        return; // Don't update status line, just log to Activity
+    }
+    
+    // Update main status line with current connection state (only for connection process)
+    if (statusSpan && statusSpan.className !== 'connected') {
+        // Extract clean message without timestamp for status line
+        const cleanMessage = message.replace(/^\[[^\]]+\]\s*/, ''); // Remove timestamp
+        statusSpan.textContent = cleanMessage;
+        statusSpan.className = 'connecting'; // Add connecting class for styling
     }
 };
