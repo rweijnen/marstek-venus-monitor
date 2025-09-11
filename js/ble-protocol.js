@@ -124,8 +124,11 @@ async function connect() {
                     // Enable notifications for readable characteristics
                     if (char.properties.notify) {
                         await char.startNotifications();
-                        char.addEventListener('characteristicvaluechanged', 
-                            createNotificationHandler(char.uuid));
+                        // Don't add the generic handler for FF02 - it's handled by handleUnifiedNotification
+                        if (!char.uuid.includes('ff02')) {
+                            char.addEventListener('characteristicvaluechanged', 
+                                createNotificationHandler(char.uuid));
+                        }
                         log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
                     }
                 }
@@ -644,6 +647,11 @@ function createNotificationHandler(charUuid) {
         const data = event.target.value;
         const bytes = new Uint8Array(data.buffer);
         
+        // Debug: Check if this is a 0x50 response
+        if (bytes.length >= 4 && bytes[3] === 0x50) {
+            log(`🔍 DEBUG createNotificationHandler: Processing 0x50, pendingAckResolve=${pendingAckResolve ? 'EXISTS' : 'NULL'}`);
+        }
+        
         // Log all incoming data
         logIncoming(bytes, `Response on ${charUuid.slice(-4)}`);
         log(`📨 Response received (${bytes.length} bytes): ${formatBytes(bytes)}`);
@@ -672,6 +680,9 @@ function createNotificationHandler(charUuid) {
         }
         
         // Check if this looks like an OTA/BLE frame response (for firmware update ACKs)
+        // DISABLED: handleOTAAck doesn't exist and was causing issues
+        // The unified notification handler already handles OTA frames correctly
+        /*
         if (bytes.length >= 6 && bytes[0] === 0x73) {
             const frameLength = bytes[1] | (bytes[2] << 8);
             if (frameLength > 5 && bytes[3] === 0xFF && bytes[4] === 0x01) {
@@ -680,6 +691,7 @@ function createNotificationHandler(charUuid) {
                 return;
             }
         }
+        */
         
         // Handle regular command responses
         if (window.currentCommand) {
@@ -782,6 +794,11 @@ function analyzeFirmware(firmwareArrayBuffer) {
 function handleUnifiedNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
+    // Debug: Check if pendingAckResolve exists at the start for 0x50
+    if (value.length >= 4 && value[3] === 0x50) {
+        log(`🔍 DEBUG handleUnifiedNotification: Start processing 0x50, pendingAckResolve=${pendingAckResolve ? 'EXISTS' : 'NULL'}`);
+    }
+    
     // Log all incoming data
     logIncoming(value, 'Unified Notification (FF02)');
     
@@ -861,6 +878,28 @@ function handleHMFrame(value) {
             payload: payload
         });
         pendingAckResolve = null;
+    }
+    
+    // Handle regular command responses for data display
+    if (window.currentCommand) {
+        // Use the comprehensive data parser if available
+        if (window.dataParser && window.dataParser.parseResponse) {
+            const parsed = window.dataParser.parseResponse(value, window.currentCommand);
+            if (window.uiController && window.uiController.displayData) {
+                window.uiController.displayData(parsed);
+            } else {
+                // Fallback display
+                const dataDisplay = document.getElementById('dataDisplay');
+                if (dataDisplay) {
+                    dataDisplay.innerHTML = parsed;
+                }
+            }
+        } else {
+            // Fallback to basic display
+            log('⚠️ Data parser not available, showing raw data');
+            log(`Raw response: ${formatBytes(value)}`);
+        }
+        window.currentCommand = null;
     }
 }
 
@@ -964,6 +1003,28 @@ function handleHMNotification(event) {
             payload: payload
         });
         pendingAckResolve = null;
+    }
+    
+    // Handle regular command responses for data display
+    if (window.currentCommand) {
+        // Use the comprehensive data parser if available
+        if (window.dataParser && window.dataParser.parseResponse) {
+            const parsed = window.dataParser.parseResponse(value, window.currentCommand);
+            if (window.uiController && window.uiController.displayData) {
+                window.uiController.displayData(parsed);
+            } else {
+                // Fallback display
+                const dataDisplay = document.getElementById('dataDisplay');
+                if (dataDisplay) {
+                    dataDisplay.innerHTML = parsed;
+                }
+            }
+        } else {
+            // Fallback to basic display
+            log('⚠️ Data parser not available, showing raw data');
+            log(`Raw response: ${formatBytes(value)}`);
+        }
+        window.currentCommand = null;
     }
 }
 
@@ -1138,8 +1199,9 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
             }
         };
         
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
             if (pendingAckResolve) {
+                log(`⚠️ DEBUG: Timeout fired for cmd 0x${expectedCmd.toString(16)} after ${timeoutMs}ms`);
                 pendingAckResolve = null;
                 resolve({ ok: false, reason: "timeout" });
             }
