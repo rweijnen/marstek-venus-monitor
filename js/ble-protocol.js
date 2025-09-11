@@ -494,7 +494,8 @@ function buildDataFrame(offset, chunk128) {
  * Build "R" finish frame
  */
 function buildFinishFrame() {
-    return buildOtaFrame(0x52, new Uint8Array(0)); // 'R'
+    const payload = new Uint8Array([0x10]); // Direction: host→device
+    return buildOtaFrame(0x52, payload);     // 'R'
 }
 
 // ========================================
@@ -1383,13 +1384,14 @@ async function sendOTAFinalize() {
             return false;
         }
         
-        // For 0x52 ACK: payload[0] == 0x01 means success
-        if (ack.payload.length >= 1 && ack.payload[0] === 0x01) {
+        // For 0x52 ACK: payload[0]=DIR(0x00), payload[1]=status (0x01=success, 0x00=failure)
+        if (ack.payload.length >= 2 && ack.payload[0] === 0x00 && ack.payload[1] === 0x01) {
             log('✅ OTA finalization successful - device will restart');
             return true;
         } else {
-            const status = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'empty';
-            log(`❌ OTA finalization failed - status: ${status}`);
+            const dir = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'none';
+            const status = ack.payload.length >= 2 ? `0x${ack.payload[1].toString(16)}` : 'none';
+            log(`❌ OTA finalization failed - dir: ${dir}, status: ${status}`);
             return false;
         }
     } catch (error) {

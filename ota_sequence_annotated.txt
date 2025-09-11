@@ -1,0 +1,124 @@
+# Marstek Venus E - OTA Update Sequence (Wireshark Analysis)
+# Extracted from working app capture: ble-app-update.pcapng
+# Key: 0x52 = Write Without Response, 0x1b = Notification
+# Handle 0x0012 = Write characteristic (likely FF01)
+# Handle 0x0015 = Notification characteristic (likely FF02/FF06)
+
+## PHASE 1: HM Protocol Commands (Regular Battery Communication)
+# Frames 56-101: Standard HM protocol with 0x23 marker
+# Format: [0x73][LEN][0x23][CMD][PAYLOAD][CHECKSUM]
+
+Frame 56  -> WRITE  0x0012: 730823130a0b0c46
+  │ 73 08 23 13 0a 0b 0c 46
+  │ └─ HM format: 0x23 marker, cmd 0x13
+  
+Frame 58  <- NOTIFY 0x0015: 7355230a0d0010000830f8011400163b08d007...
+  │ └─ HM response: Large payload (device info)
+
+## PHASE 2: OTA Activation Commands
+Frame 103 -> WRITE  0x0012: 730006541031
+  │ 73 00 06 54 10 31
+  │ └─ TRANSITION: First OTA format frame! No 0x23 marker
+  │    Format: [0x73][LEN_HI][LEN_LO][CMD][PAYLOAD][CHECKSUM]
+  │    Length: 0x0006, CMD: 0x54
+
+Frame 105 -> WRITE  0x0012: 7300072310aaed  
+  │ 73 00 07 23 10 aa ed
+  │ └─ Back to HM format briefly (0x23 marker)
+
+Frame 106 <- NOTIFY 0x0015: 730008230001aaf3
+  │ 73 00 08 23 00 01 aa f3
+  │ └─ HM response with payload [0x01]
+
+## PHASE 3: OTA Handshake (0x3A Command)
+Frame 108 -> WRITE  0x0012: 73000b3a10d70003aabb97
+  │ 73 00 0b 3a 10 d7 00 03 aa bb 97
+  │ ├─ OTA format: Length 0x000b (11 bytes)
+  │ ├─ Command: 0x3A (OTA handshake)
+  │ ├─ Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] (6 bytes)
+  │ └─ Checksum: 0x97
+
+Frame 109 <- NOTIFY 0x0015: 73000c3a000000000001aaee  
+  │ 73 00 0c 3a 00 00 00 00 00 01 aa ee
+  │ ├─ OTA format: Length 0x000c (12 bytes)
+  │ ├─ Command: 0x3A (handshake ACK)
+  │ ├─ Payload: [0x00, 0x00, 0x00, 0x00, 0x00, 0x01] (6 bytes)
+  │ └─ Success indicator: ends with 0x01
+
+## PHASE 4: OTA Size Command (0x50)
+Frame 110 -> WRITE  0x0012: 73000e5010002001001ba692ffcc
+  │ 73 00 0e 50 10 00 20 01 00 1b a6 92 ff cc
+  │ ├─ OTA format: Length 0x000e (14 bytes)
+  │ ├─ Command: 0x50 (size announcement)
+  │ ├─ Reserved: 0x10
+  │ ├─ Size: 0x00200100 (2097408 bytes, little-endian)
+  │ ├─ Checksum: 0x001ba692ff (5 bytes)
+  │ └─ Frame checksum: 0xcc
+
+Frame 113 <- NOTIFY 0x0015: 73000e5000002001001ba692ffdc
+  │ 73 00 0e 50 00 00 20 01 00 1b a6 92 ff dc
+  │ ├─ OTA format: Length 0x000e (14 bytes)  
+  │ ├─ Command: 0x50 (size ACK)
+  │ ├─ Reserved: 0x00
+  │ ├─ Echoed size: 0x00200100 (2097408 bytes)
+  │ ├─ Echoed checksum: 0x001ba692ff
+  │ └─ Different frame checksum: 0xdc
+
+## PHASE 5: OTA Data Transfer (0x51 Commands)
+Frame 114 -> WRITE  0x0012: 73008a511000000000e8c800206d2a000881a2...
+  │ 73 00 8a 51 10 00 00 00 00 [128 bytes firmware data] 71
+  │ ├─ OTA format: Length 0x008a (138 bytes)
+  │ ├─ Command: 0x51 (data chunk)
+  │ ├─ Reserved: 0x10
+  │ ├─ Offset: 0x00000000 (little-endian, first chunk)
+  │ ├─ Data: 128 bytes of firmware
+  │ └─ Checksum: 0x71
+
+Frame 115 <- NOTIFY 0x0015: 73000a51000000000028
+  │ 73 00 0a 51 00 00 00 00 00 28
+  │ ├─ OTA format: Length 0x000a (10 bytes)
+  │ ├─ Command: 0x51 (data ACK)
+  │ ├─ Reserved: 0x00
+  │ ├─ Echoed offset: 0x00000000
+  │ └─ Checksum: 0x28
+
+# Pattern continues: Write 128-byte chunks with incrementing offsets
+# Device ACKs each chunk by echoing the offset
+
+Frame 116 -> WRITE  0x0012: 73008a511080000000872a0008872a0008...
+  │ └─ Offset: 0x00000080 (128 bytes, second chunk)
+
+Frame 118 <- NOTIFY 0x0015: 73000a510080000000a8
+  │ └─ ACK with echoed offset: 0x00000080
+
+## KEY INSIGHTS:
+1. **Dual Protocol**: Uses HM format (0x23) for activation, OTA format for transfer
+2. **Handle Mapping**: 0x0012 = Write (FF01), 0x0015 = Notify (FF02 or FF06)
+3. **0x3A Handshake**: Payload [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] → Response [0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
+4. **Size Command**: 0x50 with firmware size and checksum
+5. **Data Transfer**: 0x51 with 128-byte chunks and 4-byte little-endian offset
+6. **ACK Pattern**: Device echoes command and key parameters (offset, size, etc.)
+
+## WIRESHARK OBSERVATIONS:
+1. **Handle 0x0012**: Used for all command writes (0x52 opcode)
+2. **Handle 0x0015**: Used for all responses (0x1b opcode)  
+3. **0x3A Handshake**: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] → [0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
+4. **0x50 Size**: Firmware size 2097408 bytes (0x00200100), checksum 0x001ba692ff
+5. **0x51 Data**: 128-byte chunks with 4-byte little-endian offset
+6. **Protocol Switch**: HM format (0x23) → OTA format (no 0x23) at frame 103
+
+## CRITICAL FINDING - SAME CHANNEL FOR ALL COMMANDS:
+**Frames 52-101**: Normal BLE commands (HM format with 0x23) sent to handle 0x0012
+**Frames 103+**: OTA commands (OTA format without 0x23) sent to SAME handle 0x0012
+
+Examples of normal BLE commands to 0x0012:
+- Frame 56: 730823130a0b0c46 (HM format: 73 08 23 13...)  
+- Frame 62: 730623030154 (HM format: 73 06 23 03...)
+- Frame 65: 730f230901000d0010000830f8008a (HM format: 73 0f 23 09...)
+
+**CONCLUSION**: The app uses the SAME write/notify characteristic pair for:
+- Normal BLE communication (HM protocol with 0x23)
+- OTA communication (OTA protocol without 0x23)
+
+This means handle 0x0012 = FF01 (write) and handle 0x0015 = FF02 (notify)
+NOT FF06 as initially suspected!
