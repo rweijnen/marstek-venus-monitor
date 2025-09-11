@@ -206,6 +206,7 @@ function disconnect() {
     device = null;
     server = null;
     characteristics = {};
+    otaInProgress = false;  // Reset OTA state on disconnect
     // Connection state and device type reset handled by ui-controller
     
     if (window.uiController && window.uiController.updateStatus) {
@@ -1115,9 +1116,9 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
     return new Promise((resolve, reject) => {
         pendingAckResolve = (ack) => {
             if (ack.cmd === expectedCmd) {
-                // For OTA size command (0x51 response), accept any payload as success
+                // For OTA size command (0x50), payload[0] is DIR field (0x00), not status
                 // For other OTA commands, check payload[0] === 0x01 for success
-                if (expectedCmd === 0x50 && ack.payload.length > 0 && ack.payload[0] !== 0x01) {
+                if (expectedCmd !== 0x50 && ack.payload.length > 0 && ack.payload[0] !== 0x01) {
                     resolve({
                         ok: false,
                         reason: `cmd 0x${expectedCmd.toString(16)} ACK with wrong payload: expected [0x01], got [${Array.from(ack.payload).map(b => '0x' + b.toString(16)).join(', ')}]`
@@ -1286,11 +1287,14 @@ async function sendFirmwareSize(firmwareSize) {
         // Payload: [DIR][SIZE(4)][CHECKSUM(4)] -> checksum at positions 5-8
         if (ack.payload.length >= 9) {
             const echoedChecksum = ack.payload[5] | (ack.payload[6] << 8) | (ack.payload[7] << 16) | (ack.payload[8] << 24);
+            log(`🔍 Checksum comparison: expected=0x${(firmwareChecksum >>> 0).toString(16)}, received=0x${echoedChecksum.toString(16)}`);
             if (echoedChecksum === (firmwareChecksum >>> 0)) { // >>> 0 ensures unsigned comparison
                 log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
             } else {
                 log(`⚠️ Firmware checksum mismatch: sent 0x${(firmwareChecksum >>> 0).toString(16)}, got 0x${echoedChecksum.toString(16)}`);
             }
+        } else {
+            log(`⚠️ Size ACK payload too short: ${ack.payload.length} bytes, expected ≥9`);
         }
         
         log('✅ Firmware size confirmed');
