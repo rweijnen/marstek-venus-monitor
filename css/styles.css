@@ -424,3 +424,63 @@
             z-index: 10;
             pointer-events: none;
         }
+
+        /* Tabbed Log Interface */
+        .log-container {
+            margin-top: 20px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .log-tabs {
+            display: flex;
+            background: #2a2a2a;
+            border-bottom: 1px solid #333;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 12px 16px;
+            background: #2a2a2a;
+            color: #ccc;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .tab-button:hover {
+            background: #363636;
+            color: white;
+        }
+        
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .log-tab {
+            display: none;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .log-tab.active {
+            display: block;
+        }
+        
+        .log-tab:empty::before {
+            content: 'No entries yet...';
+            color: #666;
+            font-style: italic;
+        }

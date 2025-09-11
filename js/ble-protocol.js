@@ -81,7 +81,7 @@ async function connect() {
             optionalServices: [SERVICE_UUID]
         });
 
-        log(`📱 Found device: ${device.name}`);
+        logActivity(`📱 Found device: ${device.name}`);
         
         // Try to connect with retry logic
         const maxRetries = 3;
@@ -178,7 +178,7 @@ async function connect() {
         if (window.uiController && window.uiController.updateStatus) {
             window.uiController.updateStatus(true, device.name);
         }
-        log(`✅ Connected to ${device.name}!`);
+        logConnection(device.name, true);
 
         // Determine device type from name
         if (device.name.includes('ACCP')) {
@@ -784,12 +784,12 @@ function handleUnifiedNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
     
-    // Log all incoming data
-    logIncoming(value, 'Unified Notification (FF02)');
+    // Log protocol details
+    logProtocol(`Unified Notification (FF02) [${value.length}]`, value);
     
     // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
-        log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        logError(`Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
         return;
     }
     

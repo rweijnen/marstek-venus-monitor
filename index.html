@@ -396,7 +396,22 @@
             </div>
 
             <div id="dataDisplay"></div>
-            <div id="log" class="log"></div>
+            
+            <!-- Tabbed Log Interface -->
+            <div class="log-container">
+                <div class="log-tabs">
+                    <button class="tab-button active" onclick="switchLogTab('activity')">Activity</button>
+                    <button class="tab-button" onclick="switchLogTab('protocol')">Protocol</button>
+                    <button class="tab-button" onclick="switchLogTab('errors')">Errors</button>
+                </div>
+                
+                <div id="activityLog" class="log-tab active"></div>
+                <div id="protocolLog" class="log-tab"></div>
+                <div id="errorLog" class="log-tab"></div>
+                
+                <!-- Keep original log div for compatibility -->
+                <div id="log" style="display: none;"></div>
+            </div>
             
             <div class="footer">
                 <p>
@@ -415,6 +430,7 @@
     </div>
 
     <!-- JavaScript Dependencies -->
+    <script src="js/log-manager.js"></script>
     <script src="js/ui-controller.js"></script>
     <script type="module">
         // Import the TypeScript-compiled parser
