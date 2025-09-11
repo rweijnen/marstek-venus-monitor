@@ -59,7 +59,19 @@ function checkDisclaimerAcceptance() {
 // LOGGING AND ERROR HANDLING
 // ==========================================
 
-// Log function now provided by log-manager.js (loaded first)
+// Log function that routes to new tabbed logging system
+function log(message) {
+    // Route to appropriate logging function based on content
+    if (message.includes('Error') || message.includes('Failed') || message.includes('❌')) {
+        if (typeof logError !== 'undefined') {
+            logError(message);
+        }
+    } else {
+        if (typeof logActivity !== 'undefined') {
+            logActivity(message);
+        }
+    }
+}
 
 function showError(message) {
     log(`❌ Error: ${message}`);
