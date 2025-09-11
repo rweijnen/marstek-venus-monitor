@@ -50,6 +50,7 @@ const IDENTIFIER_BYTE = 0x23;
 let device = null;
 let server = null;
 let characteristics = {};
+let connectionCancelled = false; // Flag to cancel ongoing connection attempts
 // OTA uses the same txCharacteristic (FF01) and rxCharacteristic (FF02) as normal BLE
 // Note: (window.uiController ? window.uiController.isConnected() : false) and (window.uiController ? window.uiController.getDeviceType() : 'unknown') are managed by ui-controller.js
 
@@ -120,6 +121,9 @@ let firmwareData = null;
  */
 async function connect() {
     try {
+        // Reset cancellation flag at start of new connection
+        connectionCancelled = false;
+        
         log('🔍 Searching for Marstek devices...');
         
         // Request device with MST prefix filter
@@ -127,6 +131,12 @@ async function connect() {
             filters: [{ namePrefix: 'MST' }],
             optionalServices: [SERVICE_UUID]
         });
+
+        // Check if connection was cancelled during device selection
+        if (connectionCancelled) {
+            log('🚫 Connection cancelled by user');
+            return;
+        }
 
         logActivity(`📱 Found device: ${device.name}`);
         
@@ -136,6 +146,11 @@ async function connect() {
         let lastError = null;
         
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            // Check for cancellation before each attempt
+            if (connectionCancelled) {
+                log('🚫 Connection cancelled by user');
+                return;
+            }
             try {
                 log(`🔄 Connection attempt ${attempt}/${maxRetries}...`);
                 
@@ -202,6 +217,12 @@ async function connect() {
                     const waitTime = attempt * 2000;
                     log(`⏳ Waiting ${waitTime/1000}s before retry...`);
                     await new Promise(resolve => setTimeout(resolve, waitTime));
+                    
+                    // Check for cancellation after wait
+                    if (connectionCancelled) {
+                        log('🚫 Connection cancelled during retry wait');
+                        return;
+                    }
                 }
             }
         }
@@ -250,6 +271,9 @@ async function connect() {
  * Disconnect from the BLE device
  */
 function disconnect() {
+    // Cancel any ongoing connection attempts
+    connectionCancelled = true;
+    
     if (device && device.gatt.connected) {
         device.gatt.disconnect();
         log('🔌 Disconnected from device');
