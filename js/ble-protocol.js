@@ -1281,12 +1281,13 @@ async function sendFirmwareSize(firmwareSize) {
         }
         
         // Verify device echoed our firmware checksum in the ACK payload
-        if (ack.payload.length >= 8) {
-            const echoedChecksum = ack.payload[4] | (ack.payload[5] << 8) | (ack.payload[6] << 16) | (ack.payload[7] << 24);
-            if (echoedChecksum === firmwareChecksum) {
+        // Payload: [DIR][SIZE(4)][CHECKSUM(4)] -> checksum at positions 5-8
+        if (ack.payload.length >= 9) {
+            const echoedChecksum = ack.payload[5] | (ack.payload[6] << 8) | (ack.payload[7] << 16) | (ack.payload[8] << 24);
+            if (echoedChecksum === (firmwareChecksum >>> 0)) { // >>> 0 ensures unsigned comparison
                 log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
             } else {
-                log(`⚠️ Firmware checksum mismatch: sent 0x${firmwareChecksum.toString(16)}, got 0x${echoedChecksum.toString(16)}`);
+                log(`⚠️ Firmware checksum mismatch: sent 0x${(firmwareChecksum >>> 0).toString(16)}, got 0x${echoedChecksum.toString(16)}`);
             }
         }
         
