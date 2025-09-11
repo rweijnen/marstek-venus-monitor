@@ -1887,6 +1887,42 @@ async function runAllTests() {
 
 
 // ========================================
+// DEVICE IDENTIFIER FUNCTIONS
+// ========================================
+
+/**
+ * Read all device identifiers (VID, GID, XID)
+ */
+async function readDeviceIdentifiers() {
+    if (!(window.uiController ? window.uiController.isConnected() : false)) {
+        log('❌ Not connected to device');
+        return;
+    }
+    
+    log('📖 Reading device identifiers (VID, GID, XID)...');
+    
+    try {
+        // Read VID Info
+        log('🏷️ Reading VID (Vendor ID)...');
+        await sendCommand(0x50, 'Read VID Info', [0x0D, 0x01]);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Read GID Info
+        log('👥 Reading GID (Group ID)...');
+        await sendCommand(0x50, 'Read GID Info', [0x0D, 0x02]);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Read XID Config
+        log('⚙️ Reading XID (Extended ID)...');
+        await sendCommand(0x50, 'Read XID Config', [0x0D, 0x03]);
+        
+        log('✅ Device identifier read complete');
+    } catch (error) {
+        logError(`Failed to read device identifiers: ${error.message}`);
+    }
+}
+
+// ========================================
 // CONFIGURATION MANAGEMENT FUNCTIONS
 // ========================================
 
@@ -2055,6 +2091,7 @@ if (typeof window !== 'undefined') {
     window.sendCommand = sendCommand;
     window.sendMeterIPCommand = sendMeterIPCommand;
     window.sendConfigWriteCommand = sendConfigWriteCommand;
+    window.readDeviceIdentifiers = readDeviceIdentifiers;
     
     // Utility functions
     window.formatBytes = formatBytes;

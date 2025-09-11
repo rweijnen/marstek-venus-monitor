@@ -17,6 +17,7 @@ import { WorkModeConfig } from './WorkModeConfig.js';
 import { FactoryResetResponse } from './FactoryResetResponse.js';
 import { OTAActivation } from './OTAActivation.js';
 import { DeveloperModeInfo } from './DeveloperModeInfo.js';
+import { DeviceConfig } from './DeviceConfig.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -61,6 +62,9 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.OTA_ACTIVATION:
             return new OTAActivation(data);
+            
+        case CommandType.DEVICE_CONFIG:
+            return new DeviceConfig(data);
         
         // Add other payload types as we implement them
         
@@ -107,5 +111,6 @@ export {
     WorkModeConfig,
     FactoryResetResponse,
     OTAActivation,
-    DeveloperModeInfo
+    DeveloperModeInfo,
+    DeviceConfig
 };

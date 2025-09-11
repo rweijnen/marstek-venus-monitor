@@ -79,7 +79,8 @@ export enum CommandType {
     METER_IP = 0x21,
     CT_POLLING_RATE = 0x22,
     NETWORK_INFO = 0x24,
-    LOCAL_API_STATUS = 0x28
+    LOCAL_API_STATUS = 0x28,
+    DEVICE_CONFIG = 0x50
 }
 
 export const PROTOCOL_CONSTANTS = {
