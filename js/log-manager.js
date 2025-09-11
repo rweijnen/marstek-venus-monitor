@@ -172,3 +172,38 @@ window.logOTA = function(message, progress = null) {
     }
     logActivity(formattedMessage);
 };
+
+/**
+ * Update connection status area with live connection messages
+ */
+window.updateConnectionStatus = function(message) {
+    const statusArea = document.getElementById('connectionStatus');
+    const messageDiv = document.getElementById('connectionMessage');
+    
+    if (statusArea && messageDiv) {
+        // Show the status area
+        statusArea.style.display = 'block';
+        
+        // Add timestamp and message
+        const timestamp = new Date().toLocaleTimeString();
+        const currentContent = messageDiv.textContent;
+        const newMessage = `[${timestamp}] ${message}`;
+        
+        // Keep only the last 5 lines to avoid clutter
+        const lines = currentContent ? currentContent.split('\n') : [];
+        lines.push(newMessage);
+        if (lines.length > 5) {
+            messageDiv.textContent = lines.slice(-5).join('\n');
+        } else {
+            messageDiv.textContent = lines.join('\n');
+        }
+        
+        // Auto-hide after successful connection (when we see "Connected to")
+        if (message.includes('Connected to')) {
+            setTimeout(() => {
+                statusArea.style.display = 'none';
+                messageDiv.textContent = '';
+            }, 3000);
+        }
+    }
+};

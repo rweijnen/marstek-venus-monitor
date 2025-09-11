@@ -484,3 +484,16 @@
             color: #666;
             font-style: italic;
         }
+        
+        /* Connection Status Area */
+        .connection-status {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            padding: 10px 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #0066cc;
+            line-height: 1.4;
+        }

@@ -321,7 +321,19 @@ async function disconnectAll() {
 function log(message) {
     console.log(message);
     
-    // Route messages to appropriate tabs based on content
+    // Route connection messages to status area instead of Activity tab
+    if (message.includes('Searching for') || message.includes('Found device') || 
+        message.includes('Connection attempt') || message.includes('Notifications enabled') ||
+        message.includes('Service not') || message.includes('Waiting') || 
+        message.includes('Connected to') || message.includes('Disconnected from') ||
+        message.includes('Detected:')) {
+        if (typeof updateConnectionStatus !== 'undefined') {
+            updateConnectionStatus(message);
+        }
+        return; // Don't also log to Activity tab
+    }
+    
+    // Route other messages to appropriate tabs based on content
     if (message.includes('Error') || message.includes('Failed') || message.includes('error') || 
         message.includes('Warning') || message.includes('failed') || message.includes('❌')) {
         if (typeof logError !== 'undefined') {
