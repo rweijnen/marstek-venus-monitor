@@ -55,6 +55,53 @@ let characteristics = {};
 
 // OTA-specific globals
 let otaInProgress = false;
+
+// ========================================
+// LOGGING FUNCTION COMPATIBILITY
+// ========================================
+
+// Ensure logging functions are available with fallbacks
+if (typeof logActivity === 'undefined') {
+    window.logActivity = function(message) {
+        log(message);
+    };
+}
+if (typeof logConnection === 'undefined') {
+    window.logConnection = function(deviceName, connected) {
+        const icon = connected ? '✅' : '❌';
+        const action = connected ? 'Connected to' : 'Disconnected from';
+        log(`${icon} ${action} ${deviceName}`);
+    };
+}
+if (typeof logCommand === 'undefined') {
+    window.logCommand = function(commandName, success) {
+        const icon = success ? '✅' : '❌';
+        const action = success ? 'Read' : 'Failed to read';
+        log(`${icon} ${action} ${commandName}`);
+    };
+}
+if (typeof logProtocol === 'undefined') {
+    window.logProtocol = function(message, data) {
+        log(message);
+        if (data) {
+            log(`Raw data: ${formatBytes(data)}`);
+        }
+    };
+}
+if (typeof logError === 'undefined') {
+    window.logError = function(message) {
+        log(`❌ ${message}`);
+    };
+}
+if (typeof logOTA === 'undefined') {
+    window.logOTA = function(message, progress) {
+        let formattedMessage = `🔄 OTA: ${message}`;
+        if (progress !== null) {
+            formattedMessage += ` (${progress}%)`;
+        }
+        log(formattedMessage);
+    };
+}
 let otaCurrentChunk = 0;
 let otaTotalChunks = 0;
 let txCharacteristic = null;  // ff01 - write without response

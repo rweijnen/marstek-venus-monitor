@@ -20,16 +20,28 @@ function switchLogTab(tabName) {
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`[onclick="switchLogTab('${tabName}')"]`).classList.add('active');
+    
+    // Find and activate the clicked button
+    const activeButton = document.querySelector(`[onclick="switchLogTab('${tabName}')"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
     
     // Update tab content
     document.querySelectorAll('.log-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    document.getElementById(`${tabName}Log`).classList.add('active');
+    
+    const activeTab = document.getElementById(`${tabName}Log`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
     
     currentLogTab = tabName;
 }
+
+// Make function globally available
+window.switchLogTab = switchLogTab;
 
 /**
  * Enhanced logging function that categorizes messages
