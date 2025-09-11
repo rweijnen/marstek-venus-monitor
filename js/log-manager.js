@@ -174,9 +174,25 @@ window.logOTA = function(message, progress = null) {
 };
 
 /**
- * Switch between command tabs
+ * Load template content from file
  */
-function switchCommandTab(tabName) {
+async function loadTemplate(templateName) {
+    try {
+        const response = await fetch(`templates/${templateName}-commands.html`);
+        if (!response.ok) {
+            throw new Error(`Failed to load template: ${response.status}`);
+        }
+        return await response.text();
+    } catch (error) {
+        console.error(`Error loading template ${templateName}:`, error);
+        return `<div class="section-caption">❌ Failed to load ${templateName} commands</div>`;
+    }
+}
+
+/**
+ * Switch between command tabs with dynamic loading
+ */
+async function switchCommandTab(tabName) {
     // Update tab buttons
     document.querySelectorAll('.command-tab-button').forEach(btn => {
         btn.classList.remove('active');
@@ -196,6 +212,14 @@ function switchCommandTab(tabName) {
     const activeTab = document.getElementById(`${tabName}Tab`);
     if (activeTab) {
         activeTab.classList.add('active');
+        
+        // Load template content if tab is empty
+        if (!activeTab.dataset.loaded) {
+            activeTab.innerHTML = '<div style="text-align: center; padding: 20px;">Loading...</div>';
+            const templateContent = await loadTemplate(tabName);
+            activeTab.innerHTML = templateContent;
+            activeTab.dataset.loaded = 'true';
+        }
     }
 }
 

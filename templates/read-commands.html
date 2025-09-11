@@ -1,0 +1,77 @@
+<div class="section-caption">
+    📖 <strong>Read Commands:</strong> These commands safely read information from your device including power status, battery data, network configuration, and system logs. No settings are modified.
+</div>
+<div class="command-grid">
+    <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="cmd-button">
+        <span class="cmd-button-text">⚡ Runtime Info</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('runtime')">i</span>
+    </button>
+    <button onclick="sendCommand(0x04, 'Device Info')" disabled data-tooltip="Device model, MAC address, and firmware versions" class="cmd-button">
+        <span class="cmd-button-text">📱 Device Info</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('device')">i</span>
+    </button>
+    <button onclick="sendCommand(0x08, 'WiFi Info')" disabled data-tooltip="Connected WiFi network name (SSID)" class="cmd-button">
+        <span class="cmd-button-text">📶 WiFi Info</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wifi')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0D, 'Developer Mode Info')" disabled data-tooltip="Development mode configuration and debug parameters" class="cmd-button">
+        <span class="cmd-button-text">🛠️ Developer Mode Info</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('system')">i</span>
+    </button>
+    <button onclick="sendCommand(0x13, 'Error Codes')" disabled data-tooltip="Historical error codes with timestamps" class="cmd-button">
+        <span class="cmd-button-text">🚨 Error Codes</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('errors')">i</span>
+    </button>
+    <button onclick="sendCommand(0x14, 'BMS Data')" disabled data-tooltip="Battery voltages, current, SOC, and cell data" class="cmd-button">
+        <span class="cmd-button-text">🔋 BMS Data</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('bms')">i</span>
+    </button>
+    <button onclick="sendCommand(0x1A, 'Config Data')" disabled data-tooltip="System configuration parameters" class="cmd-button">
+        <span class="cmd-button-text">⚙️ Config Data</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('config')">i</span>
+    </button>
+    <button onclick="sendCommand(0x1C, 'Event Log')" disabled data-tooltip="System event history with timestamps" class="cmd-button">
+        <span class="cmd-button-text">📝 Event Log</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
+    </button>
+    <button onclick="sendMeterIPCommand(0x21, 'Read P1 Meter IP', [0x0B])" disabled data-tooltip="Read P1 meter IP address from device configuration" class="cmd-button">
+        <span class="cmd-button-text">🌐 Read P1 Meter IP</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
+    </button>
+    <button onclick="sendCommand(0x24, 'Network Info')" disabled data-tooltip="IP address, gateway, subnet mask, DNS" class="cmd-button">
+        <span class="cmd-button-text">🔗 Network Info</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('network')">i</span>
+    </button>
+    <button onclick="sendCommand(0x22, 'Read CT Polling Rate')" disabled data-tooltip="Read current CT meter polling rate setting" class="cmd-button">
+        <span class="cmd-button-text">📊 Read CT Polling Rate</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpollread')">i</span>
+    </button>
+    <button onclick="sendCommand(0x03, 'Local API Status (Runtime Info)')" disabled data-tooltip="Check Local API status from runtime information" class="cmd-button">
+        <span class="cmd-button-text">🌐 Local API Status</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>
+    </button>
+    <button onclick="sendCommand(0x10, 'Read Configuration')" disabled class="cmd-button" data-tooltip="Read device configuration including server credentials (~80 bytes)">
+        <span class="cmd-button-text">📋 Read Configuration</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('readconfig')">i</span>
+    </button>
+    <button onclick="sendCommand(0x27, 'Get Power Data Array', [0x1E])" disabled class="cmd-button" data-tooltip="Get array of last 30 power measurements">
+        <span class="cmd-button-text">📊 Get Power Array (30)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('powerarray')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0A, 'Get Settings Info')" disabled class="cmd-button" data-tooltip="Get device settings information (80 bytes)">
+        <span class="cmd-button-text">⚙️ Get Settings Info</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settingsinfo')">i</span>
+    </button>
+    <button onclick="sendCommand(0x05, 'Get WiFi Config')" disabled class="cmd-button" data-tooltip="Get WiFi configuration and credentials">
+        <span class="cmd-button-text">📶 Get WiFi Config</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wificonfig')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0B, 'Get Time Settings')" disabled class="cmd-button" data-tooltip="Get device time and power configuration settings">
+        <span class="cmd-button-text">🕐 Get Time Settings</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('timesettings')">i</span>
+    </button>
+    <button onclick="sendCommand(0x1B, 'Get URL Config')" disabled class="cmd-button" data-tooltip="Get server URL and port configuration">
+        <span class="cmd-button-text">🌐 Get URL Config</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('urlconfig')">i</span>
+    </button>
+</div>
