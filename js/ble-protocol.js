@@ -866,22 +866,20 @@ function handleHMFrame(value) {
  * @param {Uint8Array} value - Frame data
  */
 function handleOTAFrame(value) {
-    // BLE OTA frame: [0x73] [LEN_LO] [LEN_HI] [CMD] [RESERVED] [PAYLOAD...] [CHECKSUM]
-    const declaredLength = value[1] | (value[2] << 8);
-    const contentLength = value.length - 3; // Subtract header (1 byte) + length field (2 bytes)
+    // BLE OTA frame: [0x73] [LEN_HI] [LEN_LO] [CMD] [PAYLOAD...] [CHECKSUM] (no reserved byte)
+    const declaredLength = (value[1] << 8) | value[2];  // big-endian length
     
-    if (declaredLength !== contentLength) {
-        log(`❌ BLE OTA length mismatch: declared ${declaredLength}, got ${contentLength} content bytes`);
+    if (declaredLength !== value.length) {
+        log(`❌ BLE OTA length mismatch: declared ${declaredLength}, got ${value.length} total bytes`);
         log(`❌ Problem frame (${value.length} bytes): ${Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
         return;
     }
     
     const cmd = value[3];
-    const reserved = value[4];
-    const payload = value.slice(5, -1);
+    const payload = value.slice(4, -1);  // payload starts at position 4 (no reserved byte)
     const checksum = value[value.length - 1];
     
-    log(`📨 BLE OTA frame received - CMD: 0x${cmd.toString(16)}, Reserved: 0x${reserved.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
+    log(`📨 BLE OTA frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
     
     // Verify XOR checksum
     let xor = 0;
@@ -900,7 +898,6 @@ function handleOTAFrame(value) {
         pendingAckResolve({
             ok: true,
             cmd: cmd,
-            reserved: reserved,
             payload: payload
         });
         pendingAckResolve = null;
