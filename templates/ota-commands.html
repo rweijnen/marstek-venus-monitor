@@ -2,8 +2,22 @@
     ⚠️ <strong>EXTREME DANGER:</strong> OTA firmware updates can permanently brick your device! Only use if you have a backup and recovery method. This is reverse-engineered and experimental.
 </div>
 <div class="command-grid">
-    <!-- OTA commands will be extracted here -->
-    <div style="text-align: center; padding: 20px; color: #666;">
-        OTA commands will be moved here from main HTML file
+    <input type="file" id="firmwareFile" accept=".bin" style="display: none;" onchange="handleFirmwareFile(event)">
+    <button onclick="document.getElementById('firmwareFile').click()" disabled class="btn-danger cmd-button" data-tooltip="Select .bin firmware file to upload">
+        <span class="cmd-button-text">📁 Select Firmware</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('otasize')">i</span>
+    </button>
+    <button onclick="performOTAUpdate()" disabled class="btn-danger cmd-button" id="otaStartBtn" data-tooltip="Start complete OTA firmware upload process">
+        <span class="cmd-button-text">⚡ Start OTA Update</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('otaactivate')">i</span>
+    </button>
+</div>
+<div id="otaFileInfo" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+    No firmware file selected
+</div>
+<div id="otaProgressContainer" style="display: none; margin-top: 10px;">
+    <div style="background: #333; border-radius: 5px; overflow: hidden;">
+        <div id="otaProgress" style="width: 0%; height: 20px; background: #28a745; transition: width 0.3s;"></div>
     </div>
+    <div id="otaStatus" style="margin-top: 5px; color: #888;">Ready to start...</div>
 </div>
