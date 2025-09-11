@@ -898,12 +898,15 @@ function handleOTAFrame(value) {
     
     // Resolve pending OTA ACK promise
     if (pendingAckResolve) {
+        log(`🔍 DEBUG: Calling pendingAckResolve for cmd 0x${cmd.toString(16)}`);
         pendingAckResolve({
             ok: true,
             cmd: cmd,
             payload: payload
         });
         pendingAckResolve = null;
+    } else {
+        log(`⚠️ WARNING: pendingAckResolve is null for cmd 0x${cmd.toString(16)} - ACK will be lost!`);
     }
 }
 
@@ -1275,11 +1278,21 @@ async function sendFirmwareSize(firmwareSize) {
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         logOutgoing(frame, 'Size Command (BLE OTA format)');
         await txCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ Firmware size sent to FF01 (write), expecting response on FF02 (notify)...');
+        try {
+            log('✅ Firmware size sent to FF01 (write), expecting response on FF02 (notify)...');
+        } catch (logError) {
+            console.error('Log error:', logError);
+        }
         
         // Wait for ACK - in BLE OTA mode, device responds with 0x50 to 0x50
-        log(`🔍 DEBUG: Waiting for size ACK...`);
+        try {
+            log(`🔍 DEBUG: Waiting for size ACK...`);
+        } catch (logError2) {
+            console.error('Log error 2:', logError2);
+        }
+        console.log('DEBUG: About to call waitForAck for 0x50');
         const ack = await waitForAck(0x50, 5000); // BLE OTA handler echoes the command
+        console.log('DEBUG: waitForAck returned:', ack);
         log(`🔍 DEBUG: Got ACK response: ok=${ack.ok}, cmd=0x${ack.cmd?.toString(16)}, payload length=${ack.payload?.length}`);
         if (!ack.ok) {
             log(`❌ Size ACK failed: ${ack.reason}`);
