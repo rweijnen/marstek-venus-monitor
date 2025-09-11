@@ -1253,15 +1253,16 @@ async function sendFirmwareSize(firmwareSize) {
         
         log(`🔍 Size payload (${sizePayload.length} bytes): [${sizePayload.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
         
-        // After activation, send size command with 0x10 prefix as in Wireshark Frame 110
-        // Frame 110: 73000e5010002001001ba692ffcc -> payload [0x10, size, checksum]
+        // Frame format: [CMD][DIR][SIZE(4)][CHECKSUM(4)]
+        // DIR: 0x10 = host→device, 0x00 = device→host  
+        // Frame 110: 73000e5010002001001ba692ffcc
         const otaPayload = [
-            0x10,                             // Wireshark-verified prefix
-            firmwareSize & 0xFF,
+            0x10,                             // Direction: host→device
+            firmwareSize & 0xFF,              // Size bytes 0-3 (little-endian)
             (firmwareSize >> 8) & 0xFF,
             (firmwareSize >> 16) & 0xFF,
             (firmwareSize >> 24) & 0xFF,
-            firmwareChecksum & 0xFF,
+            firmwareChecksum & 0xFF,          // Checksum bytes 0-3 (little-endian)
             (firmwareChecksum >> 8) & 0xFF,
             (firmwareChecksum >> 16) & 0xFF,
             (firmwareChecksum >> 24) & 0xFF
