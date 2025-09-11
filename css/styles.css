@@ -172,6 +172,7 @@
         }
         .connected { color: #28a745; font-weight: bold; }
         .disconnected { color: #dc3545; font-weight: bold; }
+        .connecting { color: #ffc107; font-weight: bold; }
         .command-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

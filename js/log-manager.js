@@ -230,33 +230,44 @@ window.switchCommandTab = switchCommandTab;
  * Update connection status area with live connection messages
  */
 window.updateConnectionStatus = function(message) {
-    const statusArea = document.getElementById('connectionStatus');
-    const messageDiv = document.getElementById('connectionMessage');
+    // Update main status line with current connection state
+    const statusSpan = document.getElementById('status');
+    if (statusSpan) {
+        // Extract clean message without timestamp for status line
+        const cleanMessage = message.replace(/^\[[^\]]+\]\s*/, ''); // Remove timestamp
+        statusSpan.textContent = cleanMessage;
+        statusSpan.className = 'connecting'; // Add connecting class for styling
+    }
     
-    if (statusArea && messageDiv) {
-        // Show the status area
-        statusArea.style.display = 'block';
-        
-        // Add timestamp and message
-        const timestamp = new Date().toLocaleTimeString();
-        const currentContent = messageDiv.textContent;
-        const newMessage = `[${timestamp}] ${message}`;
-        
-        // Keep only the last 5 lines to avoid clutter
-        const lines = currentContent ? currentContent.split('\n') : [];
-        lines.push(newMessage);
-        if (lines.length > 5) {
-            messageDiv.textContent = lines.slice(-5).join('\n');
-        } else {
-            messageDiv.textContent = lines.join('\n');
-        }
-        
-        // Auto-hide after successful connection (when we see "Connected to")
-        if (message.includes('Connected to')) {
-            setTimeout(() => {
+    // Also add to Activity tab with timestamp
+    const timestampedMessage = `[${new Date().toLocaleTimeString()}] ${message}`;
+    if (typeof logActivity !== 'undefined') {
+        logActivity(timestampedMessage);
+    }
+    
+    // Hide connection status area and reset main status after successful connection
+    if (message.includes('Connected to')) {
+        setTimeout(() => {
+            if (statusSpan) {
+                statusSpan.textContent = 'Connected';
+                statusSpan.className = 'connected';
+            }
+            // Hide the connection message area
+            const statusArea = document.getElementById('connectionStatus');
+            if (statusArea) {
                 statusArea.style.display = 'none';
-                messageDiv.textContent = '';
-            }, 3000);
+            }
+        }, 2000);
+    } else if (message.includes('Disconnected') || message.includes('cancelled')) {
+        // Reset status immediately on disconnect/cancel
+        if (statusSpan) {
+            statusSpan.textContent = 'Disconnected';
+            statusSpan.className = 'disconnected';
+        }
+        // Hide the connection message area
+        const statusArea = document.getElementById('connectionStatus');
+        if (statusArea) {
+            statusArea.style.display = 'none';
         }
     }
 };
