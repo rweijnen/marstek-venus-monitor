@@ -177,7 +177,7 @@ async function connect() {
                             char.addEventListener('characteristicvaluechanged', function(event) {
                                 handleUnifiedNotification(event);
                             });
-                            log(`📡 Unified handler enabled for FF02 (${char.uuid.slice(-4).toUpperCase()})`);
+                            log(`📡 Notifications enabled for FF02 (${char.uuid.slice(-4).toUpperCase()})`);
                         } else {
                             char.addEventListener('characteristicvaluechanged', 
                                 createNotificationHandler(char.uuid));
