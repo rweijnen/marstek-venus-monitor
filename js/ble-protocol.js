@@ -1280,18 +1280,24 @@ async function sendFirmwareSize(firmwareSize) {
             return false;
         }
         
+        log(`🔍 DEBUG: About to verify checksum, firmwareChecksum=${firmwareChecksum}, ack.payload.length=${ack.payload.length}`);
+        
         // Verify device echoed our firmware checksum in the ACK payload
         // Payload: [DIR][SIZE(4)][CHECKSUM(4)] -> checksum at positions 5-8
-        if (ack.payload.length >= 9) {
-            const echoedChecksum = ack.payload[5] | (ack.payload[6] << 8) | (ack.payload[7] << 16) | (ack.payload[8] << 24);
-            log(`🔍 Checksum comparison: expected=0x${(firmwareChecksum >>> 0).toString(16)}, received=0x${echoedChecksum.toString(16)}`);
-            if (echoedChecksum === (firmwareChecksum >>> 0)) { // >>> 0 ensures unsigned comparison
-                log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
+        try {
+            if (ack.payload.length >= 9) {
+                const echoedChecksum = ack.payload[5] | (ack.payload[6] << 8) | (ack.payload[7] << 16) | (ack.payload[8] << 24);
+                log(`🔍 Checksum comparison: expected=0x${(firmwareChecksum >>> 0).toString(16)}, received=0x${echoedChecksum.toString(16)}`);
+                if (echoedChecksum === (firmwareChecksum >>> 0)) { // >>> 0 ensures unsigned comparison
+                    log(`✅ Firmware checksum verified: 0x${echoedChecksum.toString(16)}`);
+                } else {
+                    log(`⚠️ Firmware checksum mismatch: sent 0x${(firmwareChecksum >>> 0).toString(16)}, got 0x${echoedChecksum.toString(16)}`);
+                }
             } else {
-                log(`⚠️ Firmware checksum mismatch: sent 0x${(firmwareChecksum >>> 0).toString(16)}, got 0x${echoedChecksum.toString(16)}`);
+                log(`⚠️ Size ACK payload too short: ${ack.payload.length} bytes, expected ≥9`);
             }
-        } else {
-            log(`⚠️ Size ACK payload too short: ${ack.payload.length} bytes, expected ≥9`);
+        } catch (checksumError) {
+            log(`❌ Checksum verification error: ${checksumError.message}`);
         }
         
         log('✅ Firmware size confirmed');
