@@ -126,7 +126,10 @@ async function connect() {
                         await char.startNotifications();
                         // Set up unified handler for FF02, generic handler for others
                         if (char.uuid.includes('ff02')) {
-                            char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
+                            // Store reference for the unified handler
+                            char.addEventListener('characteristicvaluechanged', function(event) {
+                                handleUnifiedNotification(event);
+                            });
                             log(`📡 Unified handler enabled for FF02 (${char.uuid.slice(-4).toUpperCase()})`);
                         } else {
                             char.addEventListener('characteristicvaluechanged', 
