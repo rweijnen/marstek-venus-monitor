@@ -695,27 +695,8 @@ function createNotificationHandler(charUuid) {
         }
         */
         
-        // Handle regular command responses
-        if (window.currentCommand) {
-            // Use the comprehensive data parser if available
-            if (window.dataParser && window.dataParser.parseResponse) {
-                const parsed = window.dataParser.parseResponse(bytes, window.currentCommand);
-                if (window.uiController && window.uiController.displayData) {
-                    window.uiController.displayData(parsed);
-                } else {
-                    // Fallback display
-                    const dataDisplay = document.getElementById('dataDisplay');
-                    if (dataDisplay) {
-                        dataDisplay.innerHTML = parsed;
-                    }
-                }
-            } else {
-                // Fallback to basic display
-                log('⚠️ Data parser not available, showing raw data');
-                log(`Raw response: ${formatBytes(bytes)}`);
-            }
-            window.currentCommand = null;
-        }
+        // Note: Regular command response handling is now done by handleUnifiedNotification
+        // This generic handler is only for non-FF02 characteristics
     };
 }
 
