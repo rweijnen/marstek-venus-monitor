@@ -51,7 +51,7 @@
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>
     </button>
     <button onclick="sendCommand(0x10, 'Read Configuration')" disabled class="cmd-button" data-tooltip="Read device configuration including server credentials (~80 bytes)">
-        <span class="cmd-button-text">📋 Read Configuration</span>
+        <span class="cmd-button-text">📋 Configuration</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('readconfig')">i</span>
     </button>
     <button onclick="sendCommand(0x27, 'Power Array', [0x1E])" disabled class="cmd-button" data-tooltip="Get array of last 30 power measurements">
@@ -75,7 +75,7 @@
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('urlconfig')">i</span>
     </button>
     <button onclick="readDeviceIdentifiers()" disabled class="cmd-button" data-tooltip="Read VID, GID and XID configuration">
-        <span class="cmd-button-text">🏷️ Read Device IDs</span>
+        <span class="cmd-button-text">🏷️ Device IDs</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('deviceids')">i</span>
     </button>
 </div>
