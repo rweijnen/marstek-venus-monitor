@@ -74,7 +74,7 @@ export class DeveloperModeInfo extends BasePayload {
                 <div style="grid-column: 1 / -1;"><strong>Temperature Sensors:</strong></div>
                 ${data.temperatures.map((temp, idx) => {
                     const tempKey = `temp${idx + 1}`;
-                    const tempValue = data.interpretations.temperatures[tempKey];
+                    const tempValue = data.interpretations.temperatures[tempKey as keyof typeof data.interpretations.temperatures];
                     return `<div><strong>Sensor ${idx + 1}:</strong> ${tempValue}</div>`;
                 }).join('')}
             </div>

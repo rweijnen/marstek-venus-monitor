@@ -82,18 +82,19 @@ export class RuntimeInfoPayload extends BasePayload {
     }
 
     private getWorkModeString(mode: number): string {
-        // Correct work mode mapping for Marstek Venus E
+        // Updated work mode mapping for Marstek Venus E based on real device data
         const modes: { [key: number]: string } = {
             0x00: 'Auto',
-            0x01: 'Schedule/TOU',
+            0x01: 'Self-Consumption',  // Updated based on user device showing 0x01 in self-consumption
             0x02: 'Force Charge',
-            0x03: 'Self-Consumption',
+            0x03: 'Schedule/TOU',      // Moved from 0x01 position
             0x04: 'UPS/EPS',
             0x05: 'Standby/Bypass',
             0x06: 'Grid Export',
             0x07: 'Reserved'
         };
-        return modes[mode] || `Unknown (0x${mode.toString(16).padStart(2, '0')})`;
+        const modeText = modes[mode] || `Unknown (0x${mode.toString(16).padStart(2, '0')})`;
+        return `${mode} (${modeText})`;  // Format: "1 (Self-Consumption)"
     }
 
     private parseFirmwareTimestamp(offset: number): string {

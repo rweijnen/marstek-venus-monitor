@@ -44,7 +44,7 @@ export interface IRuntimeInfo {
     calTag1: number;         // 1
     calTag2: number;         // 255
     calTag3: number;         // 1010
-    calTag4: number;         // 356
+    reservedCounter: number; // Reserved/Counter value
     apiPort: number;         // 30000
 }
 

@@ -1,0 +1,83 @@
+# Marstek Venus E - Debug Mode Findings
+
+## Debug System Overview
+
+The Marstek Venus E firmware includes a comprehensive debug/tracing system that outputs debug messages via **MQTT** rather than UART/console.
+
+## Key Components
+
+### Debug Flag
+- **Location**: `byte_20003569` (0x20003569)
+- **Current Value**: 255 (0xFF)
+- **Enable Value**: 1
+- **Function**: Controls whether debug output is enabled
+
+### Debug Output Function
+- **Function**: `sub_8005AE0(int a1, ...)` at 0x8005AE0
+- **Usage**: Used extensively (200+ references throughout firmware)
+- **Behavior**: 
+  - Checks `byte_20003569` == 1
+  - If enabled, calls `sub_8027338(a1, (int)varg_r1)` for printf-style output
+  - Returns 0 if enabled, original flag value if disabled
+
+### Debug Enable Functions
+- **Function 1**: `sub_802BA8C(int a1)` at 0x802BA8C
+  - Sets `byte_20003569 = 1` when `a1 == 1`
+  - Sets `byte_20003569 = 2` when `a1 == 2` 
+  - Sets `byte_20003569 = 0` otherwise
+
+- **Function 2**: `sub_802D07C(int a1)` at 0x802D07C
+  - Sets `byte_20003569 = 1` when `a1 == 2025`
+  - Sets `byte_20003569 = 0` otherwise
+  - Also sets `byte_20000295` flag
+
+## MQTT Debug Command
+
+### Command Detection
+- **Function**: `sub_800D1A0` (large MQTT message parser)
+- **Line 185**: `strstr((unsigned __int8 *)(a1 + 15), "debug_mode 2025")`
+- **Behavior**: When "debug_mode 2025" string found in MQTT message, sets debug mode flag
+
+### MQTT Topics
+- **Debug Output Topic**: `marstek/%s/device/%s/debug/ctrl`
+  - Format string found at multiple addresses (0x8009498, 0x800b8f8, etc.)
+  - AT command: `AT+QMTPUB=0,0,0,0,"marstek/%s/device/%s/debug/ctrl",%d,"%s"\r\n`
+
+## Debug Strings Found
+- `"debug_mode 2025"` at 0x800d650
+- `"trace_debug"` at 0x80306a5  
+- `"DEBUG"` at 0x80306b1
+- `"clear console"` at 0x803240e
+
+## How to Enable Debug Mode
+
+1. **Connect device to WiFi/MQTT** (ensure MQTT connectivity)
+2. **Send MQTT command** containing string `"debug_mode 2025"` to device command topic
+3. **Monitor debug topic** `marstek/%s/device/%s/debug/ctrl` for debug messages
+4. **Debug output** will be published to MQTT debug topic (not UART/console)
+
+## Key Insight
+
+The debug system is designed for **remote debugging via MQTT**, not local console access. This allows:
+- Remote enabling/disabling of debug mode
+- Network-based debug log collection  
+- No need for physical UART access
+- Integration with existing MQTT infrastructure
+
+## Function References Count
+
+The debug function `sub_8005AE0` has **200+ references** throughout the firmware, indicating comprehensive debug coverage across:
+- BLE protocol handling
+- MQTT communication  
+- Power management
+- Battery system operations
+- OTA update process
+- Configuration management
+- Error handling
+
+## Notes
+
+- Debug output goes through printf-style function `sub_8027338`
+- Debug messages likely include timestamps and detailed operational info
+- System appears to have multiple debug levels (flag values 0, 1, 2)
+- Debug enable requires specific "magic number" 2025
