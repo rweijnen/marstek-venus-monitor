@@ -2,8 +2,84 @@
     ⚠️ <strong>System Settings:</strong> These commands change operational modes including EPS (Emergency Power Supply), AC input behavior, and generator control. Settings persist after power cycle.
 </div>
 <div class="command-grid">
-    <!-- System commands will be extracted here -->
-    <div style="text-align: center; padding: 20px; color: #666;">
-        System commands will be moved here from main HTML file
-    </div>
+    <button onclick="sendCommand(0x02, 'Set Server Type 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Configure server connection type">
+        <span class="cmd-button-text">Set Server Type 0</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('servertype')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0F, 'Enable EPS', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable Emergency Power Supply mode">
+        <span class="cmd-button-text">Enable EPS</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsenable')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0F, 'Disable EPS', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable Emergency Power Supply mode">
+        <span class="cmd-button-text">Disable EPS</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsdisable')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0E, 'Enable Auto Mode Change', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable automatic work mode switching">
+        <span class="cmd-button-text">🔄 Auto Mode ON</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('automode')">i</span>
+    </button>
+    <button onclick="sendCommand(0x0E, 'Disable Auto Mode Change', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable automatic work mode switching">
+        <span class="cmd-button-text">🔄 Auto Mode OFF</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('automodedis')">i</span>
+    </button>
+    <button onclick="sendCommand(0x23, 'Enable Generator', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable generator input">
+        <span class="cmd-button-text">Enable Generator</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('genenable')">i</span>
+    </button>
+    <button onclick="sendCommand(0x23, 'Disable Generator', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable generator input">
+        <span class="cmd-button-text">Disable Generator</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('gendisable')">i</span>
+    </button>
+    <button onclick="sendCommand(0x28, 'Enable Local API (Port 30000)', [0x01, 0x30, 0x75])" disabled class="btn-warning cmd-button" data-tooltip="Enable local API on default port 30000">
+        <span class="cmd-button-text">Enable Local API (30000)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apienable30000')">i</span>
+    </button>
+    <button onclick="setLocalApiPort()" disabled class="btn-warning cmd-button" data-tooltip="Enable local API with custom port number">
+        <span class="cmd-button-text">Enable Local API (Custom Port)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apicustom')">i</span>
+    </button>
+    <button onclick="sendCommand(0x28, 'Disable Local API', [0x00, 0x00, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable local API access">
+        <span class="cmd-button-text">Disable Local API</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apidisable')">i</span>
+    </button>
+    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 0 (fastest)">
+        <span class="cmd-button-text">CT Polling: Rate 0 (Fastest)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll0')">i</span>
+    </button>
+    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 1 (medium)">
+        <span class="cmd-button-text">CT Polling: Rate 1 (Medium)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll1')">i</span>
+    </button>
+    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 2', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 2 (slowest)">
+        <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
+    </button>
+    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 3', [0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 3 (extended/custom)">
+        <span class="cmd-button-text">CT Polling: Rate 3 (Extended)</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll3')">i</span>
+    </button>
+    <button onclick="sendConfigWriteCommand()" disabled class="btn-danger cmd-button" data-tooltip="Write configuration data with server credentials">
+        <span class="cmd-button-text">💾 Write Configuration</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('writeconfig')">i</span>
+    </button>
+    <button onclick="sendCommand(0x09, 'Set Work Mode 0 (Off)', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set device work mode to 0 (Off)">
+        <span class="cmd-button-text">⚡ Work Mode: Off</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode0')">i</span>
+    </button>
+    <button onclick="sendCommand(0x09, 'Set Work Mode 1 (On)', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set device work mode to 1 (On) with configuration">
+        <span class="cmd-button-text">⚡ Work Mode: On</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode1')">i</span>
+    </button>
+    <button onclick="sendCommand(0x18, 'Set Current Time')" disabled class="btn-warning cmd-button" data-tooltip="Set device time and date to current browser time">
+        <span class="cmd-button-text">🕐 Sync Time</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('synctime')">i</span>
+    </button>
+    <button onclick="sendCommand(0x19, 'Set Battery Mode 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set battery operation mode to 0">
+        <span class="cmd-button-text">🔋 Battery Mode 0</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('batmode0')">i</span>
+    </button>
+    <button onclick="sendCommand(0x19, 'Set Battery Mode 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set battery operation mode to 1">
+        <span class="cmd-button-text">🔋 Battery Mode 1</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('batmode1')">i</span>
+    </button>
 </div>
