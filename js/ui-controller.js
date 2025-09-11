@@ -150,7 +150,7 @@ function displayData(content) {
         
         // Inject timestamp into the h3 title
         const contentWithTimestamp = content.replace(
-            /(<h3[^>]*>.*?)(</h3>)/,
+            /(<h3[^>]*>.*?)(<\/h3>)/,
             `$1 <span style="color: #666; font-weight: normal; font-size: 0.8em;">[${timestamp}]</span>$2`
         );
         
