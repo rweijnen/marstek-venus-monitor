@@ -653,10 +653,6 @@ function createNotificationHandler(charUuid) {
         const data = event.target.value;
         const bytes = new Uint8Array(data.buffer);
         
-        // Debug: Check if this is a 0x50 response
-        if (bytes.length >= 4 && bytes[3] === 0x50) {
-            log(`🔍 DEBUG createNotificationHandler: Processing 0x50, pendingAckResolve=${pendingAckResolve ? 'EXISTS' : 'NULL'}`);
-        }
         
         // Log all incoming data
         logIncoming(bytes, `Response on ${charUuid.slice(-4)}`);
@@ -800,10 +796,6 @@ function analyzeFirmware(firmwareArrayBuffer) {
 function handleUnifiedNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
-    // Debug: Check if pendingAckResolve exists at the start for 0x50
-    if (value.length >= 4 && value[3] === 0x50) {
-        log(`🔍 DEBUG handleUnifiedNotification: Start processing 0x50, pendingAckResolve=${pendingAckResolve ? 'EXISTS' : 'NULL'}`);
-    }
     
     // Log all incoming data
     logIncoming(value, 'Unified Notification (FF02)');
@@ -943,7 +935,6 @@ function handleOTAFrame(value) {
     
     // Resolve pending OTA ACK promise
     if (pendingAckResolve) {
-        log(`🔍 DEBUG: Calling pendingAckResolve for cmd 0x${cmd.toString(16)}`);
         pendingAckResolve({
             ok: true,
             cmd: cmd,
@@ -1183,18 +1174,10 @@ function handleNotification(event) {
  * @returns {Promise} Promise resolving to ACK response
  */
 async function waitForAck(expectedCmd, timeoutMs = 2000) {
-    // Only log debug for non-data commands to reduce log spam
-    if (expectedCmd !== 0x51) {
-        log(`🔍 DEBUG waitForAck: Setting up wait for cmd 0x${expectedCmd.toString(16)}`);
-    }
     return new Promise((resolve, reject) => {
         let timeoutId;
         
         pendingAckResolve = (ack) => {
-            // Only log debug for non-data commands
-            if (expectedCmd !== 0x51) {
-                log(`🔍 DEBUG waitForAck: Received ACK callback - cmd=0x${ack.cmd?.toString(16)}, expected=0x${expectedCmd.toString(16)}`);
-            }
             
             // Clear the timeout since we got a response
             if (timeoutId) {
@@ -1209,13 +1192,9 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
                     // Size command: accept any payload since payload[0] is DIR field
                     // (checksum validation happens in sendFirmwareSize function)
                 }
-                if (expectedCmd !== 0x51) {
-                    log(`🔍 DEBUG waitForAck: Resolving with success for cmd 0x${expectedCmd.toString(16)}`);
-                }
                 pendingAckResolve = null;  // Clear the global handler
                 resolve({ ...ack, ok: true });
             } else {
-                log(`🔍 DEBUG waitForAck: Resolving with failure - wrong cmd`);
                 pendingAckResolve = null;  // Clear the global handler
                 resolve({
                     ok: false,
@@ -1226,7 +1205,7 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
         
         timeoutId = setTimeout(() => {
             if (pendingAckResolve) {
-                log(`⚠️ DEBUG: Timeout fired for cmd 0x${expectedCmd.toString(16)} after ${timeoutMs}ms`);
+                log(`⚠️ Timeout waiting for ACK (cmd 0x${expectedCmd.toString(16)})`);
                 pendingAckResolve = null;
                 resolve({ ok: false, reason: "timeout" });
             }
@@ -1373,20 +1352,15 @@ async function sendFirmwareSize(firmwareSize) {
         
         // Wait for ACK - in BLE OTA mode, device responds with 0x50 to 0x50
         try {
-            log(`🔍 DEBUG: Waiting for size ACK...`);
         } catch (logError2) {
             console.error('Log error 2:', logError2);
         }
-        console.log('DEBUG: About to call waitForAck for 0x50');
         const ack = await waitForAck(0x50, 5000); // BLE OTA handler echoes the command
-        console.log('DEBUG: waitForAck returned:', ack);
-        log(`🔍 DEBUG: Got ACK response: ok=${ack.ok}, cmd=0x${ack.cmd?.toString(16)}, payload length=${ack.payload?.length}`);
         if (!ack.ok) {
             log(`❌ Size ACK failed: ${ack.reason}`);
             return false;
         }
         
-        log(`🔍 DEBUG: About to verify checksum, firmwareChecksum=${firmwareChecksum}, ack.payload.length=${ack.payload.length}`);
         
         // Verify device echoed our firmware checksum in the ACK payload
         // Payload: [DIR][SIZE(4)][CHECKSUM(4)] -> checksum at positions 5-8
