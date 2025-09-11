@@ -6,11 +6,23 @@ import { BasePayload } from '../base/Payload.js';
  */
 export class URLConfig extends BasePayload {
     public parse() {
-        // Parse URL configuration data
+        // Check if this is a 0x51 response (different format)
+        if (this.commandType === 0x51) {
+            return this.parse0x51Response();
+        }
+        
+        // Parse standard URL configuration data (0x1B response)
         let offset = 0;
         
         // URL length and string
         const urlLength = this.payload[offset++];
+        
+        // Validate URL length is reasonable
+        if (urlLength > this.payload.length - 1 || urlLength > 100) {
+            // Possibly encoded or different format, show raw data
+            return this.parseRawData();
+        }
+        
         const url = new TextDecoder().decode(this.payload.slice(offset, offset + urlLength));
         offset += urlLength;
         
@@ -33,8 +45,61 @@ export class URLConfig extends BasePayload {
         };
     }
 
+    private parse0x51Response() {
+        // Handle 0x51 response format
+        const rawString = Array.from(this.payload)
+            .map(b => String.fromCharCode(b))
+            .join('');
+        
+        return {
+            type: 'URLConfig_0x51',
+            responseCommand: '0x51',
+            rawData: rawString,
+            payloadLength: this.payload.length
+        };
+    }
+
+    private parseRawData() {
+        // Fallback for unrecognized formats
+        const rawString = Array.from(this.payload)
+            .map(b => b >= 32 && b <= 126 ? String.fromCharCode(b) : `[0x${b.toString(16).padStart(2, '0')}]`)
+            .join('');
+        
+        return {
+            type: 'URLConfig_Raw',
+            rawString,
+            hexData: Array.from(this.payload).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '),
+            payloadLength: this.payload.length
+        };
+    }
+
     public toHTML(): string {
         const data = this.parse();
+        
+        // Handle different response types
+        if (data.type === 'URLConfig_0x51') {
+            return `
+                <h3>URL Configuration (0x51 Response)</h3>
+                <div class="data-grid">
+                    <div><strong>Response Type:</strong> ${data.responseCommand}</div>
+                    <div><strong>ASCII Data:</strong> ${data.rawData}</div>
+                    <div><strong>Payload Length:</strong> ${data.payloadLength} bytes</div>
+                </div>
+            `;
+        }
+        
+        if (data.type === 'URLConfig_Raw') {
+            return `
+                <h3>URL Configuration (Raw Data)</h3>
+                <div class="data-grid">
+                    <div><strong>Raw String:</strong> ${data.rawString}</div>
+                    <div><strong>Hex Data:</strong> ${data.hexData}</div>
+                    <div><strong>Payload Length:</strong> ${data.payloadLength} bytes</div>
+                </div>
+            `;
+        }
+        
+        // Standard URL configuration
         return `
             <h3>URL Configuration</h3>
             <div class="data-grid">
