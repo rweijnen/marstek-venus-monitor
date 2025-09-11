@@ -1117,13 +1117,10 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
         pendingAckResolve = (ack) => {
             if (ack.cmd === expectedCmd) {
                 // For OTA size command (0x50), payload[0] is DIR field (0x00), not status
-                // For other OTA commands, check payload[0] === 0x01 for success
-                if (expectedCmd !== 0x50 && ack.payload.length > 0 && ack.payload[0] !== 0x01) {
-                    resolve({
-                        ok: false,
-                        reason: `cmd 0x${expectedCmd.toString(16)} ACK with wrong payload: expected [0x01], got [${Array.from(ack.payload).map(b => '0x' + b.toString(16)).join(', ')}]`
-                    });
-                    return;
+                // For other OTA commands, accept any payload (they have DIR fields too)
+                if (expectedCmd === 0x50) {
+                    // Size command: accept any payload since payload[0] is DIR field
+                    // (checksum validation happens in sendFirmwareSize function)
                 }
                 resolve(ack);
             } else {
