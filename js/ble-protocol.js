@@ -315,23 +315,36 @@ async function disconnectAll() {
 // ========================================
 
 /**
- * Log messages to console and UI log element
+ * Log messages to console and tabbed UI log interface
  * @param {string} message - Message to log
  */
 function log(message) {
     console.log(message);
     
-    // Also log to UI if available
-    if (window.uiController && window.uiController.log) {
-        window.uiController.log(message);
+    // Route messages to appropriate tabs based on content
+    if (message.includes('Error') || message.includes('Failed') || message.includes('error') || 
+        message.includes('Warning') || message.includes('failed') || message.includes('❌')) {
+        if (typeof logError !== 'undefined') {
+            logError(message);
+        }
+    } else if (message.includes('TX:') || message.includes('RX:') || message.includes('Hex:') || 
+               message.includes('Payload:') || message.includes('bytes:') || message.includes('0x')) {
+        if (typeof logProtocol !== 'undefined') {
+            logProtocol(message);
+        }
     } else {
-        // Fallback to simple text append - much more efficient
+        // Default to activity log for general messages
+        if (typeof logActivity !== 'undefined') {
+            logActivity(message);
+        }
+    }
+    
+    // Fallback to legacy log if tabbed logging not available
+    if (typeof logActivity === 'undefined') {
         const logElement = document.getElementById('log');
         if (logElement) {
-            // Just append text with newline, no DOM element creation
             logElement.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
             
-            // Limit log buffer to prevent memory issues (keep last 500 lines)
             const lines = logElement.textContent.split('\n');
             if (lines.length > 500) {
                 logElement.textContent = lines.slice(-500).join('\n');

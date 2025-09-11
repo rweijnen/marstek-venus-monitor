@@ -59,13 +59,7 @@ function checkDisclaimerAcceptance() {
 // LOGGING AND ERROR HANDLING
 // ==========================================
 
-function log(message) {
-    const logDiv = document.getElementById('log');
-    if (!logDiv) return;
-    const timestamp = new Date().toLocaleTimeString();
-    logDiv.textContent += `[${timestamp}] ${message}\n`;
-    logDiv.scrollTop = logDiv.scrollHeight;
-}
+// Log function now provided by log-manager.js (loaded first)
 
 function showError(message) {
     log(`❌ Error: ${message}`);

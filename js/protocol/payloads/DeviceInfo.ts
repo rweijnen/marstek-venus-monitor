@@ -24,7 +24,10 @@ export class DeviceInfoPayload extends BasePayload {
         // Format: "type=HMG-50,id=2,sn=ABC123,mac=00:11:22:33:44:55,fw=1.0,hw=1.0"
         
         const payloadText = this.readString(0, this.payloadLength);
-        console.log('Device Info payload text:', payloadText);
+        // Log to protocol tab for debugging
+        if (typeof (window as any).logProtocol !== 'undefined') {
+            (window as any).logProtocol('Device Info payload text: ' + payloadText);
+        }
         
         const deviceInfo: IDeviceInfo = {
             type: '',
