@@ -171,12 +171,12 @@ async function connect() {
                     service = await server.getPrimaryService(SERVICE_UUID);
                 } catch (serviceError) {
                     log('⚠️ Service not immediately available, waiting...');
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    await new Promise(resolve => setTimeout(resolve, 10000));
                     
                     // Retry with timeout protection
                     const servicePromise = server.getPrimaryService(SERVICE_UUID);
                     const serviceTimeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Service retry timeout')), 10000)
+                        setTimeout(() => reject(new Error('Service retry timeout')), 20000)
                     );
                     service = await Promise.race([servicePromise, serviceTimeoutPromise]);
                 }
