@@ -1179,8 +1179,17 @@ function handleNotification(event) {
 async function waitForAck(expectedCmd, timeoutMs = 2000) {
     log(`🔍 DEBUG waitForAck: Setting up wait for cmd 0x${expectedCmd.toString(16)}`);
     return new Promise((resolve, reject) => {
+        let timeoutId;
+        
         pendingAckResolve = (ack) => {
             log(`🔍 DEBUG waitForAck: Received ACK callback - cmd=0x${ack.cmd?.toString(16)}, expected=0x${expectedCmd.toString(16)}`);
+            
+            // Clear the timeout since we got a response
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            
             if (ack.cmd === expectedCmd) {
                 // For OTA size command (0x50), payload[0] is DIR field (0x00), not status
                 // For other OTA commands, accept any payload (they have DIR fields too)
@@ -1189,9 +1198,11 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
                     // (checksum validation happens in sendFirmwareSize function)
                 }
                 log(`🔍 DEBUG waitForAck: Resolving with success for cmd 0x${expectedCmd.toString(16)}`);
+                pendingAckResolve = null;  // Clear the global handler
                 resolve({ ...ack, ok: true });
             } else {
                 log(`🔍 DEBUG waitForAck: Resolving with failure - wrong cmd`);
+                pendingAckResolve = null;  // Clear the global handler
                 resolve({
                     ok: false,
                     reason: `unexpected cmd: expected 0x${expectedCmd.toString(16)}, got 0x${ack.cmd.toString(16)}`
@@ -1199,7 +1210,7 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
             }
         };
         
-        const timeoutId = setTimeout(() => {
+        timeoutId = setTimeout(() => {
             if (pendingAckResolve) {
                 log(`⚠️ DEBUG: Timeout fired for cmd 0x${expectedCmd.toString(16)} after ${timeoutMs}ms`);
                 pendingAckResolve = null;
