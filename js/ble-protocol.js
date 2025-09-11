@@ -1122,7 +1122,7 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
                     // Size command: accept any payload since payload[0] is DIR field
                     // (checksum validation happens in sendFirmwareSize function)
                 }
-                resolve(ack);
+                resolve({ ...ack, ok: true });
             } else {
                 resolve({
                     ok: false,
