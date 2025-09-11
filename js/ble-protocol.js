@@ -1253,9 +1253,10 @@ async function sendFirmwareSize(firmwareSize) {
         
         log(`🔍 Size payload (${sizePayload.length} bytes): [${sizePayload.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
         
-        // After 0x1F activation, switch to BLE OTA format (no 0x23) to route to OTA handler
-        // For OTA size command: payload is just size(4) + checksum(4), no 0x10 prefix
+        // After activation, send size command with 0x10 prefix as in Wireshark Frame 110
+        // Frame 110: 73000e5010002001001ba692ffcc -> payload [0x10, size, checksum]
         const otaPayload = [
+            0x10,                             // Wireshark-verified prefix
             firmwareSize & 0xFF,
             (firmwareSize >> 8) & 0xFF,
             (firmwareSize >> 16) & 0xFF,
@@ -1265,7 +1266,7 @@ async function sendFirmwareSize(firmwareSize) {
             (firmwareChecksum >> 16) & 0xFF,
             (firmwareChecksum >> 24) & 0xFF
         ];
-        const frame = buildSizeFrame(otaPayload);
+        const frame = buildOtaFrame(0x50, new Uint8Array(otaPayload));
         log(`🔍 Size frame (${frame.length} bytes): ${formatBytes(frame)}`);
         logOutgoing(frame, 'Size Command (BLE OTA format)');
         await txCharacteristic.writeValueWithoutResponse(frame);
