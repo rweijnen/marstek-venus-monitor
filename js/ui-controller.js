@@ -144,17 +144,28 @@ function displayData(content) {
     
     // Handle new unified HTML content from data parser
     if (typeof content === 'string') {
+        // Add timestamp to the title
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
+        
+        // Inject timestamp into the h3 title
+        const contentWithTimestamp = content.replace(
+            /(<h3[^>]*>.*?)(</h3>)/,
+            `$1 <span style="color: #666; font-weight: normal; font-size: 0.8em;">[${timestamp}]</span>$2`
+        );
+        
         const card = document.createElement('div');
         card.className = 'data-card';
-        card.innerHTML = content;
-        displayDiv.appendChild(card);
+        card.innerHTML = contentWithTimestamp;
         
-        // Limit display to 10 most recent items
+        // Prepend new card to show on top
+        displayDiv.prepend(card);
+        
+        // Limit display to 10 most recent items (remove from end)
         while (displayDiv.children.length > 10) {
-            displayDiv.removeChild(displayDiv.firstChild);
+            displayDiv.removeChild(displayDiv.lastChild);
         }
         
-        displayDiv.scrollTop = displayDiv.scrollHeight;
         return;
     }
     

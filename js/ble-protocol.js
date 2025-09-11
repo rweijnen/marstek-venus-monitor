@@ -387,7 +387,7 @@ function log(message) {
     if (typeof logActivity === 'undefined') {
         const logElement = document.getElementById('log');
         if (logElement) {
-            logElement.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${message}\n`;
             
             const lines = logElement.textContent.split('\n');
             if (lines.length > 500) {

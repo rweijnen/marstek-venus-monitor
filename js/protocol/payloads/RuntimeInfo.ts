@@ -120,7 +120,7 @@ export class RuntimeInfoPayload extends BasePayload {
             
             // Power readings (signed, can be negative for import/export)
             html += `<div><strong>Grid Power:</strong> ${data.gridPower} W</div>`;
-            html += `<div><strong>Solar Power:</strong> ${data.solarPower} W</div>`;
+            html += `<div><strong>Battery Power:</strong> ${data.solarPower} W</div>`;
             
             // Status
             html += `<div><strong>Work Mode:</strong> ${this.getWorkModeString(data.workMode)}</div>`;
@@ -156,7 +156,7 @@ export class RuntimeInfoPayload extends BasePayload {
             const apiStatus = data.apiPort === 0 ? 
                 '<span style="color: #dc3545;">🔒 DISABLED</span>' : 
                 `<span style="color: #28a745;">🔓 ENABLED (Port: ${data.apiPort})</span>`;
-            html += `<div><strong>Local API Status:</strong> ${apiStatus}</div>`;
+            html += `<div><strong>Local API:</strong> ${apiStatus}</div>`;
             
             html += `<div><strong>Device Type:</strong> ${data.powerRating}W Battery System</div>`;
             html += '</div>';
