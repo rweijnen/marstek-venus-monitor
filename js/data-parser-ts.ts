@@ -16,10 +16,10 @@ import { BasePayload } from './protocol/base/Payload.js';
 export function parseResponse(data: Uint8Array, commandName: string): string {
     try {
         // Log raw data for debugging
-        if ((window as any).uiController && (window as any).uiController.log) {
-            (window as any).uiController.log(`📊 Raw Response (${data.length} bytes): ${formatBytes(data)}`);
-            (window as any).uiController.log(`📋 Hex Dump:\n${formatHexDump(data)}`);
-            (window as any).uiController.log(`🔍 Command: 0x${data[3]?.toString(16).padStart(2, '0').toUpperCase()}, Payload: ${data.length - 5} bytes`);
+        if (typeof (window as any).logProtocol !== 'undefined') {
+            (window as any).logProtocol(`📊 Raw Response (${data.length} bytes): ${formatBytes(data)}`);
+            (window as any).logProtocol(`📋 Hex Dump:\n${formatHexDump(data)}`);
+            (window as any).logProtocol(`🔍 Command: 0x${data[3]?.toString(16).padStart(2, '0').toUpperCase()}, Payload: ${data.length - 5} bytes`);
         }
 
         // Create appropriate payload parser
