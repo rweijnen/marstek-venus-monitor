@@ -43,7 +43,7 @@
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('network')">i</span>
     </button>
     <button onclick="sendCommand(0x22, 'Read CT Polling Rate')" disabled data-tooltip="Read current CT meter polling rate setting" class="cmd-button">
-        <span class="cmd-button-text">📊 Read CT Polling Rate</span>
+        <span class="cmd-button-text">📊 CT Polling Rate</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpollread')">i</span>
     </button>
     <button onclick="sendCommand(0x03, 'Local API Status (Runtime Info)')" disabled data-tooltip="Check Local API status from runtime information" class="cmd-button">
@@ -55,23 +55,23 @@
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('readconfig')">i</span>
     </button>
     <button onclick="sendCommand(0x27, 'Get Power Data Array', [0x1E])" disabled class="cmd-button" data-tooltip="Get array of last 30 power measurements">
-        <span class="cmd-button-text">📊 Get Power Array (30)</span>
+        <span class="cmd-button-text">📊 Power Array (30)</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('powerarray')">i</span>
     </button>
     <button onclick="sendCommand(0x0A, 'Get Settings Info')" disabled class="cmd-button" data-tooltip="Get device settings information (80 bytes)">
-        <span class="cmd-button-text">⚙️ Get Settings Info</span>
+        <span class="cmd-button-text">⚙️ Settings Info</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settingsinfo')">i</span>
     </button>
     <button onclick="sendCommand(0x05, 'Get WiFi Config')" disabled class="cmd-button" data-tooltip="Get WiFi configuration and credentials">
-        <span class="cmd-button-text">📶 Get WiFi Config</span>
+        <span class="cmd-button-text">📶 WiFi Config</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wificonfig')">i</span>
     </button>
     <button onclick="sendCommand(0x0B, 'Get Time Settings')" disabled class="cmd-button" data-tooltip="Get device time and power configuration settings">
-        <span class="cmd-button-text">🕐 Get Time Settings</span>
+        <span class="cmd-button-text">🕐 Time Settings</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('timesettings')">i</span>
     </button>
     <button onclick="sendCommand(0x1B, 'Get URL Config')" disabled class="cmd-button" data-tooltip="Get server URL and port configuration">
-        <span class="cmd-button-text">🌐 Get URL Config</span>
+        <span class="cmd-button-text">🌐 URL Config</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('urlconfig')">i</span>
     </button>
 </div>
