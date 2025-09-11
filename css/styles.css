@@ -497,3 +497,73 @@
             color: #0066cc;
             line-height: 1.4;
         }
+        
+        /* Command Tabs Interface */
+        .command-tabs-container {
+            margin-top: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .command-tabs {
+            display: flex;
+            background: #2a2a2a;
+            border-bottom: 1px solid #333;
+            flex-wrap: wrap;
+        }
+        
+        .command-tab-button {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 8px;
+            background: #2a2a2a;
+            color: #ccc;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 500;
+            border-right: 1px solid #333;
+        }
+        
+        .command-tab-button:last-child {
+            border-right: none;
+        }
+        
+        .command-tab-button:hover {
+            background: #363636;
+            color: white;
+        }
+        
+        .command-tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .command-tab {
+            display: none;
+            padding: 20px;
+            background: white;
+        }
+        
+        .command-tab.active {
+            display: block;
+        }
+        
+        /* Mobile responsiveness for command tabs */
+        @media (max-width: 768px) {
+            .command-tabs {
+                flex-direction: column;
+            }
+            .command-tab-button {
+                flex: none;
+                border-right: none;
+                border-bottom: 1px solid #333;
+                font-size: 14px;
+                padding: 15px;
+            }
+            .command-tab-button:last-child {
+                border-bottom: none;
+            }
+        }

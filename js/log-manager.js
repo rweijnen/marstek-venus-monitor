@@ -174,6 +174,35 @@ window.logOTA = function(message, progress = null) {
 };
 
 /**
+ * Switch between command tabs
+ */
+function switchCommandTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.command-tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Find and activate the clicked button
+    const activeButton = document.querySelector(`[onclick="switchCommandTab('${tabName}')"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+    
+    // Update tab content
+    document.querySelectorAll('.command-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    const activeTab = document.getElementById(`${tabName}Tab`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+}
+
+// Make function globally available
+window.switchCommandTab = switchCommandTab;
+
+/**
  * Update connection status area with live connection messages
  */
 window.updateConnectionStatus = function(message) {

@@ -92,9 +92,23 @@
                 <div id="connectionMessage"></div>
             </div>
 
-            <div class="section-caption">
-                📖 <strong>Read Commands:</strong> These commands safely read information from your device including power status, battery data, network configuration, and system logs. No settings are modified.
-            </div>
+            <!-- Command Tabs Interface -->
+            <div class="command-tabs-container">
+                <div class="command-tabs">
+                    <button class="command-tab-button active" onclick="switchCommandTab('read')">📖 Read</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('power')">⚡ Power</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('system')">⚙️ System</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('development')">🔧 Dev</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('network')">🕰 Network</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('advanced')">🔧 Advanced</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('ota')">🔥 OTA</button>
+                </div>
+                
+                <!-- Read Commands Tab -->
+                <div id="readTab" class="command-tab active">
+                    <div class="section-caption">
+                        📖 <strong>Read Commands:</strong> These commands safely read information from your device including power status, battery data, network configuration, and system logs. No settings are modified.
+                    </div>
             <div class="command-grid">
                 <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="cmd-button">
                     <span class="cmd-button-text">⚡ Runtime Info</span>
@@ -168,11 +182,11 @@
                     <span class="cmd-button-text">🌐 Get URL Config</span>
                     <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('urlconfig')">i</span>
                 </button>
+                </div>
             </div>
 
-            <!-- Power Management Commands -->
-            <div class="command-section">
-                <h3>⚡ Power Management (Modify Settings)</h3>
+            <!-- Power Management Tab -->
+            <div id="powerTab" class="command-tab">
                 <div class="section-caption">
                     ⚠️ <strong>Power Settings:</strong> These commands modify power output limits and operating modes. Changes take effect immediately and may affect connected loads.
                 </div>
