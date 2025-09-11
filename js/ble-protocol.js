@@ -1439,9 +1439,9 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
             return false;
         }
         
-        // Verify device echoed back the correct offset
-        if (ack.payload.length >= 4) {
-            const echoedOffset = ack.payload[0] | (ack.payload[1] << 8) | (ack.payload[2] << 16) | (ack.payload[3] << 24);
+        // Verify device echoed back the correct offset (after DIR field at position 0)
+        if (ack.payload.length >= 5) {
+            const echoedOffset = ack.payload[1] | (ack.payload[2] << 8) | (ack.payload[3] << 16) | (ack.payload[4] << 24);
             if (echoedOffset === offset) {
                 log(`✅ Chunk ${chunkIndex} confirmed at offset 0x${offset.toString(16)}`);
             } else {
@@ -1575,12 +1575,12 @@ async function performOTAUpdate() {
             throw new Error('Failed to send firmware size');
         }
         
-        // Step 3: Send firmware data in chunks (LIMITED TO 3 CHUNKS FOR TESTING)
-        log('📤 Starting firmware data transfer (testing with 3 chunks only)...');
+        // Step 3: Send firmware data in chunks
+        log('📤 Starting firmware data transfer...');
         let offset = 0;
         let chunkIndex = 0;
         
-        while (offset < firmwareData.byteLength && chunkIndex < 3) {
+        while (offset < firmwareData.byteLength) {
             const end = Math.min(offset + otaChunkSize, firmwareData.byteLength);
             const chunk = new Uint8Array(firmwareData.slice(offset, end));
             
