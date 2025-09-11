@@ -26,7 +26,7 @@ export class DeviceInfoPayload extends BasePayload {
         const payloadText = this.readString(0, this.payloadLength);
         // Log to protocol tab for debugging
         if (typeof (window as any).logProtocol !== 'undefined') {
-            (window as any).logProtocol('Device Info payload text: ' + payloadText);
+            (window as any).logProtocol('📋 Device Info payload text: ' + payloadText);
         }
         
         const deviceInfo: IDeviceInfo = {

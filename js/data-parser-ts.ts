@@ -17,9 +17,8 @@ export function parseResponse(data: Uint8Array, commandName: string): string {
     try {
         // Log raw data for debugging
         if (typeof (window as any).logProtocol !== 'undefined') {
-            (window as any).logProtocol(`📊 Raw Response (${data.length} bytes): ${formatBytes(data)}`);
-            (window as any).logProtocol(`📋 Hex Dump:\n${formatHexDump(data)}`);
-            (window as any).logProtocol(`🔍 Command: 0x${data[3]?.toString(16).padStart(2, '0').toUpperCase()}, Payload: ${data.length - 5} bytes`);
+            (window as any).logProtocol(`📥 RX ← Device (${data.length} bytes): ${formatBytes(data)}`, data);
+            (window as any).logProtocol(`🔍 Response: CMD 0x${data[3]?.toString(16).padStart(2, '0').toUpperCase()}, Payload: ${data.length - 5} bytes`);
         }
 
         // Create appropriate payload parser

@@ -172,7 +172,13 @@ async function connect() {
                 } catch (serviceError) {
                     log('⚠️ Service not immediately available, waiting...');
                     await new Promise(resolve => setTimeout(resolve, 1000));
-                    service = await server.getPrimaryService(SERVICE_UUID);
+                    
+                    // Retry with timeout protection
+                    const servicePromise = server.getPrimaryService(SERVICE_UUID);
+                    const serviceTimeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Service retry timeout')), 5000)
+                    );
+                    service = await Promise.race([servicePromise, serviceTimeoutPromise]);
                 }
                 
                 // Get all characteristics
@@ -256,6 +262,8 @@ async function connect() {
 
     } catch (error) {
         log(`❌ Connection failed: ${error.message}`);
+        logError(`Connection failed after 3 attempts: ${error.message}`);
+        
         if (window.uiController && window.uiController.updateStatus) {
             window.uiController.updateStatus(false);
         }
@@ -264,6 +272,9 @@ async function connect() {
         device = null;
         server = null;
         characteristics = {};
+        
+        // Show retry dialog
+        showRetryDialog();
     }
 }
 
@@ -634,7 +645,7 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
         window.lastCommandTime = Date.now();
         
         log(`📤 Sending ${commandName}...`);
-        log(`📋 Frame: ${formatBytes(command)}`);
+        logProtocol(`📤 TX → Device (${command.length} bytes): ${formatBytes(command)}`, command);
         
         const writeChars = Object.values(characteristics).filter(char => 
             char.properties.write || char.properties.writeWithoutResponse
@@ -878,7 +889,7 @@ function handleUnifiedNotification(event) {
     
     
     // Log protocol details
-    logProtocol(`Unified Notification (FF02) [${value.length}]`, value);
+    logProtocol(`📡 Notification ← Device (${value.length} bytes): ${formatBytes(value)}`, value);
     
     // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
@@ -1976,12 +1987,69 @@ if (!navigator.bluetooth) {
     log('❌ Web Bluetooth not supported');
 }
 
+// ========================================
+// RETRY DIALOG FUNCTIONS
+// ========================================
+
+/**
+ * Show the connection retry dialog
+ */
+function showRetryDialog() {
+    const modal = document.getElementById('retryModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+/**
+ * Hide the retry dialog and attempt connection again
+ */
+function retryConnection() {
+    const modal = document.getElementById('retryModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    
+    // Clear previous error logs
+    logActivity('🔄 User requested connection retry');
+    
+    // Attempt connection again
+    connect().catch(error => {
+        // This will show the retry dialog again if it fails
+        console.error('Retry connection failed:', error);
+    });
+}
+
+/**
+ * Hide the retry dialog and cancel connection attempts
+ */
+function cancelRetry() {
+    const modal = document.getElementById('retryModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    
+    logActivity('❌ Connection retry cancelled by user');
+    
+    // Ensure connection is fully cancelled
+    connectionCancelled = true;
+    if (device && device.gatt && device.gatt.connected) {
+        try {
+            device.gatt.disconnect();
+        } catch (e) {
+            // Ignore disconnection errors
+        }
+    }
+}
+
 // Export functions for global access
 if (typeof window !== 'undefined') {
     // Connection functions
     window.connect = connect;
     window.disconnect = disconnect;
     window.disconnectAll = disconnectAll;
+    window.retryConnection = retryConnection;
+    window.cancelRetry = cancelRetry;
     
     // Command sending functions
     window.sendCommand = sendCommand;

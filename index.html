@@ -61,6 +61,30 @@
         </div>
     </div>
 
+    <!-- Connection Retry Dialog -->
+    <div id="retryModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">🔌 Connection Failed</div>
+            
+            <div class="disclaimer-text">
+                <p>Unable to connect to the Marstek device after 3 attempts.</p>
+                <p>This can happen due to:</p>
+                <ul>
+                    <li>Device is out of range or powered off</li>
+                    <li>Another app is connected to the device</li>
+                    <li>Bluetooth interference or device busy</li>
+                    <li>Device needs to be reset or restarted</li>
+                </ul>
+                <p><strong>Would you like to try connecting again?</strong></p>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-decline" onclick="cancelRetry()">❌ Cancel</button>
+                <button class="btn-accept" onclick="retryConnection()">🔄 Retry Connection</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Interface -->
     <div class="main-interface" id="mainInterface">
         <div class="container">
