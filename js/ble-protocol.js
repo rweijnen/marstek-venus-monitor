@@ -272,12 +272,18 @@ function log(message) {
     if (window.uiController && window.uiController.log) {
         window.uiController.log(message);
     } else {
-        // Fallback to direct DOM manipulation
+        // Fallback to simple text append - much more efficient
         const logElement = document.getElementById('log');
         if (logElement) {
-            const entry = document.createElement('div');
-            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-            logElement.appendChild(entry);
+            // Just append text with newline, no DOM element creation
+            logElement.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            
+            // Limit log buffer to prevent memory issues (keep last 500 lines)
+            const lines = logElement.textContent.split('\n');
+            if (lines.length > 500) {
+                logElement.textContent = lines.slice(-500).join('\n');
+            }
+            
             logElement.scrollTop = logElement.scrollHeight;
         }
     }
@@ -1177,12 +1183,18 @@ function handleNotification(event) {
  * @returns {Promise} Promise resolving to ACK response
  */
 async function waitForAck(expectedCmd, timeoutMs = 2000) {
-    log(`🔍 DEBUG waitForAck: Setting up wait for cmd 0x${expectedCmd.toString(16)}`);
+    // Only log debug for non-data commands to reduce log spam
+    if (expectedCmd !== 0x51) {
+        log(`🔍 DEBUG waitForAck: Setting up wait for cmd 0x${expectedCmd.toString(16)}`);
+    }
     return new Promise((resolve, reject) => {
         let timeoutId;
         
         pendingAckResolve = (ack) => {
-            log(`🔍 DEBUG waitForAck: Received ACK callback - cmd=0x${ack.cmd?.toString(16)}, expected=0x${expectedCmd.toString(16)}`);
+            // Only log debug for non-data commands
+            if (expectedCmd !== 0x51) {
+                log(`🔍 DEBUG waitForAck: Received ACK callback - cmd=0x${ack.cmd?.toString(16)}, expected=0x${expectedCmd.toString(16)}`);
+            }
             
             // Clear the timeout since we got a response
             if (timeoutId) {
@@ -1197,7 +1209,9 @@ async function waitForAck(expectedCmd, timeoutMs = 2000) {
                     // Size command: accept any payload since payload[0] is DIR field
                     // (checksum validation happens in sendFirmwareSize function)
                 }
-                log(`🔍 DEBUG waitForAck: Resolving with success for cmd 0x${expectedCmd.toString(16)}`);
+                if (expectedCmd !== 0x51) {
+                    log(`🔍 DEBUG waitForAck: Resolving with success for cmd 0x${expectedCmd.toString(16)}`);
+                }
                 pendingAckResolve = null;  // Clear the global handler
                 resolve({ ...ack, ok: true });
             } else {
@@ -1417,10 +1431,18 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
     try {
         // Step 3: Send firmware chunk with cmd=0x51 in format: [DIR][OFFSET][DATA]
         const frame = buildDataFrame(offset, chunkData);
-        logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
+        
+        // Only log verbose output for first few chunks, every 50th chunk, and last chunk
+        const isVerbose = chunkIndex <= 3 || chunkIndex % 50 === 0 || chunkIndex === totalChunks;
+        
+        if (isVerbose) {
+            logOutgoing(frame, `Data Chunk ${chunkIndex}/${totalChunks}`);
+            log(`📤 Sent chunk ${chunkIndex}/${totalChunks} at offset 0x${offset.toString(16)} (${chunkData.length} bytes)`);
+        }
+        
         await txCharacteristic.writeValueWithoutResponse(frame);
         
-        // Update progress
+        // Update progress - this is lightweight and won't cause issues
         const progress = Math.round((chunkIndex / totalChunks) * 100);
         if (document.getElementById('otaProgress')) {
             document.getElementById('otaProgress').style.width = `${progress}%`;
@@ -1430,7 +1452,10 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
                 `Uploading: ${chunkIndex}/${totalChunks} chunks (${progress}%)`;
         }
         
-        log(`📤 Sent chunk ${chunkIndex}/${totalChunks} at offset 0x${offset.toString(16)} (${chunkData.length} bytes)`);
+        // Show progress in log every 10 chunks instead of every chunk
+        if (chunkIndex % 10 === 0 || chunkIndex === totalChunks) {
+            log(`📊 Progress: ${progress}% (${chunkIndex}/${totalChunks} chunks)`);
+        }
         
         // Wait for ACK (cmd=0x51) with echoed offset
         const ack = await waitForAck(0x51, 1500);
