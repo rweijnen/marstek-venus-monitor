@@ -165,31 +165,21 @@ async function connect() {
                 characteristics = {};
                 
                 // Set up characteristics and notifications
-                const processedChars = new Set(); // Track processed characteristics
                 for (const char of chars) {
                     characteristics[char.uuid] = char;
-                    
-                    // Skip if we've already processed this characteristic UUID
-                    if (processedChars.has(char.uuid)) {
-                        continue;
-                    }
-                    processedChars.add(char.uuid);
                     
                     // Enable notifications for readable characteristics
                     if (char.properties.notify) {
                         await char.startNotifications();
-                        // Set up unified handler for FF02, generic handler for others
+                        // Only set up unified handler for FF02, skip other characteristics
                         if (char.uuid.includes('ff02')) {
                             // Store reference for the unified handler
                             char.addEventListener('characteristicvaluechanged', function(event) {
                                 handleUnifiedNotification(event);
                             });
                             log(`📡 Notifications enabled for FF02`);
-                        } else {
-                            char.addEventListener('characteristicvaluechanged', 
-                                createNotificationHandler(char.uuid));
-                            log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
                         }
+                        // Skip logging for other characteristics to reduce noise
                     }
                 }
                 
@@ -1298,11 +1288,10 @@ async function connectAndPrepareOTA() {
     rxCharacteristic.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
     
     // All communication (both HM and OTA) goes through FF01 (write) → FF02 (notify) based on Wireshark analysis
-    log('✅ Notifications enabled on RX characteristic (ff02)');
+    // Note: Notifications already enabled in main connection setup
     
     // Use fixed 128-byte chunks as per protocol specification
     otaChunkSize = 128;
-    log(`📏 Using protocol chunk size: ${otaChunkSize} bytes (128 data + 4 offset)`);
     
     // Analyze firmware: checksum + type detection
     const analysis = analyzeFirmware(firmwareData);
