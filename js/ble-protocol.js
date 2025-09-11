@@ -124,12 +124,15 @@ async function connect() {
                     // Enable notifications for readable characteristics
                     if (char.properties.notify) {
                         await char.startNotifications();
-                        // Don't add the generic handler for FF02 - it's handled by handleUnifiedNotification
-                        if (!char.uuid.includes('ff02')) {
+                        // Set up unified handler for FF02, generic handler for others
+                        if (char.uuid.includes('ff02')) {
+                            char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
+                            log(`📡 Unified handler enabled for FF02 (${char.uuid.slice(-4).toUpperCase()})`);
+                        } else {
                             char.addEventListener('characteristicvaluechanged', 
                                 createNotificationHandler(char.uuid));
+                            log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
                         }
-                        log(`📡 Notifications enabled for ${char.uuid.slice(-4).toUpperCase()}`);
                     }
                 }
                 
