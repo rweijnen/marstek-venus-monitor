@@ -55,9 +55,20 @@ export class DeveloperModeInfo extends BasePayload {
                     temp4: `${temperature4}°C`,
                     temp5: `${temperature5}°C`
                 },
-                workMode: `Work Mode: ${workMode}`
+                workMode: this.getUserWorkModeString(workMode)
             }
         };
+    }
+
+    private getUserWorkModeString(mode: number): string {
+        // User work mode mapping for developer mode
+        const modes: { [key: number]: string } = {
+            0: 'Self Consumption',
+            1: 'AI Optimization', 
+            2: 'Manual Mode'
+        };
+        const modeText = modes[mode] || `Unknown (${mode})`;
+        return `${mode} (${modeText})`;
     }
 
     public toHTML(): string {
@@ -68,14 +79,26 @@ export class DeveloperModeInfo extends BasePayload {
                 <div><strong>System Status:</strong> ${data.interpretations.systemStatus}</div>
                 <div><strong>Line Frequency:</strong> ${data.interpretations.lineFrequency}</div>
                 <div><strong>AC Voltage:</strong> ${data.interpretations.acVoltage}</div>
-                <div><strong>Work Mode:</strong> ${data.workMode}</div>
+                <div><strong>User Work Mode:</strong> ${data.interpretations.workMode}</div>
             </div>
             <div class="data-grid" style="margin-top: 10px;">
                 <div style="grid-column: 1 / -1;"><strong>Temperature Sensors:</strong></div>
                 ${data.temperatures.map((temp, idx) => {
                     const tempKey = `temp${idx + 1}`;
                     const tempValue = data.interpretations.temperatures[tempKey as keyof typeof data.interpretations.temperatures];
-                    return `<div><strong>Sensor ${idx + 1}:</strong> ${tempValue}</div>`;
+                    
+                    // Map sensors to descriptive names based on LilyGo correlation
+                    let sensorName = `Sensor ${idx + 1}`;
+                    switch(idx + 1) {
+                        case 1: sensorName = 'Internal Temperature'; break;
+                        case 2: sensorName = 'Internal MOS1 Temperature'; break;
+                        case 3: sensorName = 'Internal MOS2 Temperature'; break;
+                        case 4: sensorName = 'Ambient Temperature 1'; break;
+                        case 5: sensorName = 'Ambient Temperature 2'; break;
+                        default: sensorName = `Temperature Sensor ${idx + 1}`; break;
+                    }
+                    
+                    return `<div><strong>${sensorName}:</strong> ${tempValue}</div>`;
                 }).join('')}
             </div>
         `;

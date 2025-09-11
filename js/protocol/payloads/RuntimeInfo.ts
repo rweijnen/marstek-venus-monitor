@@ -119,7 +119,7 @@ export class RuntimeInfoPayload extends BasePayload {
             let html = '<h3>⚡ Runtime Information</h3><div class="data-grid">';
             
             // Power readings (signed, can be negative for import/export)
-            html += `<div><strong>Grid Power:</strong> ${data.gridPower} W</div>`;
+            html += `<div><strong>Backup Power:</strong> ${data.gridPower} W</div>`;
             html += `<div><strong>Battery Power:</strong> ${data.solarPower} W</div>`;
             
             // Status
@@ -132,7 +132,7 @@ export class RuntimeInfoPayload extends BasePayload {
             
             // Telemetry
             html += `<div><strong>Meter 1:</strong> ${data.meter1}</div>`;
-            html += `<div><strong>Meter 2:</strong> ${data.meter2}</div>`;
+            html += `<div><strong>Discharged Energy:</strong> ${(data.meter2 / 100).toFixed(2)} kWh</div>`;
             html += `<div><strong>Meter 3:</strong> ${data.meter3}</div>`;
             
             // Energy accumulators (likely Wh)
