@@ -48,7 +48,7 @@ export interface IRuntimeInfo {
     apiPort: number;         // 30000
     epsEnabled?: boolean;    // EPS/Backup Power status (undefined if cannot be determined)
     statusFlags?: {          // Detailed status flag interpretation
-        epsEnabled: boolean;
+        epsEnabled?: boolean;    // EPS status (undefined if not reliably encoded)
         p1MeterConnected: boolean;
         ecoTrackerConnected: boolean;
         networkActive: boolean;

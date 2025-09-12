@@ -92,35 +92,34 @@ export class RuntimeInfoPayload extends BasePayload {
     }
 
     private parseEPSStatus(statusB: number, statusC: number, statusD: number): boolean | undefined {
-        // Based on firmware analysis, EPS status flag (byte_200030EF) should map to one of the status bytes
-        // Most likely encoded in statusB bit 0
-        if ((statusB & 0x01) === 1) return true;
-        if ((statusB & 0x01) === 0) return false;
-        
-        // Fallback: check other status bytes
-        if ((statusC & 0x01) === 1) return true;
-        if ((statusD & 0x01) === 1) return true;
-        
+        // Based on real device testing, the EPS status from firmware analysis doesn't 
+        // immediately reflect in the runtime status flags. The status flags appear to 
+        // be consistent (1/1/1) regardless of EPS enable/disable state.
+        // 
+        // For now, return undefined to indicate we cannot reliably determine EPS status
+        // from the status flags alone. Users should rely on the 0x0F command responses
+        // for accurate EPS status.
         return undefined;
     }
 
     private parseStatusFlags(statusB: number, statusC: number, statusD: number) {
         // Based on firmware analysis of sub_8009E58, status flags likely encode:
+        // Real device data shows consistent 1/1/1 pattern, so interpretations may need adjustment
         return {
-            // StatusB interpretations (most likely)
-            epsEnabled: (statusB & 0x01) === 1,           // Bit 0: EPS/Backup Power
-            p1MeterConnected: (statusB & 0x02) === 2,     // Bit 1: P1 Meter connection  
-            ecoTrackerConnected: (statusB & 0x04) === 4,  // Bit 2: Eco-Tracker connection
-            networkActive: (statusB & 0x08) === 8,        // Bit 3: Network activity
+            // StatusB interpretations (adjusted based on real data)
+            epsEnabled: undefined,                         // EPS status not reliably encoded here
+            p1MeterConnected: (statusB & 0x02) !== 0,     // Bit 1: P1 Meter connection  
+            ecoTrackerConnected: (statusB & 0x04) !== 0,  // Bit 2: Eco-Tracker connection
+            networkActive: (statusB & 0x08) !== 0,        // Bit 3: Network activity
             
             // StatusC interpretations
             workModeState: statusC & 0x0F,                 // Lower 4 bits: work mode state
-            dataQualityOk: (statusC & 0x10) === 16,       // Bit 4: Data quality
+            dataQualityOk: (statusC & 0x10) !== 0,        // Bit 4: Data quality
             
             // StatusD interpretations  
             errorState: statusD & 0x07,                    // Lower 3 bits: error state (0-6)
-            serverConnected: (statusD & 0x08) === 8,      // Bit 3: Server connection
-            httpActive: (statusD & 0x10) === 16,          // Bit 4: HTTP activity
+            serverConnected: (statusD & 0x08) !== 0,      // Bit 3: Server connection
+            httpActive: (statusD & 0x10) !== 0,           // Bit 4: HTTP activity
             
             // Raw values for debugging
             raw: { statusB, statusC, statusD }
