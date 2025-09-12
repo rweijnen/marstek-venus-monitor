@@ -81,20 +81,18 @@ jobs:
             echo "ℹ️ No TypeScript files found, skipping compilation"
           fi
       
+      - name: Bump Version (Final Step)
+        run: |
+          echo "🔢 Bumping version for successful build on branch: ${{ matrix.branch }}"
+          node .github/scripts/bump-version.js
+          echo "📋 Updated version in index.html"
+          
       - name: Build branch content
         run: |
           # Clean up unnecessary files
           rm -rf .git .github test .claude
           mkdir -p dist
           cp -r * dist/ 2>/dev/null || true
-          
-      - name: Bump Version (Final Step)
-        run: |
-          echo "🔢 Bumping version for successful build on branch: ${{ matrix.branch }}"
-          node .github/scripts/bump-version.js
-          echo "📋 Updated version in index.html"
-          # Copy updated index.html to dist
-          cp index.html dist/
           
       - uses: actions/upload-artifact@v4
         with:
