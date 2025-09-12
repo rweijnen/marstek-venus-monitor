@@ -54,12 +54,6 @@ jobs:
       - name: Install TypeScript
         run: npm install -g typescript
         
-      - name: Bump Version
-        run: |
-          echo "🔢 Bumping version for branch: ${{ matrix.branch }}"
-          node .github/scripts/bump-version.js
-          echo "📋 Updated version in index.html"
-        
       - name: Compile TypeScript
         run: |
           # Only compile if TypeScript files exist
@@ -72,10 +66,10 @@ jobs:
             # Compile TypeScript files using tsconfig.json
             if [ -f "tsconfig.json" ]; then
               echo "📋 Using tsconfig.json for compilation"
-              tsc || true
+              tsc
             else
               echo "⚠️ No tsconfig.json found, using default settings"
-              tsc --target ES2020 --module ES2020 --outDir js/dist --allowJs --skipLibCheck js/**/*.ts || true
+              tsc --target ES2020 --module ES2020 --outDir js/dist --allowJs --skipLibCheck js/**/*.ts
             fi
             
             # List compiled files for verification
@@ -93,6 +87,15 @@ jobs:
           rm -rf .git .github test .claude
           mkdir -p dist
           cp -r * dist/ 2>/dev/null || true
+          
+      - name: Bump Version (Final Step)
+        run: |
+          echo "🔢 Bumping version for successful build on branch: ${{ matrix.branch }}"
+          node .github/scripts/bump-version.js
+          echo "📋 Updated version in index.html"
+          # Copy updated index.html to dist
+          cp index.html dist/
+          
       - uses: actions/upload-artifact@v4
         with:
           name: branch-${{ strategy.job-index }}-${{ matrix.branch }}

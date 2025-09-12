@@ -74,7 +74,7 @@ export class URLConfig extends BasePayload {
     }
 
     public toHTML(): string {
-        const data = this.parse();
+        const data = this.parse() as any; // Type assertion to handle union type
         
         // Handle different response types
         if (data.type === 'URLConfig_0x51') {

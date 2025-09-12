@@ -9,7 +9,20 @@ export class SettingsInfo extends BasePayload {
         // Parse the 80-byte settings payload
         // Based on the screenshot showing command 0x0A with 80 bytes
         
-        const data = {
+        interface SettingsData {
+            type: string;
+            payloadLength: number;
+            rawData: string;
+            firstBytes?: {
+                byte0: number;
+                byte1: number;
+                byte2: number;
+                byte3: number;
+            };
+            asciiView?: string;
+        }
+        
+        const data: SettingsData = {
             type: 'SettingsInfo',
             payloadLength: this.payload.length,
             rawData: Array.from(this.payload).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ')
