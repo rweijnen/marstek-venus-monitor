@@ -654,7 +654,7 @@ window.onclick = function(event) {
 // ==========================================
 
 // Initialize disclaimer check and version info on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     checkDisclaimerAcceptance();
     displayVersionInfo();
     
@@ -662,6 +662,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!navigator.bluetooth) {
         log('❌ Web Bluetooth not supported');
         showError('Web Bluetooth not supported in this browser');
+    }
+    
+    // Preload all essential command templates
+    if (window.preloadAllTemplates) {
+        try {
+            await window.preloadAllTemplates();
+        } catch (error) {
+            console.error('Failed to preload templates:', error);
+        }
     }
 });
 

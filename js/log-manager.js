@@ -219,17 +219,51 @@ async function switchCommandTab(tabName) {
             const templateContent = await loadTemplate(tabName);
             activeTab.innerHTML = templateContent;
             activeTab.dataset.loaded = 'true';
-            
-            // Update button states for newly loaded buttons if connected
-            if (window.uiController && window.uiController.isConnected()) {
-                updateButtonStates(true);
-            }
+        }
+        
+        // Update button states for all buttons when switching tabs if connected
+        if (window.uiController && window.uiController.isConnected()) {
+            updateButtonStates(true);
         }
     }
 }
 
-// Make function globally available
+/**
+ * Preload all essential templates on page load
+ */
+async function preloadAllTemplates() {
+    const templates = ['read', 'system', 'power'];
+    const loadPromises = [];
+    
+    for (const templateName of templates) {
+        const tab = document.getElementById(`${templateName}Tab`);
+        if (tab && !tab.dataset.loaded) {
+            const loadPromise = loadTemplate(templateName).then(templateContent => {
+                tab.innerHTML = templateContent;
+                tab.dataset.loaded = 'true';
+                
+                // If this is the default active tab (read), make sure it's visible
+                if (templateName === 'read') {
+                    tab.classList.add('active');
+                }
+            }).catch(error => {
+                console.error(`Failed to preload ${templateName} template:`, error);
+                tab.innerHTML = `<div class="section-caption">❌ Failed to load ${templateName} commands</div>`;
+            });
+            
+            loadPromises.push(loadPromise);
+        }
+    }
+    
+    // Wait for all templates to load
+    await Promise.all(loadPromises);
+    
+    console.log('✅ All essential templates preloaded');
+}
+
+// Make functions globally available
 window.switchCommandTab = switchCommandTab;
+window.preloadAllTemplates = preloadAllTemplates;
 
 /**
  * Update connection status area with live connection messages
