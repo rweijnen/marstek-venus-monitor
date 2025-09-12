@@ -60,6 +60,9 @@ export class RuntimeInfoPayload extends BasePayload {
         // Based on firmware analysis, EPS flag might be encoded in one of the status bytes
         // Check common bit patterns for EPS enable/disable
         const epsEnabled = this.parseEPSStatus(statusB, statusC, statusD);
+        
+        // Parse detailed status flag information
+        const statusFlags = this.parseStatusFlags(statusB, statusC, statusD);
 
         return {
             gridPower,
@@ -83,30 +86,45 @@ export class RuntimeInfoPayload extends BasePayload {
             calTag3,
             reservedCounter,
             apiPort,
-            epsEnabled
+            epsEnabled,
+            statusFlags
         };
     }
 
     private parseEPSStatus(statusB: number, statusC: number, statusD: number): boolean | undefined {
         // Based on firmware analysis, EPS status flag (byte_200030EF) should map to one of the status bytes
-        // Common patterns for EPS enable/disable bits:
-        // - Bit 0 (LSB): 1=enabled, 0=disabled
-        // - Bit patterns might vary, so we check multiple possibilities
-        
-        // Check statusB for EPS bit (bit 0)
+        // Most likely encoded in statusB bit 0
         if ((statusB & 0x01) === 1) return true;
-        if (statusB === 0) return false;
+        if ((statusB & 0x01) === 0) return false;
         
-        // Check statusC for EPS bit 
+        // Fallback: check other status bytes
         if ((statusC & 0x01) === 1) return true;
-        if (statusC === 0) return false;
-        
-        // Check statusD for EPS bit
         if ((statusD & 0x01) === 1) return true;
-        if (statusD === 0) return false;
         
-        // If we can't determine from common patterns, return undefined
         return undefined;
+    }
+
+    private parseStatusFlags(statusB: number, statusC: number, statusD: number) {
+        // Based on firmware analysis of sub_8009E58, status flags likely encode:
+        return {
+            // StatusB interpretations (most likely)
+            epsEnabled: (statusB & 0x01) === 1,           // Bit 0: EPS/Backup Power
+            p1MeterConnected: (statusB & 0x02) === 2,     // Bit 1: P1 Meter connection  
+            ecoTrackerConnected: (statusB & 0x04) === 4,  // Bit 2: Eco-Tracker connection
+            networkActive: (statusB & 0x08) === 8,        // Bit 3: Network activity
+            
+            // StatusC interpretations
+            workModeState: statusC & 0x0F,                 // Lower 4 bits: work mode state
+            dataQualityOk: (statusC & 0x10) === 16,       // Bit 4: Data quality
+            
+            // StatusD interpretations  
+            errorState: statusD & 0x07,                    // Lower 3 bits: error state (0-6)
+            serverConnected: (statusD & 0x08) === 8,      // Bit 3: Server connection
+            httpActive: (statusD & 0x10) === 16,          // Bit 4: HTTP activity
+            
+            // Raw values for debugging
+            raw: { statusB, statusC, statusD }
+        };
     }
 
     private getWorkModeString(mode: number): string {
@@ -152,7 +170,44 @@ export class RuntimeInfoPayload extends BasePayload {
             
             // Status
             html += `<div><strong>Work Mode:</strong> ${this.getWorkModeString(data.workMode)}</div>`;
-            html += `<div><strong>Status Flags B/C/D:</strong> ${data.statusB}/${data.statusC}/${data.statusD}</div>`;
+            html += `<div><strong>Status Flags B/C/D:</strong> ${data.statusB}/${data.statusC}/${data.statusD} (0x${data.statusB.toString(16).padStart(2,'0')}/0x${data.statusC.toString(16).padStart(2,'0')}/0x${data.statusD.toString(16).padStart(2,'0')})</div>`;
+            
+            // Enhanced status interpretation
+            if (data.statusFlags) {
+                const sf = data.statusFlags;
+                html += `<div class="status-details" style="margin-left: 10px; font-size: 0.9em; color: #666;">`;
+                
+                // Connection Status
+                html += `<div>📡 <strong>Connections:</strong> `;
+                const connections = [];
+                if (sf.p1MeterConnected) connections.push('P1 Meter');
+                if (sf.ecoTrackerConnected) connections.push('Eco-Tracker');
+                if (sf.serverConnected) connections.push('Server');
+                html += connections.length > 0 ? connections.join(', ') : 'None';
+                html += `</div>`;
+                
+                // System Status
+                html += `<div>🔧 <strong>System:</strong> `;
+                const systemStatus = [];
+                if (sf.networkActive) systemStatus.push('Network Active');
+                if (sf.httpActive) systemStatus.push('HTTP Active');  
+                if (sf.dataQualityOk) systemStatus.push('Data Quality OK');
+                html += systemStatus.length > 0 ? systemStatus.join(', ') : 'Idle';
+                html += `</div>`;
+                
+                // Error State
+                if (sf.errorState > 0) {
+                    const errorTypes = ['None', 'Meter Disconnect', 'Connection Error', 'HTTP Error', 'Timeout', 'Data Error', 'P1 Warning', 'Eco-Tracker Warning'];
+                    html += `<div>⚠️ <strong>Error State:</strong> ${errorTypes[sf.errorState] || `Error ${sf.errorState}`}</div>`;
+                }
+                
+                // Work Mode State (if different from main work mode)
+                if (sf.workModeState !== data.workMode) {
+                    html += `<div>⚙️ <strong>Work Mode State:</strong> ${sf.workModeState}</div>`;
+                }
+                
+                html += `</div>`;
+            }
             
             // Device info
             html += `<div><strong>Product Code:</strong> 0x${data.productCode.toString(16).padStart(4, '0')}</div>`;

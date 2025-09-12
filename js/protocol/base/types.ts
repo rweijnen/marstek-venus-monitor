@@ -47,6 +47,18 @@ export interface IRuntimeInfo {
     reservedCounter: number; // Reserved/Counter value
     apiPort: number;         // 30000
     epsEnabled?: boolean;    // EPS/Backup Power status (undefined if cannot be determined)
+    statusFlags?: {          // Detailed status flag interpretation
+        epsEnabled: boolean;
+        p1MeterConnected: boolean;
+        ecoTrackerConnected: boolean;
+        networkActive: boolean;
+        workModeState: number;
+        dataQualityOk: boolean;
+        errorState: number;
+        serverConnected: boolean;
+        httpActive: boolean;
+        raw: { statusB: number; statusC: number; statusD: number; };
+    };
 }
 
 export interface IDeviceInfo {
