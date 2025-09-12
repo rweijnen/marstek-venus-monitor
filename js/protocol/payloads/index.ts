@@ -20,6 +20,7 @@ import { DeveloperModeInfo } from './DeveloperModeInfo.js';
 import { DeviceConfig } from './DeviceConfig.js';
 import { SettingsInfo } from './SettingsInfo.js';
 import { PowerModeResponse } from './PowerModeResponse.js';
+import { BackupPowerResponse } from './BackupPowerResponse.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -52,6 +53,9 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.SYSTEM_DATA:
             return new DeveloperModeInfo(data);
+            
+        case CommandType.BACKUP_POWER:
+            return new BackupPowerResponse(data);
             
         case CommandType.BMS_DATA:
             return new BMSDataPayload(data);
@@ -122,5 +126,6 @@ export {
     DeveloperModeInfo,
     DeviceConfig,
     SettingsInfo,
-    PowerModeResponse
+    PowerModeResponse,
+    BackupPowerResponse
 };

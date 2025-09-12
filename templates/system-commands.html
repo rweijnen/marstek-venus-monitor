@@ -6,12 +6,12 @@
         <span class="cmd-button-text">Set Server Type 0</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('servertype')">i</span>
     </button>
-    <button onclick="sendCommand(0x0F, 'Enable EPS', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable Emergency Power Supply mode">
-        <span class="cmd-button-text">Enable EPS</span>
+    <button onclick="sendCommand(0x0F, 'Enable Backup Power', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable Emergency Power Supply mode">
+        <span class="cmd-button-text">Enable Backup Power</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsenable')">i</span>
     </button>
-    <button onclick="sendCommand(0x0F, 'Disable EPS', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable Emergency Power Supply mode">
-        <span class="cmd-button-text">Disable EPS</span>
+    <button onclick="sendCommand(0x0F, 'Disable Backup Power', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable Emergency Power Supply mode">
+        <span class="cmd-button-text">Disable Backup Power</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('epsdisable')">i</span>
     </button>
     <button onclick="sendCommand(0x0E, 'Enable Auto Mode Change', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Enable automatic work mode switching">

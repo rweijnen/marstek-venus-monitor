@@ -68,6 +68,7 @@ export enum CommandType {
     SETTINGS_INFO = 0x0A,
     TIME_SETTINGS = 0x0B,
     SYSTEM_DATA = 0x0D,
+    BACKUP_POWER = 0x0F,
     ERROR_CODES = 0x13,
     OTA_ACTIVATION = 0x1F,
     BMS_DATA = 0x14,
