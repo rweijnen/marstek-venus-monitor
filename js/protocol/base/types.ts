@@ -46,6 +46,7 @@ export interface IRuntimeInfo {
     calTag3: number;         // 1010
     reservedCounter: number; // Reserved/Counter value
     apiPort: number;         // 30000
+    epsEnabled?: boolean;    // EPS/Backup Power status (undefined if cannot be determined)
 }
 
 export interface IDeviceInfo {

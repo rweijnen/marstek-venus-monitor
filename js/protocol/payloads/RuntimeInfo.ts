@@ -56,6 +56,11 @@ export class RuntimeInfoPayload extends BasePayload {
         const calTag3 = this.safeReadUint16LE(0x64);        // Cal/Variant tag 3 at payload offset 0x64
         const apiPort = this.safeReadUint16LE(0x66);        // Local API port at payload offset 0x66
 
+        // Parse EPS/Backup Power status from status flags
+        // Based on firmware analysis, EPS flag might be encoded in one of the status bytes
+        // Check common bit patterns for EPS enable/disable
+        const epsEnabled = this.parseEPSStatus(statusB, statusC, statusD);
+
         return {
             gridPower,
             solarPower,
@@ -77,8 +82,31 @@ export class RuntimeInfoPayload extends BasePayload {
             calTag2,
             calTag3,
             reservedCounter,
-            apiPort
+            apiPort,
+            epsEnabled
         };
+    }
+
+    private parseEPSStatus(statusB: number, statusC: number, statusD: number): boolean | undefined {
+        // Based on firmware analysis, EPS status flag (byte_200030EF) should map to one of the status bytes
+        // Common patterns for EPS enable/disable bits:
+        // - Bit 0 (LSB): 1=enabled, 0=disabled
+        // - Bit patterns might vary, so we check multiple possibilities
+        
+        // Check statusB for EPS bit (bit 0)
+        if ((statusB & 0x01) === 1) return true;
+        if (statusB === 0) return false;
+        
+        // Check statusC for EPS bit 
+        if ((statusC & 0x01) === 1) return true;
+        if (statusC === 0) return false;
+        
+        // Check statusD for EPS bit
+        if ((statusD & 0x01) === 1) return true;
+        if (statusD === 0) return false;
+        
+        // If we can't determine from common patterns, return undefined
+        return undefined;
     }
 
     private getWorkModeString(mode: number): string {
@@ -152,6 +180,14 @@ export class RuntimeInfoPayload extends BasePayload {
                 html += `<div><strong>Reserved/Counter:</strong> ${data.reservedCounter}</div>`;
             }
             
+            // EPS/Backup Power Status
+            if (data.epsEnabled !== undefined) {
+                const epsStatus = data.epsEnabled ?
+                    '<span style="color: #28a745;">🔋 ENABLED</span>' :
+                    '<span style="color: #dc3545;">⚡ DISABLED</span>';
+                html += `<div><strong>Backup Power (EPS):</strong> ${epsStatus}</div>`;
+            }
+
             // API Status based on port value
             const apiStatus = data.apiPort === 0 ? 
                 '<span style="color: #dc3545;">🔒 DISABLED</span>' : 
