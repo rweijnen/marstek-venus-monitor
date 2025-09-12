@@ -54,6 +54,12 @@ jobs:
       - name: Install TypeScript
         run: npm install -g typescript
         
+      - name: Bump Version
+        run: |
+          echo "🔢 Bumping version for branch: ${{ matrix.branch }}"
+          node .github/scripts/bump-version.js
+          echo "📋 Updated version in index.html"
+        
       - name: Compile TypeScript
         run: |
           # Only compile if TypeScript files exist
