@@ -137,7 +137,7 @@ function updateStatus(connected, deviceName = null) {
  * This is a standalone function that can be called from other modules
  */
 function updateButtonStates(connected) {
-    const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
+    const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"], button[onclick*="readDeviceIdentifiers"]');
     buttons.forEach(btn => btn.disabled = !connected);
     
     // Handle OTA firmware buttons
