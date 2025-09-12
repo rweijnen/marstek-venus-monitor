@@ -84,8 +84,12 @@ jobs:
       - name: Bump Version (Final Step)
         run: |
           echo "🔢 Bumping version for successful build on branch: ${{ matrix.branch }}"
-          node .github/scripts/bump-version.js
-          echo "📋 Updated version in index.html"
+          if [ -f ".github/scripts/bump-version.js" ]; then
+            node .github/scripts/bump-version.js
+            echo "📋 Updated version in index.html"
+          else
+            echo "⚠️ Version bump script not found on ${{ matrix.branch }} branch, skipping version bump"
+          fi
           
       - name: Build branch content
         run: |
