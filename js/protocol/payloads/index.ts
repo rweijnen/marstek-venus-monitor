@@ -19,6 +19,7 @@ import { OTAActivation } from './OTAActivation.js';
 import { DeveloperModeInfo } from './DeveloperModeInfo.js';
 import { DeviceConfig } from './DeviceConfig.js';
 import { SettingsInfo } from './SettingsInfo.js';
+import { PowerModeResponse } from './PowerModeResponse.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -54,6 +55,9 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.BMS_DATA:
             return new BMSDataPayload(data);
+            
+        case CommandType.POWER_MODE:
+            return new PowerModeResponse(data);
             
         case CommandType.URL_CONFIG:
             return new URLConfig(data);
@@ -117,5 +121,6 @@ export {
     OTAActivation,
     DeveloperModeInfo,
     DeviceConfig,
-    SettingsInfo
+    SettingsInfo,
+    PowerModeResponse
 };

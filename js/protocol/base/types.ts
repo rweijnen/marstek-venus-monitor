@@ -72,6 +72,7 @@ export enum CommandType {
     OTA_ACTIVATION = 0x1F,
     BMS_DATA = 0x14,
     SET_TIME = 0x18,
+    POWER_MODE = 0x15,
     BATTERY_MODE = 0x19,
     CONFIG_DATA = 0x1A,
     URL_CONFIG = 0x1B,
