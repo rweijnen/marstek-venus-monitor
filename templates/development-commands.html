@@ -2,31 +2,31 @@
     ⚠️ <strong>Advanced:</strong> These commands are for development and diagnostics. Use with caution.
 </div>
 <div class="command-grid">
-    <button onclick="sendCommand(0x0C, 'Enable Dev Mode', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Enable development mode (requires magic bytes)">
+    <button onclick="sendCommand(0x0C, 'Enable Dev Mode', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Enable development mode (requires magic bytes)" data-requires-connection="true">
         <span class="cmd-button-text">🔓 Enable Dev Mode</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('devmode')">i</span>
     </button>
-    <button onclick="sendCommand(0x0C, 'Disable Dev Mode', [0x0A, 0x0B, 0x0C, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable development mode">
+    <button onclick="sendCommand(0x0C, 'Disable Dev Mode', [0x0A, 0x0B, 0x0C, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable development mode" data-requires-connection="true">
         <span class="cmd-button-text">🔒 Disable Dev Mode</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('devmodedisable')">i</span>
     </button>
-    <button onclick="sendCommand(0x1F, 'Trigger FW Upgrade', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Trigger firmware upgrade mode (requires magic bytes)">
+    <button onclick="sendCommand(0x1F, 'Trigger FW Upgrade', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Trigger firmware upgrade mode (requires magic bytes)" data-requires-connection="true">
         <span class="cmd-button-text">⬆️ FW Upgrade Mode</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('fwupgrade')">i</span>
     </button>
-    <button onclick="sendCommand(0x1D, 'System Restart')" disabled class="btn-warning cmd-button" data-tooltip="Restart the system">
+    <button onclick="sendCommand(0x1D, 'System Restart')" disabled class="btn-warning cmd-button" data-tooltip="Restart the system" data-requires-connection="true">
         <span class="cmd-button-text">🔄 System Restart</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('restart')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Parallel Machine Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Set parallel machine to ready state (requires magic bytes)">
+    <button onclick="sendCommand(0x20, 'Parallel Machine Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Set parallel machine to ready state (requires magic bytes)" data-requires-connection="true">
         <span class="cmd-button-text">🔗 Parallel Ready</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallelready')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Parallel Machine ON', [0x0A, 0x0B, 0x0C, 0x02])" disabled class="btn-danger cmd-button" data-tooltip="Enable parallel machine operation (requires magic bytes)">
+    <button onclick="sendCommand(0x20, 'Parallel Machine ON', [0x0A, 0x0B, 0x0C, 0x02])" disabled class="btn-danger cmd-button" data-tooltip="Enable parallel machine operation (requires magic bytes)" data-requires-connection="true">
         <span class="cmd-button-text">🔗 Parallel ON</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallelon')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Parallel Machine OFF', [0x0A, 0x0B, 0x0C, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable parallel machine operation (requires magic bytes)">
+    <button onclick="sendCommand(0x20, 'Parallel Machine OFF', [0x0A, 0x0B, 0x0C, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Disable parallel machine operation (requires magic bytes)" data-requires-connection="true">
         <span class="cmd-button-text">🔗 Parallel OFF</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('paralleloff')">i</span>
     </button>

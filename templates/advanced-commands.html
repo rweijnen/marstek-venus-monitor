@@ -2,23 +2,23 @@
     🚫 <strong>DANGER ZONE:</strong> These commands can reset the device, enable firmware updates, or configure parallel operation. May cause data loss or require physical access to recover.
 </div>
 <div class="command-grid">
-    <button onclick="sendCommand(0x0C, 'System Reset', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Restart the device immediately">
+    <button onclick="sendCommand(0x0C, 'System Reset', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Restart the device immediately" data-requires-connection="true">
         <span class="cmd-button-text">⚠️ System Reset</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('reset')">i</span>
     </button>
-    <button onclick="sendCommand(0x1F, 'Upgrade Mode', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Enter firmware upgrade mode">
+    <button onclick="sendCommand(0x1F, 'Upgrade Mode', [0x0A, 0x0B, 0x0C])" disabled class="btn-danger cmd-button" data-tooltip="Enter firmware upgrade mode" data-requires-connection="true">
         <span class="cmd-button-text">⚠️ Upgrade Mode</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('upgrade')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Configure for parallel operation">
+    <button onclick="sendCommand(0x20, 'Parallel Ready', [0x0A, 0x0B, 0x0C, 0x01])" disabled class="btn-danger cmd-button" data-tooltip="Configure for parallel operation" data-requires-connection="true">
         <span class="cmd-button-text">⚠️ Parallel Ready</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallel')">i</span>
     </button>
-    <button onclick="sendCommand(0x06, 'Factory Reset (WiFi)', [0x01])" disabled class="btn-danger cmd-button" data-tooltip="Factory reset WiFi settings only">
+    <button onclick="sendCommand(0x06, 'Factory Reset (WiFi)', [0x01])" disabled class="btn-danger cmd-button" data-tooltip="Factory reset WiFi settings only" data-requires-connection="true">
         <span class="cmd-button-text">🏭 Factory Reset WiFi</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('factoryreset1')">i</span>
     </button>
-    <button onclick="sendCommand(0x06, 'Factory Reset (Full)', [0x02])" disabled class="btn-danger cmd-button" data-tooltip="Complete factory reset - all settings">
+    <button onclick="sendCommand(0x06, 'Factory Reset (Full)', [0x02])" disabled class="btn-danger cmd-button" data-tooltip="Complete factory reset - all settings" data-requires-connection="true">
         <span class="cmd-button-text">🏭 Factory Reset Full</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('factoryreset2')">i</span>
     </button>

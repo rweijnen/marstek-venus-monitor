@@ -137,14 +137,9 @@ function updateStatus(connected, deviceName = null) {
  * This is a standalone function that can be called from other modules
  */
 function updateButtonStates(connected) {
-    const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"], button[onclick*="readDeviceIdentifiers"]');
-    buttons.forEach(btn => btn.disabled = !connected);
-    
-    // Handle OTA firmware buttons
-    const firmwareSelectBtn = document.querySelector('button[onclick*="firmwareFile"]');
-    const otaStartBtn = document.getElementById('otaStartBtn');
-    if (firmwareSelectBtn) firmwareSelectBtn.disabled = !connected;
-    if (otaStartBtn) otaStartBtn.disabled = !connected;
+    // Use data attribute to mark buttons that require connection
+    const connectionButtons = document.querySelectorAll('button[data-requires-connection="true"]');
+    connectionButtons.forEach(btn => btn.disabled = !connected);
 }
 
 // Make it globally available

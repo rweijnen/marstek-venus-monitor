@@ -3,11 +3,11 @@
 </div>
 <div class="command-grid">
     <input type="file" id="firmwareFile" accept=".bin" style="display: none;" onchange="handleFirmwareFile(event)">
-    <button onclick="document.getElementById('firmwareFile').click()" disabled class="btn-danger cmd-button" data-tooltip="Select .bin firmware file to upload">
+    <button onclick="document.getElementById('firmwareFile').click()" disabled class="btn-danger cmd-button" data-tooltip="Select .bin firmware file to upload" data-requires-connection="true">
         <span class="cmd-button-text">📁 Select Firmware</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('otasize')">i</span>
     </button>
-    <button onclick="performOTAUpdate()" disabled class="btn-danger cmd-button" id="otaStartBtn" data-tooltip="Start complete OTA firmware upload process">
+    <button onclick="performOTAUpdate()" disabled class="btn-danger cmd-button" id="otaStartBtn" data-tooltip="Start complete OTA firmware upload process" data-requires-connection="true">
         <span class="cmd-button-text">⚡ Start OTA Update</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('otaactivate')">i</span>
     </button>

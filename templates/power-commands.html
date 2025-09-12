@@ -2,19 +2,19 @@
     ⚠️ <strong>Power Settings:</strong> These commands modify power output limits and operating modes. Changes take effect immediately and may affect connected loads.
 </div>
 <div class="command-grid">
-    <button onclick="sendCommand(0x15, 'Set 800W Mode', [0x20, 0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 800W">
+    <button onclick="sendCommand(0x15, 'Set 800W Mode', [0x20, 0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 800W" data-requires-connection="true">
         <span class="cmd-button-text">Set 800W Mode</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('power800')">i</span>
     </button>
-    <button onclick="sendCommand(0x15, 'Set 2500W Mode', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 2500W">
+    <button onclick="sendCommand(0x15, 'Set 2500W Mode', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set maximum output to 2500W" data-requires-connection="true">
         <span class="cmd-button-text">Set 2500W Mode</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('power2500')">i</span>
     </button>
-    <button onclick="sendCommand(0x16, 'Set AC Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input power limit">
+    <button onclick="sendCommand(0x16, 'Set AC Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set AC input power limit" data-requires-connection="true">
         <span class="cmd-button-text">Set AC Power 2500W</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('acpower')">i</span>
     </button>
-    <button onclick="sendCommand(0x17, 'Set Total Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set total system power limit">
+    <button onclick="sendCommand(0x17, 'Set Total Power 2500W', [0xC4, 0x09])" disabled class="btn-warning cmd-button" data-tooltip="Set total system power limit" data-requires-connection="true">
         <span class="cmd-button-text">Set Total Power 2500W</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('totalpower')">i</span>
     </button>
