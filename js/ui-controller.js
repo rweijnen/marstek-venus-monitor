@@ -122,6 +122,21 @@ function updateStatus(connected, deviceName = null) {
     disconnectAllBtn.disabled = false;
     runAllBtn.disabled = !connected;
     
+    // Update all command buttons
+    updateButtonStates(connected);
+    
+    isConnected = connected;
+}
+
+// ==========================================
+// BUTTON STATE MANAGEMENT
+// ==========================================
+
+/**
+ * Update button states based on connection status
+ * This is a standalone function that can be called from other modules
+ */
+function updateButtonStates(connected) {
     const buttons = document.querySelectorAll('button[onclick*="sendCommand"], button[onclick*="sendMeterIPCommand"], button[onclick*="setLocalApiPort"], button[onclick*="setCurrentDateTime"]');
     buttons.forEach(btn => btn.disabled = !connected);
     
@@ -130,9 +145,10 @@ function updateStatus(connected, deviceName = null) {
     const otaStartBtn = document.getElementById('otaStartBtn');
     if (firmwareSelectBtn) firmwareSelectBtn.disabled = !connected;
     if (otaStartBtn) otaStartBtn.disabled = !connected;
-    
-    isConnected = connected;
 }
+
+// Make it globally available
+window.updateButtonStates = updateButtonStates;
 
 // ==========================================
 // DATA DISPLAY FUNCTIONS

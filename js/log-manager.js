@@ -219,6 +219,11 @@ async function switchCommandTab(tabName) {
             const templateContent = await loadTemplate(tabName);
             activeTab.innerHTML = templateContent;
             activeTab.dataset.loaded = 'true';
+            
+            // Update button states for newly loaded buttons if connected
+            if (window.uiController && window.uiController.isConnected()) {
+                updateButtonStates(true);
+            }
         }
     }
 }
