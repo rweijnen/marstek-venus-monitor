@@ -185,7 +185,7 @@ export class RuntimeInfoPayload extends BasePayload {
                 const epsStatus = data.epsEnabled ?
                     '<span style="color: #28a745;">🔋 ENABLED</span>' :
                     '<span style="color: #dc3545;">⚡ DISABLED</span>';
-                html += `<div><strong>Backup Power (EPS):</strong> ${epsStatus}</div>`;
+                html += `<div><strong>Backup Power:</strong> ${epsStatus}</div>`;
             }
 
             // API Status based on port value
