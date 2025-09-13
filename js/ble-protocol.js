@@ -639,10 +639,21 @@ function buildFinishFrame() {
 async function sendCommand(commandType, commandName, payload = null, retryCount = 0) {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
     
+    // Block commands during OTA
+    if (otaInProgress) {
+        log('⚠️ Command blocked: OTA update in progress');
+        return;
+    }
+    
     try {
         const command = createCommandMessage(commandType, payload);
         window.currentCommand = commandName;
         window.lastCommandTime = Date.now();
+        
+        // Set context in async handler
+        if (window.asyncResponseHandler) {
+            window.asyncResponseHandler.setCommandContext(commandName);
+        }
         
         log(`📤 Sending ${commandName}...`);
         logProtocol(`📤 TX → Device (${command.length} bytes): ${formatBytes(command)}`, command);
@@ -1044,13 +1055,31 @@ function handleOTAFrame(value) {
 function handleHMNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
-    // Log all incoming data
-    logIncoming(value, 'HM Notification (FF02)');
-    
-    // Check basic frame requirements
-    if (value.length < 6 || value[0] !== 0x73) {
-        log(`❌ Bad HM notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-        return;
+    // If OTA is in progress, use existing synchronous handling
+    if (otaInProgress) {
+        // Log all incoming data
+        logIncoming(value, 'HM OTA Notification (FF02)');
+        
+        // Check basic frame requirements
+        if (value.length < 6 || value[0] !== 0x73) {
+            log(`❌ Bad HM OTA notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            return;
+        }
+        // Continue with existing OTA handling below
+    } else {
+        // Use async handler for non-OTA responses
+        if (window.asyncResponseHandler) {
+            window.asyncResponseHandler.processNotification(value, 'HM');
+            return;
+        }
+        // Fallback if async handler not loaded
+        logIncoming(value, 'HM Notification (FF02)');
+        
+        // Check basic frame requirements
+        if (value.length < 6 || value[0] !== 0x73) {
+            log(`❌ Bad HM notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            return;
+        }
     }
     
     // HM frames should have 0x23 at position [2]
@@ -1186,13 +1215,31 @@ function handleOTANotification(event) {
 function handleNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
-    // Log all incoming data
-    logIncoming(value, 'Notification');
-    
-    // Check basic frame requirements
-    if (value.length < 6 || value[0] !== 0x73) {
-        log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-        return;
+    // If OTA is in progress, use existing synchronous handling
+    if (otaInProgress) {
+        // Log all incoming data
+        logIncoming(value, 'OTA Notification');
+        
+        // Check basic frame requirements
+        if (value.length < 6 || value[0] !== 0x73) {
+            log(`❌ Bad OTA notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            return;
+        }
+        // Continue with existing OTA handling below
+    } else {
+        // Use async handler for non-OTA responses
+        if (window.asyncResponseHandler) {
+            window.asyncResponseHandler.processNotification(value, 'Standard');
+            return;
+        }
+        // Fallback if async handler not loaded
+        logIncoming(value, 'Notification');
+        
+        // Check basic frame requirements
+        if (value.length < 6 || value[0] !== 0x73) {
+            log(`❌ Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            return;
+        }
     }
     
     // Detect frame format: HM protocol has 0x23 at position [2], BLE OTA doesn't
@@ -1605,6 +1652,11 @@ async function performOTAUpdate() {
     otaInProgress = true;
     otaCurrentChunk = 0;
     
+    // Disable all command buttons during OTA
+    if (window.uiController && window.uiController.setOTAMode) {
+        window.uiController.setOTAMode(true);
+    }
+    
     try {
         log(`🚀 Starting OTA update...`);
         log(`📄 Firmware size: ${firmwareData.byteLength} bytes`);
@@ -1713,6 +1765,11 @@ async function performOTAUpdate() {
         }
     } finally {
         otaInProgress = false;
+        
+        // Re-enable command buttons after OTA
+        if (window.uiController && window.uiController.setOTAMode) {
+            window.uiController.setOTAMode(false);
+        }
     }
 }
 

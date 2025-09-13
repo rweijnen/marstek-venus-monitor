@@ -191,6 +191,28 @@
         }
         button:hover { transform: translateY(-1px); }
         button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        
+        /* OTA disabled state for buttons */
+        button.ota-disabled {
+            background: #555 !important;
+            cursor: not-allowed !important;
+            opacity: 0.5 !important;
+            position: relative;
+        }
+        
+        button.ota-disabled:hover {
+            background: #555 !important;
+            transform: none !important;
+        }
+        
+        button.ota-disabled::after {
+            content: '🔒';
+            position: absolute;
+            top: 2px;
+            right: 5px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
         .btn-connect { background: #28a745; padding: 12px 24px; font-size: 16px; }
         .btn-warning { background: #ffc107; color: #212529; }
         .btn-warning:hover { background: #e0a800; }

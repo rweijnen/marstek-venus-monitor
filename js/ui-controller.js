@@ -673,6 +673,41 @@ document.addEventListener('DOMContentLoaded', async function() {
 // EXPORTED FUNCTIONS FOR BLE MODULE
 // ==========================================
 
+/**
+ * Set OTA mode - disables/enables command buttons
+ * @param {boolean} inOTA - True when OTA is active, false when complete
+ */
+function setOTAMode(inOTA) {
+    const commandButtons = document.querySelectorAll('.command-btn:not(#connectBtn):not(#disconnectBtn)');
+    const configButtons = document.querySelectorAll('.config-btn');
+    
+    commandButtons.forEach(btn => {
+        btn.disabled = inOTA;
+        if (inOTA) {
+            btn.classList.add('ota-disabled');
+            btn.title = 'Commands disabled during firmware update';
+        } else {
+            btn.classList.remove('ota-disabled');
+            btn.title = '';
+        }
+    });
+    
+    configButtons.forEach(btn => {
+        btn.disabled = inOTA;
+        if (inOTA) {
+            btn.classList.add('ota-disabled');
+        } else {
+            btn.classList.remove('ota-disabled');
+        }
+    });
+    
+    if (inOTA) {
+        log('🔒 Commands disabled during OTA update');
+    } else {
+        log('🔓 Commands re-enabled');
+    }
+}
+
 // Make these functions available globally for the BLE module
 window.uiController = {
     log,
@@ -680,6 +715,7 @@ window.uiController = {
     displayData,
     updateStatus,
     formatBytes,
+    setOTAMode,
     formatHexDump,
     updateOTAProgress,
     clearAll,
