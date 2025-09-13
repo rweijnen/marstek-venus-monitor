@@ -273,8 +273,17 @@ async function connect() {
         server = null;
         characteristics = {};
         
-        // Show retry dialog
+        // Always show retry dialog on connection failure
+        log('🔄 Showing retry dialog...');
         showRetryDialog();
+        
+        // Also suggest device forgetting for common issues
+        if (error.message.includes('timeout') || 
+            error.message.includes('Connection failed') ||
+            error.message.includes('GATT operation not permitted') ||
+            error.message.includes('Device is no longer in range')) {
+            log('💡 Tip: If connection keeps failing, try "Forget Devices" button to clear stale pairings');
+        }
     }
 }
 
@@ -339,6 +348,52 @@ async function disconnectAll() {
         }
     } catch (error) {
         log(`❌ Error during disconnect all: ${error.message}`);
+    }
+}
+
+/**
+ * Forget/unpair Bluetooth devices to clear stale connections
+ */
+async function forgetBluetoothDevices() {
+    log('🔗 Attempting to forget paired Bluetooth devices...');
+    
+    try {
+        // First disconnect everything
+        await disconnectAll();
+        
+        if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+            const devices = await navigator.bluetooth.getDevices();
+            let forgottenCount = 0;
+            
+            for (const pairedDevice of devices) {
+                try {
+                    // Try to forget the device if the method exists
+                    if (pairedDevice.forget && typeof pairedDevice.forget === 'function') {
+                        await pairedDevice.forget();
+                        forgottenCount++;
+                        log(`🗑️ Forgot device: ${pairedDevice.name || 'Unknown Device'}`);
+                    } else {
+                        log(`⚠️ Cannot forget ${pairedDevice.name || 'Unknown Device'} - forget() not available`);
+                    }
+                } catch (error) {
+                    log(`⚠️ Error forgetting ${pairedDevice.name || 'Unknown Device'}: ${error.message}`);
+                }
+            }
+            
+            if (forgottenCount > 0) {
+                log(`✅ Forgot ${forgottenCount} device(s)`);
+                log('💡 You may need to refresh the page for changes to take effect');
+            } else if (devices.length === 0) {
+                log('ℹ️ No paired devices found');
+            } else {
+                log('⚠️ Could not forget devices - try clearing browser data for this site');
+            }
+        } else {
+            log('ℹ️ Bluetooth device enumeration not available - try clearing browser data');
+        }
+    } catch (error) {
+        log(`❌ Error during forget devices: ${error.message}`);
+        log('💡 Try clearing browser data or opening site in incognito/private mode');
     }
 }
 
