@@ -51,6 +51,23 @@ let device = null;
 let server = null;
 let characteristics = {};
 let connectionCancelled = false; // Flag to cancel ongoing connection attempts
+let activeTimeouts = []; // Track active timeouts for cancellation
+
+// Helper functions for timeout management
+function createTrackedTimeout(callback, delay) {
+    const timeoutId = setTimeout(() => {
+        // Remove from tracking when it fires
+        activeTimeouts = activeTimeouts.filter(id => id !== timeoutId);
+        callback();
+    }, delay);
+    activeTimeouts.push(timeoutId);
+    return timeoutId;
+}
+
+function clearAllActiveTimeouts() {
+    activeTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    activeTimeouts = [];
+}
 // OTA uses the same txCharacteristic (FF01) and rxCharacteristic (FF02) as normal BLE
 // Note: (window.uiController ? window.uiController.isConnected() : false) and (window.uiController ? window.uiController.getDeviceType() : 'unknown') are managed by ui-controller.js
 
@@ -157,13 +174,13 @@ async function connect() {
                 // Connect to GATT server with timeout
                 const connectPromise = device.gatt.connect();
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Connection timeout')), 10000)
+                    createTrackedTimeout(() => reject(new Error('Connection timeout')), 10000)
                 );
                 
                 server = await Promise.race([connectPromise, timeoutPromise]);
                 
                 // Small delay to ensure connection is stable
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => createTrackedTimeout(resolve, 500));
                 
                 // Get service with retry on failure
                 let service;
@@ -171,12 +188,12 @@ async function connect() {
                     service = await server.getPrimaryService(SERVICE_UUID);
                 } catch (serviceError) {
                     log('⚠️ Service not immediately available, waiting...');
-                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    await new Promise(resolve => createTrackedTimeout(resolve, 10000));
                     
                     // Retry with timeout protection
                     const servicePromise = server.getPrimaryService(SERVICE_UUID);
                     const serviceTimeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Service retry timeout')), 20000)
+                        createTrackedTimeout(() => reject(new Error('Service retry timeout')), 20000)
                     );
                     service = await Promise.race([servicePromise, serviceTimeoutPromise]);
                 }
@@ -222,7 +239,7 @@ async function connect() {
                     // Wait before retry (longer wait for each attempt)
                     const waitTime = attempt * 2000;
                     log(`⏳ Waiting ${waitTime/1000}s before retry...`);
-                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
                     
                     // Check for cancellation after wait
                     if (connectionCancelled) {
@@ -293,6 +310,9 @@ async function connect() {
 function disconnect() {
     // Cancel any ongoing connection attempts
     connectionCancelled = true;
+    
+    // Clear all active timeouts (connection timeouts, retry delays, etc.)
+    clearAllActiveTimeouts();
     
     if (device && device.gatt.connected) {
         device.gatt.disconnect();
@@ -726,19 +746,13 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
         logOutgoing(command, `HM Command ${commandName}`);
         await writeChar.writeValueWithoutResponse(command);
         
-        // Set up timeout for retry
-        setTimeout(async () => {
-            // Check if we got a response (currentCommand gets cleared when response arrives)
+        // Set up timeout to clear command if no response
+        setTimeout(() => {
+            // Clear command if still pending (no retry, just cleanup)
             if (window.currentCommand === commandName && 
                 Date.now() - window.lastCommandTime > 2900) {
-                
-                if (retryCount < 2) {
-                    log(`⏱️ No response, retrying ${commandName} (attempt ${retryCount + 2}/3)...`);
-                    await sendCommand(commandType, commandName, payload, retryCount + 1);
-                } else {
-                    log(`❌ No response for ${commandName} after 3 attempts`);
-                    window.currentCommand = null;
-                }
+                log(`⏱️ Response timeout for ${commandName}`);
+                window.currentCommand = null;
             }
         }, 3000);
         
@@ -786,19 +800,13 @@ async function sendMeterIPCommand(commandType, commandName, payload = null, retr
         logOutgoing(command, `HM Command ${commandName}`);
         await writeChar.writeValueWithoutResponse(command);
         
-        // Set up timeout for retry
-        setTimeout(async () => {
-            // Check if we got a response (currentCommand gets cleared when response arrives)
+        // Set up timeout to clear command if no response
+        setTimeout(() => {
+            // Clear command if still pending (no retry, just cleanup)
             if (window.currentCommand === commandName && 
                 Date.now() - window.lastCommandTime > 2900) {
-                
-                if (retryCount < 2) {
-                    log(`⏱️ No response, retrying ${commandName} (attempt ${retryCount + 2}/3)...`);
-                    await sendMeterIPCommand(commandType, commandName, payload, retryCount + 1);
-                } else {
-                    log(`❌ No response for ${commandName} after 3 attempts`);
-                    window.currentCommand = null;
-                }
+                log(`⏱️ Response timeout for ${commandName}`);
+                window.currentCommand = null;
             }
         }, 3000);
         
@@ -1037,9 +1045,12 @@ function handleHMFrame(value) {
     
     // Handle regular command responses for data display
     if (window.currentCommand) {
-        // Use the comprehensive data parser if available
-        if (window.dataParser && window.dataParser.parseResponse) {
-            const parsed = window.dataParser.parseResponse(value, window.currentCommand);
+        try {
+            // Use the new payload system
+            const { createPayload } = await import('./protocol/payloads/index.js');
+            const payload = createPayload(value);
+            const parsed = payload.toHTML();
+            
             if (window.uiController && window.uiController.displayData) {
                 window.uiController.displayData(parsed);
             } else {
@@ -1049,9 +1060,8 @@ function handleHMFrame(value) {
                     dataDisplay.innerHTML = parsed;
                 }
             }
-        } else {
-            // Fallback to basic display
-            log('⚠️ Data parser not available, showing raw data');
+        } catch (error) {
+            log(`⚠️ Failed to parse response: ${error.message}`);
             log(`Raw response: ${formatBytes(value)}`);
         }
         window.currentCommand = null;
@@ -1179,9 +1189,12 @@ function handleHMNotification(event) {
     
     // Handle regular command responses for data display
     if (window.currentCommand) {
-        // Use the comprehensive data parser if available
-        if (window.dataParser && window.dataParser.parseResponse) {
-            const parsed = window.dataParser.parseResponse(value, window.currentCommand);
+        try {
+            // Use the new payload system
+            const { createPayload } = await import('./protocol/payloads/index.js');
+            const payload = createPayload(value);
+            const parsed = payload.toHTML();
+            
             if (window.uiController && window.uiController.displayData) {
                 window.uiController.displayData(parsed);
             } else {
@@ -1191,9 +1204,8 @@ function handleHMNotification(event) {
                     dataDisplay.innerHTML = parsed;
                 }
             }
-        } else {
-            // Fallback to basic display
-            log('⚠️ Data parser not available, showing raw data');
+        } catch (error) {
+            log(`⚠️ Failed to parse response: ${error.message}`);
             log(`Raw response: ${formatBytes(value)}`);
         }
         window.currentCommand = null;
@@ -2181,6 +2193,9 @@ function cancelRetry() {
     
     // Ensure connection is fully cancelled
     connectionCancelled = true;
+    
+    // Clear all active timeouts
+    clearAllActiveTimeouts();
     if (device && device.gatt && device.gatt.connected) {
         try {
             device.gatt.disconnect();
