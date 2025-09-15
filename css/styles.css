@@ -215,11 +215,13 @@
         }
         
         /* Event log styling */
-        .event-log-container {
+        .event-log-container,
+        .hm-event-log-container {
             margin: 10px 0;
         }
         
-        .event-log-container .summary {
+        .event-log-container .summary,
+        .hm-event-log-container .summary {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 5px;
@@ -227,7 +229,8 @@
             margin-bottom: 10px;
         }
         
-        .event-log-container .payload-header {
+        .event-log-container .payload-header,
+        .hm-event-log-container .hm-event-records {
             background: #e7f3ff;
             border: 1px solid #bee5eb;
             border-radius: 5px;
@@ -358,10 +361,84 @@
         .event-log {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
+        }
+        
+        /* URL Broker Config styling */
+        .url-broker-config-container {
+            margin: 10px 0;
+        }
+        
+        .url-broker-config-container .summary {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            border-radius: 5px;
             padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .url-broker-config-container .current-chunk,
+        .url-broker-config-container .processing-stages,
+        .url-broker-config-container .final-config {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .url-broker-config-container .data-section,
+        .url-broker-config-container .stage {
+            margin: 8px 0;
+            padding: 8px;
+            background: #ffffff;
+            border-radius: 3px;
+        }
+        
+        .url-broker-config-container code {
+            background: #f1f3f4;
+            padding: 4px 6px;
+            border-radius: 3px;
             font-family: 'Courier New', monospace;
+            word-break: break-all;
+            display: block;
+            margin-top: 4px;
+        }
+        
+        /* HM Summary styling */
+        .hm-summary-container {
+            margin: 10px 0;
+        }
+        
+        .hm-summary-container .summary {
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .hm-summary-container .raw-data,
+        .hm-summary-container .metadata,
+        .hm-summary-container .description {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .hm-summary-container .description {
+            background: #f9f9f9;
+            border-left: 4px solid #007bff;
+        }
+        
+        .hm-summary-container code {
+            background: #f1f3f4;
+            padding: 8px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            display: block;
+            word-break: break-all;
             font-size: 12px;
         }
         .error-entry {

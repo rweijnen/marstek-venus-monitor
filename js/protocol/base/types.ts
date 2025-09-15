@@ -74,7 +74,7 @@ export interface IDeviceInfo {
 export enum CommandType {
     RUNTIME_INFO = 0x03,
     DEVICE_INFO = 0x04,
-    WIFI_CONFIG = 0x05,
+    URL_BROKER_CONFIG = 0x05,
     FACTORY_RESET = 0x06,
     WIFI_INFO = 0x08,
     WORK_MODE = 0x09,
@@ -82,20 +82,21 @@ export enum CommandType {
     TIME_SETTINGS = 0x0B,
     SYSTEM_DATA = 0x0D,
     BACKUP_POWER = 0x0F,
-    EVENT_LOG_DUMP = 0x13,
+    BLE_EVENT_LOG = 0x13,
     OTA_ACTIVATION = 0x1F,
     BMS_DATA = 0x14,
     SET_TIME = 0x18,
     POWER_MODE = 0x15,
     BATTERY_MODE = 0x19,
     CONFIG_DATA = 0x1A,
-    URL_CONFIG = 0x1B,
-    EVENT_LOG = 0x1C,
+    HM_SUMMARY = 0x1B,
+    HM_EVENT_LOG = 0x1C,
     METER_IP = 0x21,
     CT_POLLING_RATE = 0x22,
     NETWORK_INFO = 0x24,
     LOCAL_API_STATUS = 0x28,
-    DEVICE_CONFIG = 0x50
+    DEVICE_CONFIG = 0x50,
+    URL_BROKER_RESPONSE = 0x51
 }
 
 export const PROTOCOL_CONSTANTS = {

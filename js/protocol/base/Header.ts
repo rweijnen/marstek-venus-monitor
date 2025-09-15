@@ -76,17 +76,20 @@ export class FrameHeader implements IFrameHeader {
         const commandNames: Record<number, string> = {
             [CommandType.RUNTIME_INFO]: 'Runtime Info',
             [CommandType.DEVICE_INFO]: 'Device Info',
+            [CommandType.URL_BROKER_CONFIG]: 'URL Broker Config',
             [CommandType.WIFI_INFO]: 'WiFi Info',
             [CommandType.SYSTEM_DATA]: 'Developer Mode Info',
-            [CommandType.EVENT_LOG_DUMP]: 'Event Log Dump',
+            [CommandType.BLE_EVENT_LOG]: 'BLE Event Log',
             [CommandType.OTA_ACTIVATION]: 'OTA Activation',
             [CommandType.BMS_DATA]: 'BMS Data',
             [CommandType.CONFIG_DATA]: 'Config Data',
-            [CommandType.EVENT_LOG]: 'Event Log',
+            [CommandType.HM_SUMMARY]: 'HM Summary',
+            [CommandType.HM_EVENT_LOG]: 'HM Event Log',
             [CommandType.METER_IP]: 'Meter IP',
             [CommandType.CT_POLLING_RATE]: 'CT Polling Rate',
             [CommandType.NETWORK_INFO]: 'Network Info',
-            [CommandType.LOCAL_API_STATUS]: 'Local API Status'
+            [CommandType.LOCAL_API_STATUS]: 'Local API Status',
+            [CommandType.URL_BROKER_RESPONSE]: 'URL Broker Response'
         };
 
         return commandNames[this.command] || `Unknown Command (0x${this.command.toString(16).padStart(2, '0').toUpperCase()})`;

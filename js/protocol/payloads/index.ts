@@ -10,9 +10,7 @@ import { DeviceInfoPayload } from './DeviceInfo.js';
 import { WiFiInfoPayload } from './WiFiInfo.js';
 import { BMSDataPayload } from './BMSData.js';
 import { NetworkInfoPayload } from './NetworkInfo.js';
-import { WiFiConfig } from './WiFiConfig.js';
 import { TimeSettings } from './TimeSettings.js';
-import { URLConfig } from './URLConfig.js';
 import { WorkModeConfig } from './WorkModeConfig.js';
 import { FactoryResetResponse } from './FactoryResetResponse.js';
 import { OTAActivation } from './OTAActivation.js';
@@ -22,6 +20,9 @@ import { SettingsInfo } from './SettingsInfo.js';
 import { PowerModeResponse } from './PowerModeResponse.js';
 import { BackupPowerResponse } from './BackupPowerResponse.js';
 import { EventLog } from './EventLog.js';
+import { HMEventLog } from './HMEventLog.js';
+import { URLBrokerConfig } from './URLBrokerConfig.js';
+import { HMSummary } from './HMSummary.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -37,8 +38,8 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.DEVICE_INFO:
             return new DeviceInfoPayload(data);
             
-        case CommandType.WIFI_CONFIG:
-            return new WiFiConfig(data);
+        case CommandType.URL_BROKER_RESPONSE:
+            return new URLBrokerConfig(data);
             
         case CommandType.FACTORY_RESET:
             return new FactoryResetResponse(data);
@@ -64,8 +65,8 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.POWER_MODE:
             return new PowerModeResponse(data);
             
-        case CommandType.URL_CONFIG:
-            return new URLConfig(data);
+        case CommandType.HM_SUMMARY:
+            return new HMSummary(data);
             
         case CommandType.NETWORK_INFO:
             return new NetworkInfoPayload(data);
@@ -79,8 +80,11 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.SETTINGS_INFO:
             return new SettingsInfo(data);
             
-        case CommandType.EVENT_LOG_DUMP:
+        case CommandType.BLE_EVENT_LOG:
             return new EventLog(data);
+            
+        case CommandType.HM_EVENT_LOG:
+            return new HMEventLog(data);
             
         
         // Add other payload types as we implement them
@@ -122,9 +126,7 @@ export {
     WiFiInfoPayload, 
     BMSDataPayload, 
     NetworkInfoPayload,
-    WiFiConfig,
     TimeSettings,
-    URLConfig,
     WorkModeConfig,
     FactoryResetResponse,
     OTAActivation,
@@ -133,5 +135,8 @@ export {
     SettingsInfo,
     PowerModeResponse,
     BackupPowerResponse,
-    EventLog
+    EventLog,
+    HMEventLog,
+    URLBrokerConfig,
+    HMSummary
 };
