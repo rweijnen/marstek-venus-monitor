@@ -1002,6 +1002,7 @@ function handleUnifiedNotification(event) {
  * @param {Uint8Array} value - Frame data
  */
 function handleHMFrame(value) {
+    log(`🔍 DEBUG: handleHMFrame called with ${value.length} bytes`);
     // Detect format: normal HM or transition HM with big-endian length
     const isNormalHM = value[2] === 0x23;
     const isTransitionHM = value[3] === 0x23;
@@ -1066,6 +1067,8 @@ function handleHMFrame(value) {
         pendingAckResolve = null;
     }
     // Handle ALL incoming command responses - parse everything
+    log(`🔍 DEBUG: About to parse response for cmd 0x${cmd.toString(16).toUpperCase()}`);
+    log(`🔍 DEBUG: window.createPayload = ${typeof window.createPayload}`);
     try {
         // Use the new payload system
         if (window.createPayload) {
@@ -1148,113 +1151,35 @@ function handleOTAFrame(value) {
 }
 
 /**
- * Handle incoming HM notification data (DEPRECATED - use handleUnifiedNotification)
+ * Handle incoming HM notification data (DEPRECATED - removed duplicate parsing code)
+ * Now redirects to async handler or handleHMFrame for OTA
  * @param {Event} event - BLE characteristic change event
  */
 function handleHMNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
-    
+
     // If OTA is in progress, use existing synchronous handling
     if (otaInProgress) {
         // Log all incoming data
         logIncoming(value, 'HM OTA Notification (FF02)');
-        
+
         // Check basic frame requirements
         if (value.length < 6 || value[0] !== 0x73) {
             log(`❌ Bad HM OTA notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
             return;
         }
-        // Continue with existing OTA handling below
+
+        // Use the unified frame handler for OTA as well
+        handleHMFrame(value);
     } else {
         // Use async handler for non-OTA responses
         if (window.asyncResponseHandler) {
             window.asyncResponseHandler.processNotification(value, 'HM');
             return;
         }
-        // Fallback if async handler not loaded
+        // Fallback: use the unified frame handler directly
         logIncoming(value, 'HM Notification (FF02)');
-        
-        // Check basic frame requirements
-        if (value.length < 6 || value[0] !== 0x73) {
-            log(`❌ Bad HM notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-            return;
-        }
-    }
-    
-    // HM frames should have 0x23 at position [2]
-    if (value[2] !== 0x23) {
-        log(`❌ Invalid HM frame: expected 0x23 at position 2, got 0x${value[2].toString(16)}`);
-        return;
-    }
-    
-    const hmLength = value[1];
-    const cmd = value[3];
-
-    // Special case: 0x13 (BLE Event Log) uses fixed 285-byte frame regardless of length byte
-    if (cmd !== 0x13 && value.length !== hmLength) {
-        log(`❌ HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
-        return;
-    }
-    const payload = value.slice(4, -1);
-    const checksum = value[value.length - 1];
-    
-    log(`📨 HM frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
-    
-    // Verify XOR checksum (skip for 0x13 BLE Event Log which uses different validation)
-    if (cmd !== 0x13) {
-        let xor = 0;
-        for (let i = 0; i < value.length - 1; i++) {
-            xor ^= value[i];
-        }
-        if (xor !== checksum) {
-            log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
-            return;
-        }
-    } else {
-        log(`📊 BLE Event Log (0x13) - skipping XOR checksum validation`);
-    }
-    
-    log(`✅ Valid HM ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
-    
-    // Resolve pending HM ACK promise
-    if (pendingAckResolve) {
-        pendingAckResolve({
-            ok: true,
-            cmd: cmd,
-            payload: payload
-        });
-        pendingAckResolve = null;
-    }
-    // Handle ALL incoming command responses - parse everything
-    try {
-        // Use the new payload system
-        if (window.createPayload) {
-            const payload = window.createPayload(value);
-            const parsed = payload.toHTML();
-
-            if (window.uiController && window.uiController.displayData) {
-                window.uiController.displayData(parsed);
-            } else {
-                // Fallback display
-                const dataDisplay = document.getElementById('dataDisplay');
-                if (dataDisplay) {
-                    dataDisplay.innerHTML = parsed;
-                }
-            }
-
-            log(`✅ Response parsed and displayed for command 0x${cmd.toString(16).toUpperCase()}`);
-        } else {
-            log('⚠️ Payload system not available, showing raw data');
-            log(`Raw response: ${formatBytes(value)}`);
-        }
-    } catch (error) {
-        log(`⚠️ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message}`);
-        log(`Raw response: ${formatBytes(value)}`);
-    }
-
-    // Clear currentCommand if set (for backwards compatibility)
-    if (window.currentCommand) {
-        window.currentCommand = null;
+        handleHMFrame(value);
     }
 }
 

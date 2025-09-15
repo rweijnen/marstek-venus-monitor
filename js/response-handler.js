@@ -293,15 +293,33 @@ class AsyncResponseHandler {
             window.currentCommand = null;
         }
 
-        // Use existing parser
-        if (window.dataParser && window.dataParser.parseResponse) {
-            const context = this.lastCommand || `Command_${commandHex}`;
-            const parsed = window.dataParser.parseResponse(data, context);
-            
-            if (window.uiController && window.uiController.displayData) {
-                window.uiController.displayData(parsed);
+        // Use the unified payload system (same as handleHMFrame)
+        console.log(`🔍 DEBUG: AsyncResponseHandler about to parse cmd 0x${command.toString(16).toUpperCase()}`);
+        console.log(`🔍 DEBUG: window.createPayload = ${typeof window.createPayload}`);
+
+        try {
+            // Use the new payload system (same as handleHMFrame)
+            if (window.createPayload) {
+                const payload = window.createPayload(data);
+                const parsed = payload.toHTML();
+
+                if (window.uiController && window.uiController.displayData) {
+                    window.uiController.displayData(parsed);
+                } else {
+                    // Fallback display
+                    const dataDisplay = document.getElementById('dataDisplay');
+                    if (dataDisplay) {
+                        dataDisplay.innerHTML = parsed;
+                    }
+                }
+
+                console.log(`✅ AsyncResponseHandler: Response parsed and displayed for command 0x${command.toString(16).toUpperCase()}`);
+            } else {
+                console.log('⚠️ AsyncResponseHandler: Payload system not available, showing raw data');
+                console.log(`📋 Raw response: ${this.formatBytes(data)}`);
             }
-        } else {
+        } catch (error) {
+            console.log(`⚠️ AsyncResponseHandler: Failed to parse response for command 0x${command.toString(16).toUpperCase()}: ${error.message}`);
             console.log(`📋 Raw response: ${this.formatBytes(data)}`);
         }
 
