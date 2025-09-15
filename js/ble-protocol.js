@@ -81,7 +81,13 @@ let otaInProgress = false;
 // Ensure logging functions are available with fallbacks
 if (typeof logActivity === 'undefined') {
     window.logActivity = function(message) {
-        log(message);
+        const logElement = document.getElementById('log');
+        if (logElement) {
+            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        } else {
+            console.log('[Activity] ' + message);
+        }
     };
 }
 if (typeof logConnection === 'undefined') {
@@ -100,15 +106,25 @@ if (typeof logCommand === 'undefined') {
 }
 if (typeof logProtocol === 'undefined') {
     window.logProtocol = function(message, data) {
-        log(message);
-        if (data) {
-            log(`Raw data: ${formatBytes(data)}`);
+        const logElement = document.getElementById('log');
+        const fullMessage = data ? `${message}\nRaw data: ${formatBytes(data)}` : message;
+        if (logElement) {
+            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${fullMessage}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        } else {
+            console.log('[Protocol] ' + fullMessage);
         }
     };
 }
 if (typeof logError === 'undefined') {
     window.logError = function(message) {
-        log(`❌ ${message}`);
+        const logElement = document.getElementById('log');
+        if (logElement) {
+            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ❌ ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        } else {
+            console.log('[Error] ' + message);
+        }
     };
 }
 if (typeof logOTA === 'undefined') {
