@@ -212,9 +212,10 @@ async function connect() {
                     throw new Error('GATT server connection failed');
                 }
 
-                // Longer delay to ensure device is ready (Marstek devices need time)
-                log('⏳ Waiting for device to stabilize...');
-                await new Promise(resolve => createTrackedTimeout(resolve, 2000));
+                // Variable delay based on attempt number (Marstek devices need time)
+                const stabilizeDelay = attempt === 1 ? 2000 : attempt === 2 ? 4000 : 6000;
+                log(`⏳ Waiting for device to stabilize (${stabilizeDelay/1000}s)...`);
+                await new Promise(resolve => createTrackedTimeout(resolve, stabilizeDelay));
                 
                 // Get service with retry on failure
                 let service;
@@ -335,15 +336,35 @@ async function connect() {
                         } catch (e) {}
                     }
 
-                    // If this was a stale connection error, request fresh device selection
+                    // If this was a stale connection error, try to reset device pairings
                     if (attemptError.message.includes('Stale device connection')) {
+                        // On first stale connection, try forgetting devices
+                        if (attempt === 1) {
+                            log('🔄 Attempting to clear stale Bluetooth pairings...');
+                            try {
+                                await forgetBluetoothDevices();
+                                log('✅ Device reset complete - will request fresh device on retry');
+                            } catch (resetError) {
+                                log(`⚠️ Could not reset devices: ${resetError.message}`);
+                            }
+                        }
+
+                        // Request fresh device selection
                         log('🔄 Requesting fresh device selection due to stale connection...');
+                        const previousDeviceId = device?.id;
                         try {
-                            device = await navigator.bluetooth.requestDevice({
+                            const newDevice = await navigator.bluetooth.requestDevice({
                                 filters: [{ namePrefix: 'MST' }],
                                 optionalServices: [SERVICE_UUID]
                             });
-                            log(`📱 Selected fresh device: ${device.name}`);
+
+                            if (newDevice.id === previousDeviceId) {
+                                log('⚠️ Chrome returned same cached device - using longer delays instead');
+                                // Don't update device reference, rely on longer timing
+                            } else {
+                                device = newDevice;
+                                log(`📱 Selected truly fresh device: ${device.name} (ID: ${device.id.substring(0, 8)}...)`);
+                            }
                         } catch (deviceError) {
                             log(`⚠️ Fresh device selection failed: ${deviceError.message}`);
                             // Continue with existing device if fresh selection fails
