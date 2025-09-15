@@ -181,8 +181,8 @@
     <script src="js/ble-protocol.js"></script>
     <script src="js/ui-controller.js"></script>
     <script type="module">
-        // Import the new payload system
-        import { createPayload } from './js/protocol/payloads/index.js';
+        // Import the new payload system from compiled output
+        import { createPayload } from './js/dist/protocol/payloads/index.js';
         window.createPayload = createPayload;
         
         // Import the TypeScript-compiled parser
