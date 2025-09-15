@@ -780,8 +780,15 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
             window.asyncResponseHandler.setCommandContext(commandName);
         }
         
-        log(`📤 Sending ${commandName}...`);
-        logProtocol(`📤 TX → Device (${command.length} bytes): ${formatBytes(command)}`, command);
+        // Clean activity logging
+        if (window.logCommandActivity) {
+            window.logCommandActivity(commandName, commandType, true);
+        }
+
+        // Detailed protocol logging
+        if (window.logProtocolCommand) {
+            window.logProtocolCommand(commandName, commandType, command, 'TX');
+        }
         
         const writeChars = Object.values(characteristics).filter(char => 
             char.properties.write || char.properties.writeWithoutResponse
@@ -1012,8 +1019,7 @@ function handleUnifiedNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
     
     
-    // Log protocol details
-    logProtocol(`📡 Notification ← Device (${value.length} bytes): ${formatBytes(value)}`, value);
+    // Enhanced protocol logging will be handled in handleHMFrame
     
     // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
@@ -1032,11 +1038,29 @@ function handleUnifiedNotification(event) {
 }
 
 /**
+ * Get command name from command code
+ */
+function getCommandName(cmdCode) {
+    const commandNames = {
+        0x03: 'Runtime Info',
+        0x04: 'Device Info',
+        0x08: 'WiFi Info',
+        0x0D: 'System Data',
+        0x13: 'BLE Event Log',
+        0x1A: 'HM Summary',
+        0x1C: 'HM Event Log',
+        0x1B: 'URL Config',
+        0x80: 'Write Config'
+    };
+    return commandNames[cmdCode] || `Command 0x${cmdCode.toString(16).toUpperCase()}`;
+}
+
+/**
  * Handle HM frame processing
  * @param {Uint8Array} value - Frame data
  */
 function handleHMFrame(value) {
-    log(`🔍 DEBUG: handleHMFrame called with ${value.length} bytes`);
+    // Enhanced protocol logging will be added after frame parsing
     // Detect format: normal HM or transition HM with big-endian length
     const isNormalHM = value[2] === 0x23;
     const isTransitionHM = value[3] === 0x23;
@@ -1073,8 +1097,12 @@ function handleHMFrame(value) {
         return;
     }
     
-    log(`📨 HM frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
-    
+    // Enhanced protocol logging
+    if (window.logProtocolCommand) {
+        const commandName = getCommandName(cmd);
+        window.logProtocolCommand(commandName, cmd, value, 'RX');
+    }
+
     // Verify XOR checksum (skip for 0x13 BLE Event Log which uses different validation)
     if (cmd !== 0x13) {
         let xor = 0;
@@ -1089,7 +1117,7 @@ function handleHMFrame(value) {
         log(`📊 BLE Event Log (0x13) - skipping XOR checksum validation`);
     }
     
-    log(`✅ Valid HM ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
+    // Valid checksum - response will be processed below
     
     // Resolve pending HM ACK promise
     if (pendingAckResolve) {
@@ -1101,35 +1129,32 @@ function handleHMFrame(value) {
         pendingAckResolve = null;
     }
     // Handle ALL incoming command responses - parse everything
-    log(`🔍 DEBUG: About to parse response for cmd 0x${cmd.toString(16).toUpperCase()}`);
-    log(`🔍 DEBUG: window.createPayload = ${typeof window.createPayload}`);
     try {
+        // Log response received
+        if (window.logCommandActivity) {
+            const commandName = window.currentCommand || 'Unknown';
+            window.logCommandActivity(commandName, cmd, false);
+        }
+
         // Use the new payload system
         if (window.createPayload) {
-            log(`🔍 DEBUG: Calling createPayload for cmd 0x${cmd.toString(16).toUpperCase()}`);
             const payload = window.createPayload(value);
-            log(`🔍 DEBUG: createPayload succeeded, payload type: ${payload.constructor.name}`);
-
-            log(`🔍 DEBUG: Calling toHTML()`);
             const parsed = payload.toHTML();
-            log(`🔍 DEBUG: toHTML() succeeded, result length: ${parsed ? parsed.length : 'null'}`);
 
             if (window.uiController && window.uiController.displayData) {
-                log(`🔍 DEBUG: Using uiController.displayData`);
                 window.uiController.displayData(parsed);
             } else {
                 // Fallback display
-                log(`🔍 DEBUG: Using fallback display`);
                 const dataDisplay = document.getElementById('dataDisplay');
                 if (dataDisplay) {
                     dataDisplay.innerHTML = parsed;
-                    log(`🔍 DEBUG: HTML set to dataDisplay element`);
-                } else {
-                    log(`❌ DEBUG: dataDisplay element not found`);
                 }
             }
 
-            log(`✅ Response parsed and displayed for command 0x${cmd.toString(16).toUpperCase()}`);
+            // Log successful parsing
+            if (window.logCommandComplete) {
+                window.logCommandComplete(window.currentCommand || 'Response', true);
+            }
         } else {
             log('⚠️ Payload system not available, showing raw data');
             log(`Raw response: ${formatBytes(value)}`);

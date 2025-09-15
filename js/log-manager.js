@@ -174,6 +174,97 @@ window.logOTA = function(message, progress = null) {
 };
 
 /**
+ * Enhanced command logging for Activity tab
+ */
+window.logCommandActivity = function(commandName, commandCode, isRequest = true) {
+    if (isRequest) {
+        logActivity(`📤 Reading ${commandName} (Command 0x${commandCode.toString(16).padStart(2, '0').toUpperCase()})`);
+    } else {
+        logActivity(`📥 Received response (Response 0x${commandCode.toString(16).padStart(2, '0').toUpperCase()})`);
+    }
+};
+
+window.logCommandComplete = function(commandName, success = true) {
+    const icon = success ? '✅' : '❌';
+    const action = success ? 'Parsed Response Data' : 'Failed to parse response';
+    logActivity(`${icon} ${action}`);
+};
+
+/**
+ * Enhanced protocol logging with context and formatting
+ */
+window.logProtocolCommand = function(commandName, commandCode, data, direction = 'TX') {
+    const arrow = direction === 'TX' ? '→' : '←';
+    const directionName = direction === 'TX' ? 'Device' : 'Device';
+
+    // Add context header
+    logProtocol(`🔍 ${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName}`);
+
+    // Format with colors using spans
+    const stx = data[0];
+    const length = data[1];
+    const identifier = data[2];
+    const cmd = data[3];
+    const payloadBytes = data.slice(4, -1);
+    const crc = data[data.length - 1];
+
+    let formattedMessage = `📡 ${direction} ${arrow} ${directionName} (${data.length} bytes): `;
+    formattedMessage += `<span style="color: #ff6b6b;">0x${stx.toString(16).padStart(2, '0')}</span> `;
+    formattedMessage += `<span style="color: #4ecdc4;">0x${length.toString(16).padStart(2, '0')}</span> `;
+    formattedMessage += `<span style="color: #45b7d1;">0x${identifier.toString(16).padStart(2, '0')}</span> `;
+    formattedMessage += `<span style="color: #96ceb4;">0x${cmd.toString(16).padStart(2, '0')}</span> `;
+
+    if (payloadBytes.length > 0) {
+        formattedMessage += payloadBytes.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ') + ' ';
+    }
+    formattedMessage += `<span style="color: #feca57;">0x${crc.toString(16).padStart(2, '0')}</span>`;
+
+    logProtocol(formattedMessage);
+
+    // Add hex dump for protocol tab
+    logProtocol(formatHexDump(data));
+};
+
+/**
+ * Format hex dump similar to hexdump -C
+ */
+function formatHexDump(data) {
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+    let result = '';
+
+    for (let i = 0; i < bytes.length; i += 16) {
+        // Address
+        const addr = i.toString(16).padStart(4, '0');
+        result += `${addr}: `;
+
+        // Hex bytes
+        let hexPart = '';
+        let asciiPart = '';
+
+        for (let j = 0; j < 16; j++) {
+            if (i + j < bytes.length) {
+                const byte = bytes[i + j];
+                hexPart += byte.toString(16).padStart(2, '0') + ' ';
+                asciiPart += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+            } else {
+                hexPart += '   ';
+                asciiPart += ' ';
+            }
+
+            // Add extra space after 8 bytes
+            if (j === 7) {
+                hexPart += ' ';
+            }
+        }
+
+        result += hexPart + ' |' + asciiPart + '|';
+        if (i + 16 < bytes.length) result += '\n';
+    }
+
+    return `<pre style="font-family: 'Courier New', monospace; margin: 5px 0; color: #888;">${result}</pre>`;
+};
+
+/**
  * Load template content from file
  */
 async function loadTemplate(templateName) {
