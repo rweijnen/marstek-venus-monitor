@@ -998,8 +998,9 @@ function handleHMFrame(value) {
         cmd = value[3];
         payload = value.slice(4, -1);
         checksum = value[value.length - 1];
-        
-        if (value.length !== hmLength) {
+
+        // Special case: 0x13 (BLE Event Log) uses fixed 285-byte frame regardless of length byte
+        if (cmd !== 0x13 && value.length !== hmLength) {
             log(`❌ Normal HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
             return;
         }
@@ -1161,12 +1162,13 @@ function handleHMNotification(event) {
     }
     
     const hmLength = value[1];
-    if (value.length !== hmLength) {
+    const cmd = value[3];
+
+    // Special case: 0x13 (BLE Event Log) uses fixed 285-byte frame regardless of length byte
+    if (cmd !== 0x13 && value.length !== hmLength) {
         log(`❌ HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
         return;
     }
-    
-    const cmd = value[3];
     const payload = value.slice(4, -1);
     const checksum = value[value.length - 1];
     
