@@ -220,33 +220,67 @@ async function connect() {
                 let service;
                 try {
                     log('🔍 Discovering services...');
-                    service = await server.getPrimaryService(SERVICE_UUID);
-                    log('✅ Service discovered successfully');
+                    log(`🔧 DEBUG: GATT server connected: ${server.connected}`);
+                    log(`🔧 DEBUG: GATT device ID: ${device.id}`);
+                    log(`🔧 DEBUG: Target service UUID: ${SERVICE_UUID}`);
+                    log(`🔧 DEBUG: Device name: ${device.name}`);
+                    log(`🔧 DEBUG: Browser: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
+
+                    // Try immediate service discovery with extended timeout
+                    const immediatePromise = server.getPrimaryService(SERVICE_UUID);
+                    const immediateTimeoutPromise = new Promise((_, reject) =>
+                        createTrackedTimeout(() => reject(new Error('Immediate service discovery timeout after 15s')), 15000)
+                    );
+
+                    service = await Promise.race([immediatePromise, immediateTimeoutPromise]);
+                    log('✅ Service discovered successfully on immediate attempt');
+                    log(`🔧 DEBUG: Service object: ${service.constructor.name}`);
+                    log(`🔧 DEBUG: Service UUID: ${service.uuid}`);
                 } catch (serviceError) {
                     log(`⚠️ Service not immediately available: ${serviceError.message}`);
-                    log('⏳ Waiting 3s for device to initialize services...');
-                    // Progressive delay: shorter first wait, then longer if needed
-                    await new Promise(resolve => createTrackedTimeout(resolve, 3000));
+                    log(`🔧 DEBUG: Service error type: ${serviceError.constructor.name}`);
+                    log(`🔧 DEBUG: Service error code: ${serviceError.code || 'undefined'}`);
+                    log(`🔧 DEBUG: GATT server still connected: ${server.connected}`);
+                    log(`🔧 DEBUG: Device still connected: ${device.gatt?.connected}`);
+
+                    // Try to get all available services for debugging
+                    try {
+                        log('🔧 DEBUG: Attempting to list all available services...');
+                        const allServices = await server.getPrimaryServices();
+                        log(`🔧 DEBUG: Found ${allServices.length} total services:`);
+                        for (const s of allServices) {
+                            log(`🔧 DEBUG: - Service UUID: ${s.uuid}`);
+                        }
+                    } catch (listError) {
+                        log(`🔧 DEBUG: Could not list services: ${listError.message}`);
+                    }
+
+                    log('⏳ Waiting 8s for device to fully initialize services...');
+                    await new Promise(resolve => createTrackedTimeout(resolve, 8000));
 
                     try {
-                        // Quick retry first
-                        log('🔄 Quick retry: attempting service discovery...');
-                        const quickRetryPromise = server.getPrimaryService(SERVICE_UUID);
-                        const quickTimeoutPromise = new Promise((_, reject) =>
-                            createTrackedTimeout(() => reject(new Error('Quick retry timeout')), 5000)
-                        );
-                        service = await Promise.race([quickRetryPromise, quickTimeoutPromise]);
-                        log('✅ Service discovered on quick retry');
-                    } catch (quickError) {
-                        log(`⚠️ Quick retry failed: ${quickError.message}`);
-                        log('⏳ Waiting 5s for device services to fully initialize...');
-                        await new Promise(resolve => createTrackedTimeout(resolve, 5000));
+                        log('🔄 First retry: attempting service discovery with 20s timeout...');
+                        log(`🔧 DEBUG: Server connected before retry: ${server.connected}`);
 
-                        // Final attempt with longer timeout
-                        log('🔄 Final attempt: service discovery with extended timeout...');
+                        const firstRetryPromise = server.getPrimaryService(SERVICE_UUID);
+                        const firstTimeoutPromise = new Promise((_, reject) =>
+                            createTrackedTimeout(() => reject(new Error('First retry timeout after 20s')), 20000)
+                        );
+                        service = await Promise.race([firstRetryPromise, firstTimeoutPromise]);
+                        log('✅ Service discovered on first retry');
+                    } catch (firstRetryError) {
+                        log(`⚠️ First retry failed: ${firstRetryError.message}`);
+                        log(`🔧 DEBUG: Server connected after first retry: ${server.connected}`);
+                        log('⏳ Waiting 12s for device services to fully stabilize...');
+                        await new Promise(resolve => createTrackedTimeout(resolve, 12000));
+
+                        // Final attempt with very long timeout
+                        log('🔄 Final attempt: service discovery with 30s timeout...');
+                        log(`🔧 DEBUG: Server connected before final attempt: ${server.connected}`);
+
                         const finalPromise = server.getPrimaryService(SERVICE_UUID);
                         const finalTimeoutPromise = new Promise((_, reject) =>
-                            createTrackedTimeout(() => reject(new Error('Service discovery timeout after 10s')), 10000)
+                            createTrackedTimeout(() => reject(new Error('Service discovery timeout after 30s - device may not support this service')), 30000)
                         );
                         service = await Promise.race([finalPromise, finalTimeoutPromise]);
                         log('✅ Service discovered on final attempt');
