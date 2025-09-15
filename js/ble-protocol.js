@@ -343,6 +343,9 @@ async function connect() {
                             log('🔄 Attempting to clear stale Bluetooth pairings...');
                             try {
                                 await forgetBluetoothDevices();
+                                // Reset cancellation flag after device reset (forgetBluetoothDevices calls disconnect)
+                                connectionCancelled = false;
+                                connectionInProgress = true;
                                 log('✅ Device reset complete - will request fresh device on retry');
                             } catch (resetError) {
                                 log(`⚠️ Could not reset devices: ${resetError.message}`);
