@@ -1134,21 +1134,17 @@ function handleOTAFrame(value) {
     const checksum = value[value.length - 1];
     
     log(`📨 BLE OTA frame received - CMD: 0x${cmd.toString(16)}, Payload: ${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}`);
-    
-    // Verify XOR checksum (skip for 0x13 BLE Event Log which uses different validation)
-    if (cmd !== 0x13) {
-        let xor = 0;
-        for (let i = 0; i < value.length - 1; i++) {
-            xor ^= value[i];
-        }
-        if (xor !== checksum) {
-            log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
-            return;
-        }
-    } else {
-        log(`📊 BLE Event Log (0x13) - skipping XOR checksum validation`);
+
+    // Verify XOR checksum
+    let xor = 0;
+    for (let i = 0; i < value.length - 1; i++) {
+        xor ^= value[i];
     }
-    
+    if (xor !== checksum) {
+        log(`❌ Bad XOR checksum: expected 0x${xor.toString(16)}, got 0x${checksum.toString(16)}`);
+        return;
+    }
+
     log(`✅ Valid BLE OTA ACK: cmd=0x${cmd.toString(16)}, payload=[${Array.from(payload).map(b => '0x' + b.toString(16)).join(' ')}]`);
     
     // Resolve pending OTA ACK promise
