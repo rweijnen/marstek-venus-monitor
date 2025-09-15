@@ -282,31 +282,7 @@ function formatHexDump(bytes) {
 // FIRMWARE/OTA UI FUNCTIONS
 // ==========================================
 
-function handleFirmwareFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        // This should call the BLE protocol function
-        if (typeof window.handleFirmwareAnalysis === 'function') {
-            window.handleFirmwareAnalysis(e.target.result, file);
-        } else {
-            log(`📁 Firmware loaded: ${file.name} (${file.size} bytes) - BLE handler not available`);
-        }
-        
-        // Update UI file info
-        document.getElementById('otaFileInfo').innerHTML = `
-            <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
-            <strong>Status:</strong> Loaded, analyzing...
-        `;
-        
-        // Show progress container
-        document.getElementById('otaProgressContainer').style.display = 'block';
-        document.getElementById('otaStatus').textContent = 'File loaded, ready to analyze...';
-    };
-    reader.readAsArrayBuffer(file);
-}
+// handleFirmwareFile is handled by BLE protocol - removed duplicate function
 
 function updateOTAProgress(percent, status) {
     const progressBar = document.getElementById('otaProgress');
