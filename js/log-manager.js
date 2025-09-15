@@ -208,16 +208,17 @@ window.logProtocolCommand = function(commandName, commandCode, data, direction =
     const payloadBytes = data.slice(4, -1);
     const crc = data[data.length - 1];
 
+    // Use ANSI color codes or simple text formatting instead of HTML spans
     let formattedMessage = `📡 ${direction} ${arrow} ${directionName} (${data.length} bytes): `;
-    formattedMessage += `<span style="color: #ff6b6b;">0x${stx.toString(16).padStart(2, '0')}</span> `;
-    formattedMessage += `<span style="color: #4ecdc4;">0x${length.toString(16).padStart(2, '0')}</span> `;
-    formattedMessage += `<span style="color: #45b7d1;">0x${identifier.toString(16).padStart(2, '0')}</span> `;
-    formattedMessage += `<span style="color: #96ceb4;">0x${cmd.toString(16).padStart(2, '0')}</span> `;
+    formattedMessage += `0x${stx.toString(16).padStart(2, '0')} `;
+    formattedMessage += `0x${length.toString(16).padStart(2, '0')} `;
+    formattedMessage += `0x${identifier.toString(16).padStart(2, '0')} `;
+    formattedMessage += `0x${cmd.toString(16).padStart(2, '0')} `;
 
     if (payloadBytes.length > 0) {
         formattedMessage += payloadBytes.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ') + ' ';
     }
-    formattedMessage += `<span style="color: #feca57;">0x${crc.toString(16).padStart(2, '0')}</span>`;
+    formattedMessage += `0x${crc.toString(16).padStart(2, '0')}`;
 
     logProtocol(formattedMessage);
 

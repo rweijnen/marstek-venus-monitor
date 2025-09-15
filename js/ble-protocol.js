@@ -811,7 +811,6 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
         }
         
         const writeChar = writeChars[0];
-        logOutgoing(command, `HM Command ${commandName}`);
         await writeChar.writeValueWithoutResponse(command);
         
         // Set up timeout to clear command if no response
@@ -865,7 +864,6 @@ async function sendMeterIPCommand(commandType, commandName, payload = null, retr
         }
         
         const writeChar = writeChars[0];
-        logOutgoing(command, `HM Command ${commandName}`);
         await writeChar.writeValueWithoutResponse(command);
         
         // Set up timeout to clear command if no response
