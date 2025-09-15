@@ -197,14 +197,8 @@ window.logProtocolCommand = function(commandName, commandCode, data, direction =
     // Get timestamp once for the entire message group
     const timestamp = new Date().toLocaleTimeString(undefined, { hour12: false });
 
-    // Header with timestamp
-    const header = `[${timestamp}] ${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName}`;
-
-    // Format all bytes as hex consistently
-    const allBytesHex = Array.from(data).map(b => `0x${b.toString(16).padStart(2, '0')}`);
-
-    // Byte count line (indented, no timestamp)
-    const byteLine = `  ${data.length} bytes: ${allBytesHex.join(' ')}`;
+    // Header with timestamp and byte count
+    const header = `[${timestamp}] ${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName} (${data.length} bytes):`;
 
     // Generate hex dump and indent each line
     const hexDump = formatHexDump(data);
@@ -212,10 +206,12 @@ window.logProtocolCommand = function(commandName, commandCode, data, direction =
         .map(line => line.length > 0 ? `  ${line}` : line)
         .join('\n');
 
+    const content = `${header}\n${indentedHexDump}`;
+
     // Add to protocol log manually to avoid automatic timestamping
     const logElement = document.getElementById('protocolLog');
     if (logElement) {
-        logElement.textContent += `${header}\n${byteLine}\n${indentedHexDump}\n\n`;
+        logElement.textContent += `${content}\n\n`;
 
         // Auto-scroll if user is at bottom
         if (logElement.scrollTop >= logElement.scrollHeight - logElement.clientHeight - 10) {
