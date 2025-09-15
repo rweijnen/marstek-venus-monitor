@@ -1047,18 +1047,22 @@ function handleHMFrame(value) {
     if (window.currentCommand) {
         try {
             // Use the new payload system
-            const { createPayload } = await import('./protocol/payloads/index.js');
-            const payload = createPayload(value);
-            const parsed = payload.toHTML();
-            
-            if (window.uiController && window.uiController.displayData) {
-                window.uiController.displayData(parsed);
-            } else {
-                // Fallback display
-                const dataDisplay = document.getElementById('dataDisplay');
-                if (dataDisplay) {
-                    dataDisplay.innerHTML = parsed;
+            if (window.createPayload) {
+                const payload = window.createPayload(value);
+                const parsed = payload.toHTML();
+                
+                if (window.uiController && window.uiController.displayData) {
+                    window.uiController.displayData(parsed);
+                } else {
+                    // Fallback display
+                    const dataDisplay = document.getElementById('dataDisplay');
+                    if (dataDisplay) {
+                        dataDisplay.innerHTML = parsed;
+                    }
                 }
+            } else {
+                log('⚠️ Payload system not available, showing raw data');
+                log(`Raw response: ${formatBytes(value)}`);
             }
         } catch (error) {
             log(`⚠️ Failed to parse response: ${error.message}`);
@@ -1191,18 +1195,22 @@ function handleHMNotification(event) {
     if (window.currentCommand) {
         try {
             // Use the new payload system
-            const { createPayload } = await import('./protocol/payloads/index.js');
-            const payload = createPayload(value);
-            const parsed = payload.toHTML();
-            
-            if (window.uiController && window.uiController.displayData) {
-                window.uiController.displayData(parsed);
-            } else {
-                // Fallback display
-                const dataDisplay = document.getElementById('dataDisplay');
-                if (dataDisplay) {
-                    dataDisplay.innerHTML = parsed;
+            if (window.createPayload) {
+                const payload = window.createPayload(value);
+                const parsed = payload.toHTML();
+                
+                if (window.uiController && window.uiController.displayData) {
+                    window.uiController.displayData(parsed);
+                } else {
+                    // Fallback display
+                    const dataDisplay = document.getElementById('dataDisplay');
+                    if (dataDisplay) {
+                        dataDisplay.innerHTML = parsed;
+                    }
                 }
+            } else {
+                log('⚠️ Payload system not available, showing raw data');
+                log(`Raw response: ${formatBytes(value)}`);
             }
         } catch (error) {
             log(`⚠️ Failed to parse response: ${error.message}`);

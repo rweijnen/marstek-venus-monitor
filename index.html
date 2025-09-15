@@ -181,6 +181,10 @@
     <script src="js/ble-protocol.js"></script>
     <script src="js/ui-controller.js"></script>
     <script type="module">
+        // Import the new payload system
+        import { createPayload } from './js/protocol/payloads/index.js';
+        window.createPayload = createPayload;
+        
         // Import the TypeScript-compiled parser
         import { parseResponse } from './js/dist/data-parser-ts.js';
         
