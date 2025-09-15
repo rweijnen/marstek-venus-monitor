@@ -1091,7 +1091,10 @@ function handleHMFrame(value) {
             log(`Raw response: ${formatBytes(value)}`);
         }
     } catch (error) {
-        log(`⚠️ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message}`);
+        log(`❌ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message}`);
+        if (error.stack) {
+            log(`❌ Stack trace: ${error.stack}`);
+        }
         log(`Raw response: ${formatBytes(value)}`);
     }
 
