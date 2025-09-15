@@ -751,7 +751,7 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
             // Clear command if still pending (no retry, just cleanup)
             if (window.currentCommand === commandName && 
                 Date.now() - window.lastCommandTime > 2900) {
-                log(`⏱️ Response timeout for ${commandName}`);
+                // Don't log timeout - responses are handled asynchronously
                 window.currentCommand = null;
             }
         }, 3000);
@@ -805,7 +805,7 @@ async function sendMeterIPCommand(commandType, commandName, payload = null, retr
             // Clear command if still pending (no retry, just cleanup)
             if (window.currentCommand === commandName && 
                 Date.now() - window.lastCommandTime > 2900) {
-                log(`⏱️ Response timeout for ${commandName}`);
+                // Don't log timeout - responses are handled asynchronously
                 window.currentCommand = null;
             }
         }, 3000);
@@ -1042,32 +1042,35 @@ function handleHMFrame(value) {
         });
         pendingAckResolve = null;
     }
-    
-    // Handle regular command responses for data display
-    if (window.currentCommand) {
-        try {
-            // Use the new payload system
-            if (window.createPayload) {
-                const payload = window.createPayload(value);
-                const parsed = payload.toHTML();
-                
-                if (window.uiController && window.uiController.displayData) {
-                    window.uiController.displayData(parsed);
-                } else {
-                    // Fallback display
-                    const dataDisplay = document.getElementById('dataDisplay');
-                    if (dataDisplay) {
-                        dataDisplay.innerHTML = parsed;
-                    }
-                }
+    // Handle ALL incoming command responses - parse everything
+    try {
+        // Use the new payload system
+        if (window.createPayload) {
+            const payload = window.createPayload(value);
+            const parsed = payload.toHTML();
+
+            if (window.uiController && window.uiController.displayData) {
+                window.uiController.displayData(parsed);
             } else {
-                log('⚠️ Payload system not available, showing raw data');
-                log(`Raw response: ${formatBytes(value)}`);
+                // Fallback display
+                const dataDisplay = document.getElementById('dataDisplay');
+                if (dataDisplay) {
+                    dataDisplay.innerHTML = parsed;
+                }
             }
-        } catch (error) {
-            log(`⚠️ Failed to parse response: ${error.message}`);
+
+            log(`✅ Response parsed and displayed for command 0x${cmd.toString(16).toUpperCase()}`);
+        } else {
+            log('⚠️ Payload system not available, showing raw data');
             log(`Raw response: ${formatBytes(value)}`);
         }
+    } catch (error) {
+        log(`⚠️ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message}`);
+        log(`Raw response: ${formatBytes(value)}`);
+    }
+
+    // Clear currentCommand if set (for backwards compatibility)
+    if (window.currentCommand) {
         window.currentCommand = null;
     }
 }
@@ -1190,32 +1193,35 @@ function handleHMNotification(event) {
         });
         pendingAckResolve = null;
     }
-    
-    // Handle regular command responses for data display
-    if (window.currentCommand) {
-        try {
-            // Use the new payload system
-            if (window.createPayload) {
-                const payload = window.createPayload(value);
-                const parsed = payload.toHTML();
-                
-                if (window.uiController && window.uiController.displayData) {
-                    window.uiController.displayData(parsed);
-                } else {
-                    // Fallback display
-                    const dataDisplay = document.getElementById('dataDisplay');
-                    if (dataDisplay) {
-                        dataDisplay.innerHTML = parsed;
-                    }
-                }
+    // Handle ALL incoming command responses - parse everything
+    try {
+        // Use the new payload system
+        if (window.createPayload) {
+            const payload = window.createPayload(value);
+            const parsed = payload.toHTML();
+
+            if (window.uiController && window.uiController.displayData) {
+                window.uiController.displayData(parsed);
             } else {
-                log('⚠️ Payload system not available, showing raw data');
-                log(`Raw response: ${formatBytes(value)}`);
+                // Fallback display
+                const dataDisplay = document.getElementById('dataDisplay');
+                if (dataDisplay) {
+                    dataDisplay.innerHTML = parsed;
+                }
             }
-        } catch (error) {
-            log(`⚠️ Failed to parse response: ${error.message}`);
+
+            log(`✅ Response parsed and displayed for command 0x${cmd.toString(16).toUpperCase()}`);
+        } else {
+            log('⚠️ Payload system not available, showing raw data');
             log(`Raw response: ${formatBytes(value)}`);
         }
+    } catch (error) {
+        log(`⚠️ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message}`);
+        log(`Raw response: ${formatBytes(value)}`);
+    }
+
+    // Clear currentCommand if set (for backwards compatibility)
+    if (window.currentCommand) {
         window.currentCommand = null;
     }
 }
