@@ -194,36 +194,20 @@ window.logCommandComplete = function(commandName, success = true) {
  * Enhanced protocol logging with context and formatting
  */
 window.logProtocolCommand = function(commandName, commandCode, data, direction = 'TX') {
-    const arrow = direction === 'TX' ? '→' : '←';
-    const directionName = direction === 'TX' ? 'Device' : 'Device';
+    // Clean header without emoji clutter
+    logProtocol(`${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName}`);
 
-    // Add context header
-    logProtocol(`🔍 ${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName}`);
+    // Format all bytes as hex consistently
+    const allBytesHex = Array.from(data).map(b => `0x${b.toString(16).padStart(2, '0')}`);
 
-    // Format with colors using spans
-    const stx = data[0];
-    const length = data[1];
-    const identifier = data[2];
-    const cmd = data[3];
-    const payloadBytes = data.slice(4, -1);
-    const crc = data[data.length - 1];
+    // Clean single line with proper spacing
+    logProtocol(`  ${data.length} bytes: ${allBytesHex.join(' ')}`);
 
-    // Use ANSI color codes or simple text formatting instead of HTML spans
-    let formattedMessage = `📡 ${direction} ${arrow} ${directionName} (${data.length} bytes): `;
-    formattedMessage += `0x${stx.toString(16).padStart(2, '0')} `;
-    formattedMessage += `0x${length.toString(16).padStart(2, '0')} `;
-    formattedMessage += `0x${identifier.toString(16).padStart(2, '0')} `;
-    formattedMessage += `0x${cmd.toString(16).padStart(2, '0')} `;
-
-    if (payloadBytes.length > 0) {
-        formattedMessage += payloadBytes.map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ') + ' ';
-    }
-    formattedMessage += `0x${crc.toString(16).padStart(2, '0')}`;
-
-    logProtocol(formattedMessage);
-
-    // Add hex dump for protocol tab
-    logProtocol(formatHexDump(data));
+    // Add hex dump with proper indentation
+    const hexDump = formatHexDump(data);
+    // Add indentation to each line of hex dump
+    const indentedHexDump = hexDump.replace(/<pre[^>]*>/g, '<pre style="font-family: \'Courier New\', monospace; margin: 5px 0 5px 20px; color: #888;">');
+    logProtocol(indentedHexDump);
 };
 
 /**
