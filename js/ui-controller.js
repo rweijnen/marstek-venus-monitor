@@ -157,7 +157,7 @@ function displayData(content) {
     if (typeof content === 'string') {
         // Add timestamp to the title
         const now = new Date();
-        const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
+        const timestamp = now.toLocaleTimeString(undefined, { hour12: false });
         
         // Inject timestamp into the h3 title
         const contentWithTimestamp = content.replace(

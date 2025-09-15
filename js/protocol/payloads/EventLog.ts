@@ -142,7 +142,13 @@ export class EventLog extends BasePayload {
 
             records.forEach((record: EventRecord, index: number) => {
                 const timestampStr = record.isValid
-                    ? record.timestamp.toLocaleString() 
+                    ? record.timestamp.toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
                     : `${record.year}-${record.month.toString().padStart(2, '0')}-${record.day.toString().padStart(2, '0')} ${record.hour.toString().padStart(2, '0')}:${record.minute.toString().padStart(2, '0')}`;
                 
                 const flagStr = `0x${record.flag.toString(16).padStart(2, '0')}`;

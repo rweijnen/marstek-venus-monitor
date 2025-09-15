@@ -47,7 +47,7 @@ window.switchLogTab = switchLogTab;
  * Enhanced logging function that categorizes messages
  */
 function logEnhanced(message, type = LogType.ACTIVITY, data = null) {
-    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const timestamp = new Date().toLocaleTimeString(undefined, { hour12: false });
     const formattedMessage = `[${timestamp}] ${message}`;
     
     // Add to appropriate tab
@@ -270,7 +270,7 @@ window.preloadAllTemplates = preloadAllTemplates;
  */
 window.updateConnectionStatus = function(message) {
     // Always add to Activity tab with timestamp
-    const timestampedMessage = `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${message}`;
+    const timestampedMessage = `[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}`;
     if (typeof logActivity !== 'undefined') {
         logActivity(timestampedMessage);
     }

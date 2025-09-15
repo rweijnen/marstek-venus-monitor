@@ -83,7 +83,7 @@ if (typeof logActivity === 'undefined') {
     window.logActivity = function(message) {
         const logElement = document.getElementById('log');
         if (logElement) {
-            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${message}\n`;
+            logElement.textContent += `[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}\n`;
             logElement.scrollTop = logElement.scrollHeight;
         } else {
             console.log('[Activity] ' + message);
@@ -109,7 +109,7 @@ if (typeof logProtocol === 'undefined') {
         const logElement = document.getElementById('log');
         const fullMessage = data ? `${message}\nRaw data: ${formatBytes(data)}` : message;
         if (logElement) {
-            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${fullMessage}\n`;
+            logElement.textContent += `[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${fullMessage}\n`;
             logElement.scrollTop = logElement.scrollHeight;
         } else {
             console.log('[Protocol] ' + fullMessage);
@@ -120,7 +120,7 @@ if (typeof logError === 'undefined') {
     window.logError = function(message) {
         const logElement = document.getElementById('log');
         if (logElement) {
-            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ❌ ${message}\n`;
+            logElement.textContent += `[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ❌ ${message}\n`;
             logElement.scrollTop = logElement.scrollHeight;
         } else {
             console.log('[Error] ' + message);
@@ -478,7 +478,7 @@ function log(message) {
     if (typeof logActivity === 'undefined') {
         const logElement = document.getElementById('log');
         if (logElement) {
-            logElement.textContent += `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${message}\n`;
+            logElement.textContent += `[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}\n`;
             
             const lines = logElement.textContent.split('\n');
             if (lines.length > 500) {
