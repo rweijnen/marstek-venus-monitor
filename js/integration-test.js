@@ -116,12 +116,10 @@ function runIntegrationTest() {
     return failed === 0;
 }
 
-// Auto-run test when page loads (with delay to ensure all modules are loaded)
+// Integration tests disabled - only run manually if needed
+// Auto-run removed to prevent interference with connection state
+
+// Make test available globally for manual execution
 if (typeof window !== 'undefined') {
-    window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(runIntegrationTest, 1000);
-    });
-    
-    // Make test available globally
     window.runIntegrationTest = runIntegrationTest;
 }

@@ -219,36 +219,46 @@ async function connect() {
                 // Get service with retry on failure
                 let service;
                 try {
+                    log('🔍 Discovering services...');
                     service = await server.getPrimaryService(SERVICE_UUID);
+                    log('✅ Service discovered successfully');
                 } catch (serviceError) {
-                    log('⚠️ Service not immediately available, waiting...');
+                    log(`⚠️ Service not immediately available: ${serviceError.message}`);
+                    log('⏳ Waiting 3s for device to initialize services...');
                     // Progressive delay: shorter first wait, then longer if needed
                     await new Promise(resolve => createTrackedTimeout(resolve, 3000));
 
                     try {
                         // Quick retry first
+                        log('🔄 Quick retry: attempting service discovery...');
                         const quickRetryPromise = server.getPrimaryService(SERVICE_UUID);
                         const quickTimeoutPromise = new Promise((_, reject) =>
                             createTrackedTimeout(() => reject(new Error('Quick retry timeout')), 5000)
                         );
                         service = await Promise.race([quickRetryPromise, quickTimeoutPromise]);
+                        log('✅ Service discovered on quick retry');
                     } catch (quickError) {
-                        log('⚠️ Quick retry failed, trying longer wait...');
+                        log(`⚠️ Quick retry failed: ${quickError.message}`);
+                        log('⏳ Waiting 5s for device services to fully initialize...');
                         await new Promise(resolve => createTrackedTimeout(resolve, 5000));
 
                         // Final attempt with longer timeout
+                        log('🔄 Final attempt: service discovery with extended timeout...');
                         const finalPromise = server.getPrimaryService(SERVICE_UUID);
                         const finalTimeoutPromise = new Promise((_, reject) =>
-                            createTrackedTimeout(() => reject(new Error('Service discovery timeout')), 10000)
+                            createTrackedTimeout(() => reject(new Error('Service discovery timeout after 10s')), 10000)
                         );
                         service = await Promise.race([finalPromise, finalTimeoutPromise]);
+                        log('✅ Service discovered on final attempt');
                     }
                 }
                 
                 // Get all characteristics
+                log('🔍 Discovering characteristics...');
                 const chars = await service.getCharacteristics();
                 characteristics = {};
-                
+                log(`✅ Found ${chars.length} characteristics`);
+
                 // Set up characteristics and notifications
                 for (const char of chars) {
                     characteristics[char.uuid] = char;
@@ -270,6 +280,7 @@ async function connect() {
                 
                 connected = true;
                 connectionInProgress = false; // Reset flag on successful connection
+                log('✅ Connection attempt succeeded - service discovery completed');
                 break; // Success, exit retry loop
                 
             } catch (attemptError) {
