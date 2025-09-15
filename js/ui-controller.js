@@ -380,12 +380,12 @@ const commandInfo = {
         notes: '⚙️ Internal system metrics and configuration status.'
     },
     errors: {
-        title: '🚨 Error Codes (0x13)',
-        description: 'Historical error codes with timestamps',
+        title: '📅 BLE Event Log (0x13)',
+        description: 'BLE event log with timestamps only',
         command: '0x73 0x04 0x23 0x13 [checksum]',
-        response: 'List of error entries with timestamps and error codes',
-        sampleData: '2024-01-15 10:30:45 - Error Code: E001 (Overvoltage)',
-        notes: '📝 Historical error log. May be empty if no errors recorded.'
+        response: 'List of event entries with timestamps and validity flags',
+        sampleData: '2025-02-25 15:22:00 - Valid Event (Flag: 0x80)',
+        notes: '📝 BLE event log with timestamps. No error codes included.'
     },
     bms: {
         title: '🔋 BMS Data (0x14)',
@@ -404,12 +404,12 @@ const commandInfo = {
         notes: '📋 Current system configuration and user-defined settings.'
     },
     events: {
-        title: '📝 Event Log (0x1C)',
-        description: 'System event history with timestamps',
+        title: '📝 HM Event Log (0x1C)',
+        description: 'HM event history with timestamps and event codes',
         command: '0x73 0x04 0x23 0x1C [checksum]',
-        response: 'Chronological list of system events and state changes',
-        sampleData: '2024-01-15 09:15:23 - System Start, 09:20:01 - Grid Connected',
-        notes: '📅 Historical system events and state changes log.'
+        response: 'Compact event records with timestamps, type, and 16-bit event codes',
+        sampleData: '2025-08-30 22:10 - Type: 0x04, Code: 0x019C',
+        notes: '📅 HM event log with 9-byte records including event codes.'
     },
     meterip: {
         title: '🌐 Read P1 Meter IP (0x21)',

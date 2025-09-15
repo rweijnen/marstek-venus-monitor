@@ -18,8 +18,8 @@
         <span class="cmd-button-text">🛠️ Developer Mode Info</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('system')">i</span>
     </button>
-    <button onclick="sendCommand(0x13, 'Error Codes')" disabled data-tooltip="Historical error codes with timestamps" class="cmd-button" data-requires-connection="true">
-        <span class="cmd-button-text">🚨 Error Codes</span>
+    <button onclick="sendCommand(0x13, 'BLE Event Log')" disabled data-tooltip="BLE event log with timestamps only" class="cmd-button" data-requires-connection="true">
+        <span class="cmd-button-text">📅 BLE Event Log</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('errors')">i</span>
     </button>
     <button onclick="sendCommand(0x14, 'BMS Data')" disabled data-tooltip="Battery voltages, current, SOC, and cell data" class="cmd-button" data-requires-connection="true">
@@ -30,8 +30,8 @@
         <span class="cmd-button-text">⚙️ Config Data</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('config')">i</span>
     </button>
-    <button onclick="sendCommand(0x1C, 'Event Log')" disabled data-tooltip="System event history with timestamps" class="cmd-button" data-requires-connection="true">
-        <span class="cmd-button-text">📝 Event Log</span>
+    <button onclick="sendCommand(0x1C, 'HM Event Log')" disabled data-tooltip="HM event history with timestamps and event codes" class="cmd-button" data-requires-connection="true">
+        <span class="cmd-button-text">📝 HM Event Log</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
     </button>
     <button onclick="sendMeterIPCommand(0x21, 'P1 Meter IP', [0x0B])" disabled data-tooltip="Read P1 meter IP address from device configuration" class="cmd-button" data-requires-connection="true">
@@ -62,16 +62,16 @@
         <span class="cmd-button-text">⚙️ Settings Info</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settingsinfo')">i</span>
     </button>
-    <button onclick="sendCommand(0x05, 'WiFi Config')" disabled class="cmd-button" data-tooltip="Get WiFi configuration and credentials" data-requires-connection="true">
-        <span class="cmd-button-text">📶 WiFi Config</span>
+    <button onclick="sendCommand(0x05, 'URL Broker Config')" disabled class="cmd-button" data-tooltip="Get URL broker configuration (Caesar cipher + Base64)" data-requires-connection="true">
+        <span class="cmd-button-text">🔗 URL Broker Config</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('wificonfig')">i</span>
     </button>
     <button onclick="sendCommand(0x0B, 'Time Settings')" disabled class="cmd-button" data-tooltip="Get device time and power configuration settings" data-requires-connection="true">
         <span class="cmd-button-text">🕐 Time Settings</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('timesettings')">i</span>
     </button>
-    <button onclick="sendCommand(0x1B, 'URL Config')" disabled class="cmd-button" data-tooltip="Get server URL and port configuration" data-requires-connection="true">
-        <span class="cmd-button-text">🌐 URL Config</span>
+    <button onclick="sendCommand(0x1B, 'HM Summary')" disabled class="cmd-button" data-tooltip="Get HM metadata and configuration" data-requires-connection="true">
+        <span class="cmd-button-text">📊 HM Summary</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('urlconfig')">i</span>
     </button>
     <button onclick="readDeviceIdentifiers()" disabled class="cmd-button" data-tooltip="Read VID, GID and XID configuration" data-requires-connection="true">

@@ -41,8 +41,8 @@ export class FrameHeader implements IFrameHeader {
             return false;
         }
 
-        // Check length matches actual data
-        if (this.length !== data.length) {
+        // Check length matches actual data (except for 0x13 which uses fixed size)
+        if (this.command !== 0x13 && this.length !== data.length) {
             console.warn(`Length mismatch: header says ${this.length}, got ${data.length}`);
             return false;
         }
