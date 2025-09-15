@@ -147,6 +147,55 @@ let firmwareChecksum = 0;
 let firmwareData = null;
 
 // ========================================
+// WEB BLUETOOTH CLEANUP HELPERS (Chrome)
+// ========================================
+
+// Sleep helper
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Best-effort: disconnect any servers your app is holding
+async function disconnectHeldServers() {
+    try { if (server?.connected) server.disconnect(); } catch {}
+}
+
+// Disconnect all remembered devices for this origin
+async function disconnectKnownDevices() {
+    if (!('bluetooth' in navigator) || !navigator.bluetooth.getDevices) return;
+    let devices = [];
+    try { devices = await navigator.bluetooth.getDevices(); } catch {}
+    for (const dev of devices) {
+        try { dev.gatt?.connected && dev.gatt.disconnect(); } catch {}
+    }
+}
+
+// Forget (un-permit) devices remembered for this origin
+async function forgetKnownDevices() {
+    if (!('bluetooth' in navigator) || !navigator.bluetooth.getDevices) return;
+    let devices = [];
+    try { devices = await navigator.bluetooth.getDevices(); } catch {}
+    for (const dev of devices) {
+        try { typeof dev.forget === 'function' && (await dev.forget()); } catch {}
+    }
+}
+
+// Full in-page cleanup routine
+async function hardResetBle({ forget = true } = {}) {
+    log('🔄 Performing hard Bluetooth reset...');
+    await disconnectHeldServers();
+    await disconnectKnownDevices();
+    await sleep(300);
+    if (forget) {
+        await forgetKnownDevices();
+        await sleep(200);
+    }
+    // Clear app references
+    device = null;
+    server = null;
+    characteristics = {};
+    log('✅ Bluetooth reset complete');
+}
+
+// ========================================
 // BLE CONNECTION MANAGEMENT
 // ========================================
 
@@ -196,6 +245,22 @@ async function connect() {
                 log('🚫 Connection cancelled by user');
                 return;
             }
+
+            // If device is null (after reset), get a fresh device
+            if (!device) {
+                log('🔍 Getting fresh device after reset...');
+                try {
+                    device = await navigator.bluetooth.requestDevice({
+                        filters: [{ namePrefix: 'MST' }],
+                        optionalServices: [SERVICE_UUID]
+                    });
+                    logActivity(`📱 Found device: ${device.name}`);
+                } catch (deviceError) {
+                    log(`⚠️ Failed to get fresh device: ${deviceError.message}`);
+                    throw deviceError;
+                }
+            }
+
             try {
                 log(`🔄 Connection attempt ${attempt}/${maxRetries}...`);
                 
@@ -336,41 +401,14 @@ async function connect() {
                         } catch (e) {}
                     }
 
-                    // If this was a stale connection error, try to reset device pairings
-                    if (attemptError.message.includes('Stale device connection')) {
-                        // On first stale connection, try forgetting devices
-                        if (attempt === 1) {
-                            log('🔄 Attempting to clear stale Bluetooth pairings...');
-                            try {
-                                await forgetBluetoothDevices();
-                                // Reset cancellation flag after device reset (forgetBluetoothDevices calls disconnect)
-                                connectionCancelled = false;
-                                connectionInProgress = true;
-                                log('✅ Device reset complete - will request fresh device on retry');
-                            } catch (resetError) {
-                                log(`⚠️ Could not reset devices: ${resetError.message}`);
-                            }
-                        }
-
-                        // Request fresh device selection
-                        log('🔄 Requesting fresh device selection due to stale connection...');
-                        const previousDeviceId = device?.id;
+                    // If this was a stale connection error, do hard reset on first attempt
+                    if (attemptError.message.includes('Stale device connection') && attempt === 1) {
                         try {
-                            const newDevice = await navigator.bluetooth.requestDevice({
-                                filters: [{ namePrefix: 'MST' }],
-                                optionalServices: [SERVICE_UUID]
-                            });
-
-                            if (newDevice.id === previousDeviceId) {
-                                log('⚠️ Chrome returned same cached device - using longer delays instead');
-                                // Don't update device reference, rely on longer timing
-                            } else {
-                                device = newDevice;
-                                log(`📱 Selected truly fresh device: ${device.name} (ID: ${device.id.substring(0, 8)}...)`);
-                            }
-                        } catch (deviceError) {
-                            log(`⚠️ Fresh device selection failed: ${deviceError.message}`);
-                            // Continue with existing device if fresh selection fails
+                            await hardResetBle({ forget: true });
+                            connectionCancelled = false;
+                            connectionInProgress = true;
+                        } catch (resetError) {
+                            log(`⚠️ Hard reset failed: ${resetError.message}`);
                         }
                     }
 
