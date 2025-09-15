@@ -1413,7 +1413,7 @@ async function connectAndPrepareOTA() {
     
     // Enable notifications on RX characteristic (both HM and OTA responses)
     await rxCharacteristic.startNotifications();
-    rxCharacteristic.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
+    // Note: Notification listener already set up in main connection - don't add duplicate
     
     // All communication (both HM and OTA) goes through FF01 (write) → FF02 (notify) based on Wireshark analysis
     // Note: Notifications already enabled in main connection setup
