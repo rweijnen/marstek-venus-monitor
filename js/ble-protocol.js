@@ -1000,7 +1000,9 @@ function handleHMFrame(value) {
         checksum = value[value.length - 1];
 
         // Special case: 0x13 (BLE Event Log) uses fixed 285-byte frame regardless of length byte
-        if (cmd !== 0x13 && value.length !== hmLength) {
+        if (cmd === 0x13) {
+            log(`📊 BLE Event Log (0x13) detected - bypassing length check (frame: ${value.length} bytes, declared: ${hmLength})`);
+        } else if (value.length !== hmLength) {
             log(`❌ Normal HM frame length mismatch: expected ${hmLength}, got ${value.length}`);
             return;
         }
