@@ -213,6 +213,92 @@
             font-size: 12px;
             opacity: 0.8;
         }
+        
+        /* Event log styling */
+        .event-log-container {
+            margin: 10px 0;
+        }
+        
+        .event-log-container .summary {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .event-log-container .payload-header {
+            background: #e7f3ff;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .valid-row {
+            background-color: #e6ffe6;
+        }
+        
+        .invalid-row {
+            background-color: #ffe6e6;
+        }
+        
+        /* Error codes styling */
+        .error-codes-container {
+            margin: 10px 0;
+        }
+        
+        .error-codes-container .summary {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .error-codes-container .subsystem-summary {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .error-codes-container .subsystem-summary ul {
+            margin: 5px 0 0 20px;
+            padding: 0;
+        }
+        
+        .error-row {
+            background-color: #ffe6e6;
+        }
+        
+        .info-row {
+            background-color: #f8f9fa;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
         .btn-connect { background: #28a745; padding: 12px 24px; font-size: 16px; }
         .btn-warning { background: #ffc107; color: #212529; }
         .btn-warning:hover { background: #e0a800; }

@@ -21,6 +21,7 @@ import { DeviceConfig } from './DeviceConfig.js';
 import { SettingsInfo } from './SettingsInfo.js';
 import { PowerModeResponse } from './PowerModeResponse.js';
 import { BackupPowerResponse } from './BackupPowerResponse.js';
+import { EventLog } from './EventLog.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -77,6 +78,10 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.SETTINGS_INFO:
             return new SettingsInfo(data);
+            
+        case CommandType.EVENT_LOG_DUMP:
+            return new EventLog(data);
+            
         
         // Add other payload types as we implement them
         
@@ -127,5 +132,6 @@ export {
     DeviceConfig,
     SettingsInfo,
     PowerModeResponse,
-    BackupPowerResponse
+    BackupPowerResponse,
+    EventLog
 };
