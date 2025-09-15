@@ -243,6 +243,12 @@ async function connect() {
                     log(`🔧 DEBUG: GATT server still connected: ${server.connected}`);
                     log(`🔧 DEBUG: Device still connected: ${device.gatt?.connected}`);
 
+                    // If error code 19 (disconnected) and server not connected, this is likely a stale connection
+                    if (serviceError.code === 19 && !server.connected) {
+                        log('⚠️ Detected stale connection after page refresh - failing fast to retry with fresh connection');
+                        throw new Error('Stale device connection detected - need fresh device selection');
+                    }
+
                     // Try to get all available services for debugging
                     try {
                         log('🔧 DEBUG: Attempting to list all available services...');
@@ -328,7 +334,22 @@ async function connect() {
                             server.disconnect();
                         } catch (e) {}
                     }
-                    
+
+                    // If this was a stale connection error, request fresh device selection
+                    if (attemptError.message.includes('Stale device connection')) {
+                        log('🔄 Requesting fresh device selection due to stale connection...');
+                        try {
+                            device = await navigator.bluetooth.requestDevice({
+                                filters: [{ namePrefix: 'MST' }],
+                                optionalServices: [SERVICE_UUID]
+                            });
+                            log(`📱 Selected fresh device: ${device.name}`);
+                        } catch (deviceError) {
+                            log(`⚠️ Fresh device selection failed: ${deviceError.message}`);
+                            // Continue with existing device if fresh selection fails
+                        }
+                    }
+
                     // Progressive backoff: 2s, 5s, 8s
                     const waitTime = attempt === 1 ? 2000 : attempt === 2 ? 5000 : 8000;
                     log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);

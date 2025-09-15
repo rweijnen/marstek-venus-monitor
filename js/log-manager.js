@@ -194,20 +194,40 @@ window.logCommandComplete = function(commandName, success = true) {
  * Enhanced protocol logging with context and formatting
  */
 window.logProtocolCommand = function(commandName, commandCode, data, direction = 'TX') {
-    // Clean header without emoji clutter
-    logProtocol(`${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName}`);
+    // Get timestamp once for the entire message group
+    const timestamp = new Date().toLocaleTimeString(undefined, { hour12: false });
+
+    // Header with timestamp
+    const header = `[${timestamp}] ${direction === 'TX' ? 'Requesting' : 'Received'} ${commandName}`;
 
     // Format all bytes as hex consistently
     const allBytesHex = Array.from(data).map(b => `0x${b.toString(16).padStart(2, '0')}`);
 
-    // Clean single line with proper spacing
-    logProtocol(`  ${data.length} bytes: ${allBytesHex.join(' ')}`);
+    // Byte count line (indented, no timestamp)
+    const byteLine = `  ${data.length} bytes: ${allBytesHex.join(' ')}`;
 
-    // Add hex dump with proper indentation
+    // Generate hex dump and indent each line
     const hexDump = formatHexDump(data);
-    // Add indentation to each line of hex dump
-    const indentedHexDump = hexDump.replace(/<pre[^>]*>/g, '<pre style="font-family: \'Courier New\', monospace; margin: 5px 0 5px 20px; color: #888;">');
-    logProtocol(indentedHexDump);
+    const indentedHexDump = hexDump.split('\n')
+        .map(line => line.length > 0 ? `  ${line}` : line)
+        .join('\n');
+
+    // Add to protocol log manually to avoid automatic timestamping
+    const logElement = document.getElementById('protocolLog');
+    if (logElement) {
+        logElement.textContent += `${header}\n${byteLine}\n${indentedHexDump}\n\n`;
+
+        // Auto-scroll if user is at bottom
+        if (logElement.scrollTop >= logElement.scrollHeight - logElement.clientHeight - 10) {
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Limit log size (keep last 200 lines)
+        const lines = logElement.textContent.split('\n');
+        if (lines.length > 200) {
+            logElement.textContent = lines.slice(-200).join('\n');
+        }
+    }
 };
 
 /**
@@ -246,7 +266,7 @@ function formatHexDump(data) {
         if (i + 16 < bytes.length) result += '\n';
     }
 
-    return `<pre style="font-family: 'Courier New', monospace; margin: 5px 0; color: #888;">${result}</pre>`;
+    return result;
 };
 
 /**
