@@ -51,6 +51,7 @@ let device = null;
 let server = null;
 let characteristics = {};
 let connectionCancelled = false; // Flag to cancel ongoing connection attempts
+let connectionInProgress = false; // Flag to prevent overlapping connection attempts
 let activeTimeouts = []; // Track active timeouts for cancellation
 
 // Helper functions for timeout management
@@ -154,8 +155,15 @@ let firmwareData = null;
  */
 async function connect() {
     try {
-        // Reset cancellation flag at start of new connection
+        // Prevent overlapping connection attempts
+        if (connectionInProgress) {
+            log('⚠️ Connection already in progress, ignoring request');
+            return;
+        }
+
+        // Reset flags at start of new connection
         connectionCancelled = false;
+        connectionInProgress = true;
         
         log('🔍 Searching for Marstek devices...');
         
@@ -172,7 +180,11 @@ async function connect() {
         }
 
         logActivity(`📱 Found device: ${device.name}`);
-        
+
+        // Give device a moment to be ready after selection (Marstek-specific)
+        log('⏳ Preparing device connection...');
+        await new Promise(resolve => createTrackedTimeout(resolve, 1000));
+
         // Try to connect with retry logic
         const maxRetries = 3;
         let connected = false;
@@ -189,14 +201,20 @@ async function connect() {
                 
                 // Connect to GATT server with timeout
                 const connectPromise = device.gatt.connect();
-                const timeoutPromise = new Promise((_, reject) => 
-                    createTrackedTimeout(() => reject(new Error('Connection timeout')), 10000)
+                const timeoutPromise = new Promise((_, reject) =>
+                    createTrackedTimeout(() => reject(new Error('Connection timeout')), 15000)
                 );
                 
                 server = await Promise.race([connectPromise, timeoutPromise]);
-                
-                // Small delay to ensure connection is stable
-                await new Promise(resolve => createTrackedTimeout(resolve, 500));
+
+                // Verify connection is actually established
+                if (!server || !server.connected) {
+                    throw new Error('GATT server connection failed');
+                }
+
+                // Longer delay to ensure device is ready (Marstek devices need time)
+                log('⏳ Waiting for device to stabilize...');
+                await new Promise(resolve => createTrackedTimeout(resolve, 2000));
                 
                 // Get service with retry on failure
                 let service;
@@ -204,14 +222,27 @@ async function connect() {
                     service = await server.getPrimaryService(SERVICE_UUID);
                 } catch (serviceError) {
                     log('⚠️ Service not immediately available, waiting...');
-                    await new Promise(resolve => createTrackedTimeout(resolve, 10000));
-                    
-                    // Retry with timeout protection
-                    const servicePromise = server.getPrimaryService(SERVICE_UUID);
-                    const serviceTimeoutPromise = new Promise((_, reject) => 
-                        createTrackedTimeout(() => reject(new Error('Service retry timeout')), 20000)
-                    );
-                    service = await Promise.race([servicePromise, serviceTimeoutPromise]);
+                    // Progressive delay: shorter first wait, then longer if needed
+                    await new Promise(resolve => createTrackedTimeout(resolve, 3000));
+
+                    try {
+                        // Quick retry first
+                        const quickRetryPromise = server.getPrimaryService(SERVICE_UUID);
+                        const quickTimeoutPromise = new Promise((_, reject) =>
+                            createTrackedTimeout(() => reject(new Error('Quick retry timeout')), 5000)
+                        );
+                        service = await Promise.race([quickRetryPromise, quickTimeoutPromise]);
+                    } catch (quickError) {
+                        log('⚠️ Quick retry failed, trying longer wait...');
+                        await new Promise(resolve => createTrackedTimeout(resolve, 5000));
+
+                        // Final attempt with longer timeout
+                        const finalPromise = server.getPrimaryService(SERVICE_UUID);
+                        const finalTimeoutPromise = new Promise((_, reject) =>
+                            createTrackedTimeout(() => reject(new Error('Service discovery timeout')), 10000)
+                        );
+                        service = await Promise.race([finalPromise, finalTimeoutPromise]);
+                    }
                 }
                 
                 // Get all characteristics
@@ -238,6 +269,7 @@ async function connect() {
                 }
                 
                 connected = true;
+                connectionInProgress = false; // Reset flag on successful connection
                 break; // Success, exit retry loop
                 
             } catch (attemptError) {
@@ -252,9 +284,9 @@ async function connect() {
                         } catch (e) {}
                     }
                     
-                    // Wait before retry (longer wait for each attempt)
-                    const waitTime = attempt * 2000;
-                    log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+                    // Progressive backoff: 2s, 5s, 8s
+                    const waitTime = attempt === 1 ? 2000 : attempt === 2 ? 5000 : 8000;
+                    log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);
                     await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
                     
                     // Check for cancellation after wait
@@ -296,15 +328,16 @@ async function connect() {
     } catch (error) {
         log(`❌ Connection failed: ${error.message}`);
         logError(`Connection failed after 3 attempts: ${error.message}`);
-        
+
         if (window.uiController && window.uiController.updateStatus) {
             window.uiController.updateStatus(false);
         }
-        
+
         // Clean up on failure
         device = null;
         server = null;
         characteristics = {};
+        connectionInProgress = false; // Reset flag on connection failure
         
         // Always show retry dialog on connection failure
         log('🔄 Showing retry dialog...');
@@ -326,7 +359,8 @@ async function connect() {
 function disconnect() {
     // Cancel any ongoing connection attempts
     connectionCancelled = true;
-    
+    connectionInProgress = false; // Reset connection-in-progress flag
+
     // Clear all active timeouts (connection timeouts, retry delays, etc.)
     clearAllActiveTimeouts();
     
@@ -778,7 +812,7 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
         // Retry on error
         if (retryCount < 2) {
             log(`🔄 Retrying ${commandName} due to error (attempt ${retryCount + 2}/3)...`);
-            setTimeout(() => {
+            createTrackedTimeout(() => {
                 sendCommand(commandType, commandName, payload, retryCount + 1);
             }, 1000);
         }
@@ -832,7 +866,7 @@ async function sendMeterIPCommand(commandType, commandName, payload = null, retr
         // Retry on error
         if (retryCount < 2) {
             log(`🔄 Retrying ${commandName} due to error (attempt ${retryCount + 2}/3)...`);
-            setTimeout(() => {
+            createTrackedTimeout(() => {
                 sendMeterIPCommand(commandType, commandName, payload, retryCount + 1);
             }, 1000);
         }
