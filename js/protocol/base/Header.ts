@@ -47,15 +47,17 @@ export class FrameHeader implements IFrameHeader {
             return false;
         }
 
-        // Verify XOR checksum (include start byte)
-        let calculatedChecksum = 0;
-        for (let i = 0; i < data.length - 1; i++) {
-            calculatedChecksum ^= data[i];
-        }
+        // Verify XOR checksum (skip for command 0x13 BLE Event Log)
+        if (this.command !== 0x13) {
+            let calculatedChecksum = 0;
+            for (let i = 0; i < data.length - 1; i++) {
+                calculatedChecksum ^= data[i];
+            }
 
-        if (calculatedChecksum !== this.checksum) {
-            console.warn(`Checksum mismatch: calculated 0x${calculatedChecksum.toString(16)}, got 0x${this.checksum.toString(16)}`);
-            return false;
+            if (calculatedChecksum !== this.checksum) {
+                console.warn(`Checksum mismatch: calculated 0x${calculatedChecksum.toString(16)}, got 0x${this.checksum.toString(16)}`);
+                return false;
+            }
         }
 
         return true;
