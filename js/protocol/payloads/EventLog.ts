@@ -122,13 +122,9 @@ export class EventLog extends BasePayload {
         const data = this.parse();
         const { records, summary } = data;
         
-        // Get current timestamp for title
-        const now = new Date();
-        const timestamp = now.toLocaleTimeString(undefined, { hour12: false });
-
         let html = `
             <div class="event-log-container">
-                <h3>📋 BLE Event Log [${timestamp}]</h3>
+                <h3>📋 BLE Event Log</h3>
                 <hr>
         `;
 

@@ -97,20 +97,16 @@ export class HMEventLog extends BasePayload {
         const data = this.parse();
         const { records, summary } = data;
         
-        // Get current timestamp for title
-        const now = new Date();
-        const timestamp = now.toLocaleTimeString(undefined, { hour12: false });
-
         let html = `
             <div class="hm-event-log-container">
-                <h3>📅 HM Event Log [${timestamp}]</h3>
+                <h3>📅 HM Event Log</h3>
                 <hr>
         `;
 
         if (records.length > 0) {
             html += `
                 <div class="hm-event-records">
-                    <h4>${summary.totalRecords} Event Records (9-byte format):</h4>
+                    <h4>${summary.totalRecords} Event Records:</h4>
                     <table class="data-table">
                         <thead>
                             <tr>
