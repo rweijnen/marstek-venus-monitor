@@ -122,28 +122,12 @@ export class EventLog extends BasePayload {
         const data = this.parse();
         const { records, summary } = data;
         
-        let html = `
-            <div class="event-log-container">
-                <div class="summary">
-                    <h3>📅 Event Log Summary</h3>
-                    <p>Total Records: <strong>${summary.totalRecords}</strong></p>
-                    <p>Valid Events: <strong>${summary.validRecords}</strong></p>
-                    <p>Records Area Size: <strong>${summary.recordsAreaSize}</strong> bytes</p>
-                </div>
-        `;
-
-        // Show payload header
-        html += `
-            <div class="payload-header">
-                <h4>Payload Header (14 bytes):</h4>
-                <code>${summary.payloadHeader.map((b: number) => `0x${b.toString(16).padStart(2, '0')}`).join(' ')}</code>
-            </div>
-        `;
+        let html = `<div class="event-log-container">`;
 
         if (records.length > 0) {
             html += `
                 <div class="event-records">
-                    <h4>📋 Event Records:</h4>
+                    <h4>📋 ${summary.totalRecords} Event Records:</h4>
                     <table class="data-table">
                         <thead>
                             <tr>
