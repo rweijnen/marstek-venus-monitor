@@ -1072,16 +1072,26 @@ function handleHMFrame(value) {
     try {
         // Use the new payload system
         if (window.createPayload) {
+            log(`🔍 DEBUG: Calling createPayload for cmd 0x${cmd.toString(16).toUpperCase()}`);
             const payload = window.createPayload(value);
+            log(`🔍 DEBUG: createPayload succeeded, payload type: ${payload.constructor.name}`);
+
+            log(`🔍 DEBUG: Calling toHTML()`);
             const parsed = payload.toHTML();
+            log(`🔍 DEBUG: toHTML() succeeded, result length: ${parsed ? parsed.length : 'null'}`);
 
             if (window.uiController && window.uiController.displayData) {
+                log(`🔍 DEBUG: Using uiController.displayData`);
                 window.uiController.displayData(parsed);
             } else {
                 // Fallback display
+                log(`🔍 DEBUG: Using fallback display`);
                 const dataDisplay = document.getElementById('dataDisplay');
                 if (dataDisplay) {
                     dataDisplay.innerHTML = parsed;
+                    log(`🔍 DEBUG: HTML set to dataDisplay element`);
+                } else {
+                    log(`❌ DEBUG: dataDisplay element not found`);
                 }
             }
 
@@ -1091,7 +1101,8 @@ function handleHMFrame(value) {
             log(`Raw response: ${formatBytes(value)}`);
         }
     } catch (error) {
-        log(`❌ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message}`);
+        log(`❌ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message || 'Unknown error'}`);
+        log(`❌ Error object: ${JSON.stringify(error)}`);
         if (error.stack) {
             log(`❌ Stack trace: ${error.stack}`);
         }
