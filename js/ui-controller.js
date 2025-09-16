@@ -390,10 +390,10 @@ const commandInfo = {
     meterip: {
         title: '🌐 Read P1 Meter IP (0x21)',
         description: 'Read P1 power meter IP address from device configuration',
-        command: '0x73 0x05 0x23 0x21 0x0B [checksum] (Alternative protocol)',
-        response: '4 bytes representing IP address or text string with IP',
-        sampleData: '192.168.1.100 or "192.168.1.100"',
-        notes: '🔍 Reads the IP address of the connected P1 meter. Uses alternative protocol for compatibility with current firmware. Returns 0xFF bytes if no meter IP is configured.'
+        command: '0x73 0x06 0x23 0x21 0x0B [checksum]',
+        response: '16 bytes ASCII IP string, NUL-terminated and zero-padded',
+        sampleData: '"192.168.1.50" (31 39 32 2E 31 36 38 2E 31 2E 35 30 00 00 00 00)',
+        notes: '🔍 Reads the IP address of the connected P1 meter. Sub-command 0x0B reads the 16-byte IP buffer. Returns all zeros if no meter IP is configured.'
     },
     network: {
         title: '🔗 Network Info (0x24)',

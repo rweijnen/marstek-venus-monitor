@@ -23,6 +23,7 @@ import { EventLog } from './EventLog.js';
 import { HMEventLog } from './HMEventLog.js';
 import { URLBrokerConfig } from './URLBrokerConfig.js';
 import { HMSummary } from './HMSummary.js';
+import { MeterIP } from './MeterIP.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -85,8 +86,10 @@ export function createPayload(data: Uint8Array): BasePayload {
             
         case CommandType.HM_EVENT_LOG:
             return new HMEventLog(data);
-            
-        
+
+        case CommandType.METER_IP:
+            return new MeterIP(data);
+
         // Add other payload types as we implement them
         
         default:
@@ -120,11 +123,11 @@ class GenericPayload extends BasePayload {
     }
 }
 
-export { 
-    RuntimeInfoPayload, 
-    DeviceInfoPayload, 
-    WiFiInfoPayload, 
-    BMSDataPayload, 
+export {
+    RuntimeInfoPayload,
+    DeviceInfoPayload,
+    WiFiInfoPayload,
+    BMSDataPayload,
     NetworkInfoPayload,
     TimeSettings,
     WorkModeConfig,
@@ -138,5 +141,6 @@ export {
     EventLog,
     HMEventLog,
     URLBrokerConfig,
-    HMSummary
+    HMSummary,
+    MeterIP
 };

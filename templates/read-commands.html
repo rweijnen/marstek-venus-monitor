@@ -34,7 +34,7 @@
         <span class="cmd-button-text">📝 HM Event Log</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('events')">i</span>
     </button>
-    <button onclick="sendMeterIPCommand(0x21, 'P1 Meter IP', [0x0B])" disabled data-tooltip="Read P1 meter IP address from device configuration" class="cmd-button" data-requires-connection="true">
+    <button onclick="sendCommand(0x21, 'P1 Meter IP', [0x0B])" disabled data-tooltip="Read P1 meter IP address from device configuration" class="cmd-button" data-requires-connection="true">
         <span class="cmd-button-text">🌐 P1 Meter IP</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('meterip')">i</span>
     </button>
