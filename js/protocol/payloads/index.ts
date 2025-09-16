@@ -66,9 +66,6 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.POWER_MODE:
             return new PowerModeResponse(data);
             
-        case CommandType.HM_SUMMARY:
-            return new HMSummary(data);
-            
         case CommandType.NETWORK_INFO:
             return new NetworkInfoPayload(data);
             
@@ -89,6 +86,9 @@ export function createPayload(data: Uint8Array): BasePayload {
 
         case CommandType.METER_IP:
             return new MeterIP(data);
+
+        case CommandType.HM_SUMMARY:
+            return new HMSummary(data);
 
         // Add other payload types as we implement them
         
