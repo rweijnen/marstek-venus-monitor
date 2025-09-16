@@ -181,6 +181,18 @@ async function forgetKnownDevices() {
 // Full in-page cleanup routine
 async function hardResetBle({ forget = true } = {}) {
     log('🔄 Performing hard Bluetooth reset...');
+
+    // Clean up event listeners first
+    if (characteristics && characteristics['0000ff02-0000-1000-8000-00805f9b34fb']) {
+        try {
+            const char = characteristics['0000ff02-0000-1000-8000-00805f9b34fb'];
+            char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
+            log('🧹 Removed BLE event listeners during reset');
+        } catch (e) {
+            // Ignore cleanup errors
+        }
+    }
+
     await disconnectHeldServers();
     await disconnectKnownDevices();
     await sleep(300);
@@ -374,10 +386,10 @@ async function connect() {
                         await char.startNotifications();
                         // Only set up unified handler for FF02, skip other characteristics
                         if (char.uuid.includes('ff02')) {
+                            // Remove any existing listeners to prevent duplicates during retries
+                            char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
                             // Store reference for the unified handler
-                            char.addEventListener('characteristicvaluechanged', function(event) {
-                                handleUnifiedNotification(event);
-                            });
+                            char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
                             log(`📡 Notifications enabled for FF02`);
                         }
                         // Skip logging for other characteristics to reduce noise
@@ -433,6 +445,18 @@ async function connect() {
         // Handle disconnection
         device.addEventListener('gattserverdisconnected', () => {
             log('❌ Device disconnected');
+
+            // Clean up event listeners when device initiates disconnect
+            if (characteristics && characteristics['0000ff02-0000-1000-8000-00805f9b34fb']) {
+                try {
+                    const char = characteristics['0000ff02-0000-1000-8000-00805f9b34fb'];
+                    char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
+                    log('🧹 Removed BLE event listeners after device disconnect');
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+            }
+
             if (window.uiController && window.uiController.updateStatus) {
                 window.uiController.updateStatus(false);
             }
@@ -492,11 +516,22 @@ function disconnect() {
     // Clear all active timeouts (connection timeouts, retry delays, etc.)
     clearAllActiveTimeouts();
     
+    // Clean up event listeners before disconnecting
+    if (characteristics && characteristics['0000ff02-0000-1000-8000-00805f9b34fb']) {
+        try {
+            const char = characteristics['0000ff02-0000-1000-8000-00805f9b34fb'];
+            char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
+            log('🧹 Removed BLE event listeners');
+        } catch (e) {
+            // Ignore cleanup errors
+        }
+    }
+
     if (device && device.gatt.connected) {
         device.gatt.disconnect();
         log('🔌 Disconnected from device');
     }
-    
+
     // Reset state
     device = null;
     server = null;
