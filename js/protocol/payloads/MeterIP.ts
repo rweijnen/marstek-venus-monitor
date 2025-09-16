@@ -21,8 +21,10 @@ export class MeterIP extends BasePayload {
             ipString += String.fromCharCode(ipBytes[i]);
         }
 
-        // If all zeros, no IP is configured
-        const isConfigured = !ipBytes.every((b: number) => b === 0) && ipString.length > 0;
+        // If all zeros or all 0xFF, no IP is configured
+        const allZeros = ipBytes.every((b: number) => b === 0);
+        const allFFs = ipBytes.every((b: number) => b === 0xFF);
+        const isConfigured = !allZeros && !allFFs && ipString.length > 0;
 
         return {
             ipAddress: isConfigured ? ipString : 'Not configured',
@@ -40,11 +42,6 @@ export class MeterIP extends BasePayload {
             <div class="data-grid">
                 <div><strong>IP Address:</strong> ${statusIcon} ${data.ipAddress}</div>
                 <div><strong>Status:</strong> ${data.isConfigured ? 'Configured' : 'Not configured'}</div>
-                ${data.isConfigured ? `
-                <div class="info">
-                    <small>The device will send power data to this P1 meter endpoint</small>
-                </div>
-                ` : ''}
             </div>
         `;
     }
