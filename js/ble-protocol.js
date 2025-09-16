@@ -1262,28 +1262,11 @@ function handleHMFrame(value) {
             window.logCommandActivity(commandName, cmd, false);
         }
 
-        // Use the new payload system
-        if (window.createPayload) {
-            const payload = window.createPayload(value);
-            const parsed = payload.toHTML();
-
-            if (window.uiController && window.uiController.displayData) {
-                window.uiController.displayData(parsed);
-            } else {
-                // Fallback display
-                const dataDisplay = document.getElementById('dataDisplay');
-                if (dataDisplay) {
-                    dataDisplay.innerHTML = parsed;
-                }
-            }
-
-            // Log successful parsing
-            if (window.logCommandComplete) {
-                window.logCommandComplete(window.currentCommand || 'Response', true);
-            }
+        // Use the AsyncResponseHandler for all response processing
+        if (window.asyncResponseHandler) {
+            window.asyncResponseHandler.processNotification(value, 'HM Frame');
         } else {
-            log('⚠️ Payload system not available, showing raw data');
-            log(`Raw response: ${formatBytes(value)}`);
+            console.error('AsyncResponseHandler not available - this should not happen');
         }
     } catch (error) {
         log(`❌ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message || 'Unknown error'}`);
