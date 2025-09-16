@@ -1,25 +1,18 @@
 import { BasePayload } from '../base/Payload.js';
-import { Header } from '../base/Header.js';
-import { FrameParser } from '../base/FrameParser.js';
+
+export interface IMeterIP {
+    ipAddress: string;
+    isConfigured: boolean;
+}
 
 /**
  * Meter IP response parser (CMD 0x21)
  * Response contains a 16-byte ASCII IP address, NUL-terminated and zero-padded
  */
 export class MeterIP extends BasePayload {
-    private ipAddress: string;
-
-    constructor(data: Uint8Array) {
-        super();
-        this.parse(data);
-    }
-
-    protected parse(data: Uint8Array): void {
-        const parser = new FrameParser(data);
-        this.header = parser.parseHeader();
-
+    public parse(): IMeterIP {
         // Get the 16-byte IP buffer from payload
-        const ipBytes = parser.getRemainingBytes(16);
+        const ipBytes = this.payload.slice(0, Math.min(16, this.payloadLength));
 
         // Convert to string, stopping at first null byte
         let ipString = '';
@@ -29,46 +22,30 @@ export class MeterIP extends BasePayload {
         }
 
         // If all zeros, no IP is configured
-        if (ipBytes.every(b => b === 0)) {
-            this.ipAddress = 'Not configured';
-        } else if (ipString.length > 0) {
-            this.ipAddress = ipString;
-        } else {
-            this.ipAddress = 'Invalid response';
-        }
+        const isConfigured = !ipBytes.every((b: number) => b === 0) && ipString.length > 0;
+
+        return {
+            ipAddress: isConfigured ? ipString : 'Not configured',
+            isConfigured: isConfigured
+        };
     }
 
     public toHTML(): string {
-        const header = this.header.toHTML();
+        const data = this.parse();
 
-        let statusClass = 'success';
-        let statusIcon = '✅';
-
-        if (this.ipAddress === 'Not configured') {
-            statusClass = 'warning';
-            statusIcon = '⚠️';
-        } else if (this.ipAddress === 'Invalid response') {
-            statusClass = 'error';
-            statusIcon = '❌';
-        }
+        const statusIcon = data.isConfigured ? '✅' : '⚠️';
 
         return `
-            ${header}
-            <h3>🌐 P1 Meter IP Configuration</h3>
-            <div class="data-section">
-                <div class="${statusClass}">
-                    ${statusIcon} <strong>P1 Meter IP:</strong> ${this.ipAddress}
-                </div>
-                ${this.ipAddress !== 'Not configured' && this.ipAddress !== 'Invalid response' ? `
+            <h3>🌐 P1 Meter IP (0x21)</h3>
+            <div class="data-grid">
+                <div><strong>IP Address:</strong> ${statusIcon} ${data.ipAddress}</div>
+                <div><strong>Status:</strong> ${data.isConfigured ? 'Configured' : 'Not configured'}</div>
+                ${data.isConfigured ? `
                 <div class="info">
                     <small>The device will send power data to this P1 meter endpoint</small>
                 </div>
                 ` : ''}
             </div>
         `;
-    }
-
-    public toString(): string {
-        return `P1 Meter IP: ${this.ipAddress}`;
     }
 }
