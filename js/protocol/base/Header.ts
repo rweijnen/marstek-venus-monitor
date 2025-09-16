@@ -73,7 +73,6 @@ export class FrameHeader implements IFrameHeader {
             [CommandType.BLE_EVENT_LOG]: 'BLE Event Log',
             [CommandType.OTA_ACTIVATION]: 'OTA Activation',
             [CommandType.BMS_DATA]: 'BMS Data',
-            [CommandType.CONFIG_DATA]: 'Config Data',
             [CommandType.HM_SUMMARY]: 'HM Summary',
             [CommandType.HM_EVENT_LOG]: 'HM Event Log',
             [CommandType.METER_IP]: 'Meter IP',
