@@ -66,15 +66,8 @@ export class HMSummary extends BasePayload {
         
         let html = `
             <div class="hm-summary-container">
-                <div class="summary">
-                    <h3>📊 HM Summary / Metadata</h3>
-                    <p>Payload Length: <strong>${raw.length}</strong> bytes</p>
-                </div>
-
-                <div class="raw-data">
-                    <h4>🔍 Raw Data:</h4>
-                    <code>${raw.hex}</code>
-                </div>
+                <h3>📊 HM Summary / Metadata</h3>
+                <p>Payload Length: <strong>${raw.length}</strong> bytes</p>
 
                 <div class="metadata">
                     <h4>📋 Parsed Metadata:</h4>
@@ -122,16 +115,6 @@ export class HMSummary extends BasePayload {
 
         html += `
                     </table>
-                </div>
-
-                <div class="description">
-                    <h4>ℹ️ Purpose:</h4>
-                    <p>This command reads log configuration/state without transferring the full log.</p>
-                    <p><strong>Related Commands:</strong></p>
-                    <ul>
-                        <li><strong>0x13 (BLE Event Log):</strong> Full timestamps + flag data (14-byte records)</li>
-                        <li><strong>0x1C (HM Event Log):</strong> Compact events with Type + 16-bit codes (9-byte records)</li>
-                    </ul>
                 </div>
             </div>
         `;
