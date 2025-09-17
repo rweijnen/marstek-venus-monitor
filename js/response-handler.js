@@ -33,8 +33,9 @@ class AsyncResponseHandler {
             return;
         }
 
-        // Log incoming data
-        this.logIncoming(data, source);
+        // Skip logging here - handleHMFrame already logs via logProtocolCommand
+        // Only log to console for debugging
+        console.log(`📥 ${source} (${data.length} bytes): ${this.formatBytes(data)}`);
 
         // Add to buffer
         this.responseBuffer.push({
@@ -395,19 +396,6 @@ class AsyncResponseHandler {
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
     }
 
-    /**
-     * Log incoming data
-     * @param {Uint8Array} data - Data received
-     * @param {string} source - Source identifier
-     */
-    logIncoming(data, source) {
-        console.log(`📥 ${source} (${data.length} bytes): ${this.formatBytes(data)}`);
-        
-        // Also log to protocol display if available
-        if (window.logProtocol) {
-            window.logProtocol(`📥 RX ← Device [${source}] (${data.length} bytes): ${this.formatBytes(data)}`, data, 'rx');
-        }
-    }
 }
 
 // Create global instance
