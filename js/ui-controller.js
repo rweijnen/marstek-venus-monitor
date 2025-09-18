@@ -626,14 +626,22 @@ window.onclick = function(event) {
 
 // Initialize disclaimer check and version info on page load
 document.addEventListener('DOMContentLoaded', async function() {
-    // Log startup info
+    // Log startup info with calculated version
     try {
-        const versionResponse = await fetch('version.json');
-        if (versionResponse.ok) {
-            const versionData = await versionResponse.json();
-            log(`🚀 Marstek Venus Monitor v${versionData.version} starting...`);
+        // Extract version from the HTML (same as displayed in UI)
+        const versionElement = document.querySelector('span strong');
+        if (versionElement && versionElement.textContent.startsWith('v')) {
+            const version = versionElement.textContent.substring(1); // Remove 'v' prefix
+            log(`🚀 Marstek Venus Monitor v${version} starting...`);
         } else {
-            log('🚀 Marstek Venus Monitor starting...');
+            // Fallback to version.json
+            const versionResponse = await fetch('version.json');
+            if (versionResponse.ok) {
+                const versionData = await versionResponse.json();
+                log(`🚀 Marstek Venus Monitor v${versionData.version} starting...`);
+            } else {
+                log('🚀 Marstek Venus Monitor starting...');
+            }
         }
     } catch (e) {
         log('🚀 Marstek Venus Monitor starting...');
