@@ -413,21 +413,36 @@ async function connect() {
                         } catch (e) {}
                     }
 
-                    // If this was a stale connection error, do hard reset on first attempt
+                    // If this was a stale connection error, do hard reset and try again quickly
                     if (attemptError.message.includes('Stale device connection') && attempt === 1) {
                         try {
                             await hardResetBle({ forget: true });
                             connectionCancelled = false;
                             connectionInProgress = true;
+
+                            // Get fresh device after reset
+                            log('🔍 Getting fresh device after reset...');
+                            device = await navigator.bluetooth.requestDevice({
+                                filters: [{ namePrefix: 'MST_ACCP_' }],
+                                optionalServices: [SERVICE_UUID]
+                            });
+
+                            // Short wait after reset, then continue with next attempt
+                            log(`⏳ Waiting 1s after reset before retry...`);
+                            await new Promise(resolve => createTrackedTimeout(resolve, 1000));
                         } catch (resetError) {
                             log(`⚠️ Hard reset failed: ${resetError.message}`);
+                            // Fall through to normal retry timing
+                            const waitTime = 2000;
+                            log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);
+                            await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
                         }
+                    } else {
+                        // Progressive backoff: 2s, 5s, 8s for non-stale connection errors
+                        const waitTime = attempt === 1 ? 2000 : attempt === 2 ? 5000 : 8000;
+                        log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);
+                        await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
                     }
-
-                    // Progressive backoff: 2s, 5s, 8s
-                    const waitTime = attempt === 1 ? 2000 : attempt === 2 ? 5000 : 8000;
-                    log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);
-                    await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
                     
                     // Check for cancellation after wait
                     if (connectionCancelled) {

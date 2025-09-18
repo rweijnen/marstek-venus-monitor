@@ -122,13 +122,7 @@ export class HMEventLog extends BasePayload {
 
             records.forEach((record: HMEventRecord, index: number) => {
                 const timestampStr = record.isValid
-                    ? record.timestamp.toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })
+                    ? record.timestamp.toLocaleString()
                     : `${record.year}-${record.month.toString().padStart(2, '0')}-${record.day.toString().padStart(2, '0')} ${record.hour.toString().padStart(2, '0')}:${record.minute.toString().padStart(2, '0')}`;
                 
                 const typeStr = `0x${record.type.toString(16).padStart(2, '0').toUpperCase()}`;
