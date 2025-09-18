@@ -200,8 +200,8 @@ async function hardResetBle({ forget = true } = {}) {
         await forgetKnownDevices();
         await sleep(200);
     }
-    // Clear app references
-    device = null;
+    // Clear connection state but keep device reference for automatic retry
+    // device = null;  // Don't null device - keep it for retry
     server = null;
     characteristics = {};
     log('✅ Bluetooth reset complete');
@@ -420,16 +420,12 @@ async function connect() {
                             connectionCancelled = false;
                             connectionInProgress = true;
 
-                            // Get fresh device after reset
-                            log('🔍 Getting fresh device after reset...');
-                            device = await navigator.bluetooth.requestDevice({
-                                filters: [{ namePrefix: 'MST_ACCP_' }],
-                                optionalServices: [SERVICE_UUID]
-                            });
-
+                            // After reset, device is null, so get a fresh device on next attempt
                             // Short wait after reset, then continue with next attempt
-                            log(`⏳ Waiting 1s after reset before retry...`);
+                            log(`⏳ Quick retry after reset (1s)...`);
                             await new Promise(resolve => createTrackedTimeout(resolve, 1000));
+
+                            // On next iteration, connect() will get a fresh device automatically
                         } catch (resetError) {
                             log(`⚠️ Hard reset failed: ${resetError.message}`);
                             // Fall through to normal retry timing

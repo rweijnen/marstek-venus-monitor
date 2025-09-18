@@ -626,9 +626,22 @@ window.onclick = function(event) {
 
 // Initialize disclaimer check and version info on page load
 document.addEventListener('DOMContentLoaded', async function() {
+    // Log startup info
+    try {
+        const versionResponse = await fetch('version.json');
+        if (versionResponse.ok) {
+            const versionData = await versionResponse.json();
+            log(`🚀 Marstek Venus Monitor v${versionData.version} starting...`);
+        } else {
+            log('🚀 Marstek Venus Monitor starting...');
+        }
+    } catch (e) {
+        log('🚀 Marstek Venus Monitor starting...');
+    }
+
     checkDisclaimerAcceptance();
     displayVersionInfo();
-    
+
     // Check browser compatibility
     if (!navigator.bluetooth) {
         log('❌ Web Bluetooth not supported');
