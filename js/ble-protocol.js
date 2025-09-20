@@ -489,6 +489,13 @@ async function connect() {
         }
 
     } catch (error) {
+        // Check if user didn't select a device (timeout or cancel)
+        if (!device) {
+            log('ℹ️ No device selected');
+            connectionInProgress = false;
+            return; // Don't show retry dialog if no device was selected
+        }
+
         log(`❌ Connection failed: ${error.message}`);
         logError(`Connection failed after 3 attempts: ${error.message}`);
 
@@ -501,8 +508,8 @@ async function connect() {
         server = null;
         characteristics = {};
         connectionInProgress = false; // Reset flag on connection failure
-        
-        // Always show retry dialog on connection failure
+
+        // Only show retry dialog for actual connection failures (not picker timeout/cancel)
         log('🔄 Showing retry dialog...');
         showRetryDialog();
         
