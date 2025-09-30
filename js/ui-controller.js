@@ -515,6 +515,14 @@ const commandInfo = {
         sampleData: 'DateTime set to: 2024-01-15 14:30:25',
         notes: '🕐 Sets system clock to current local time. Important for accurate logging and scheduling.'
     },
+    setdevicetime: {
+        title: '🕐 Set Device Time (0x0B)',
+        description: 'Sets device RTC clock to current browser time',
+        command: '0x73 0x0C 0x23 0x0B [year_lo] [year_hi] [month] [day] [hour] [minute] [second] [checksum]',
+        response: 'Status confirmation or error code',
+        sampleData: 'Time set to 2025-09-30 14:05:00',
+        notes: '⚠️ WARNING: Changes device clock permanently. May affect daily/monthly energy counter resets and event log timestamps. Payload is 7 bytes: year (LE, full year like 0xE9 0x07 for 2025), month (1-12), day (1-31), hour (0-23), minute (0-59), second (0-59). Example frame: 73 0C 23 0B E9 07 09 1E 0E 05 00 A5'
+    },
     ctpoll0: {
         title: '📊 Set CT Polling Rate 0 (0x20)',
         description: 'Set CT meter polling rate to 0 (fastest setting)',

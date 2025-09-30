@@ -14,6 +14,10 @@
         <span class="cmd-button-text">⚠️ Parallel Ready</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('parallel')">i</span>
     </button>
+    <button onclick="setCurrentDateTime()" disabled class="btn-danger cmd-button" data-tooltip="Set device clock to current browser time (may affect counters and logging)" data-requires-connection="true">
+        <span class="cmd-button-text">🕐 Set Device Time</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('setdevicetime')">i</span>
+    </button>
     <button onclick="sendCommand(0x06, 'Factory Reset (WiFi)', [0x01])" disabled class="btn-danger cmd-button" data-tooltip="Factory reset WiFi settings only" data-requires-connection="true">
         <span class="cmd-button-text">🏭 Factory Reset WiFi</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('factoryreset1')">i</span>

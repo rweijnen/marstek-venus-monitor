@@ -70,10 +70,6 @@
         <span class="cmd-button-text">⚡ Work Mode: On</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('workmode1')">i</span>
     </button>
-    <button onclick="sendCommand(0x18, 'Set Current Time')" disabled class="btn-warning cmd-button" data-tooltip="Set device time and date to current browser time" data-requires-connection="true">
-        <span class="cmd-button-text">🕐 Sync Time</span>
-        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('synctime')">i</span>
-    </button>
     <button onclick="sendCommand(0x19, 'Set Battery Mode 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set battery operation mode to 0" data-requires-connection="true">
         <span class="cmd-button-text">🔋 Battery Mode 0</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('batmode0')">i</span>

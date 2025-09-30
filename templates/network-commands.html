@@ -4,7 +4,7 @@
 <div class="command-grid">
     <button onclick="setCurrentDateTime()" disabled class="btn-warning cmd-button" data-tooltip="Sync device clock with browser time" data-requires-connection="true">
         <span class="cmd-button-text">Set Current Time</span>
-        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('settime')">i</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('setdevicetime')">i</span>
     </button>
     <button onclick="sendCommand(0x21, 'Write Test IP', [0x0A, 0x31, 0x39, 0x32, 0x2E, 0x31, 0x36, 0x38, 0x2E, 0x31, 0x2E, 0x31])" disabled class="btn-warning cmd-button" data-tooltip="Write test IP 192.168.1.1 to meter config" data-requires-connection="true">
         <span class="cmd-button-text">🌐 Write Test IP</span>
