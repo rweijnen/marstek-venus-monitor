@@ -71,7 +71,19 @@ export class TimeSettings extends BasePayload {
                 <h3>⚠️ Time Settings Response</h3>
                 <div class="data-grid">
                     <div><strong>Error:</strong> ${data.error}</div>
-                    <div><strong>Raw Data:</strong> ${data.rawData}</div>
+                    <div><strong>Raw Data:</strong> ${data.rawData || 'N/A'}</div>
+                </div>
+            `;
+        }
+
+        // Type guard - ensure we have valid time data
+        if (!data.success || data.year === undefined || data.month === undefined ||
+            data.day === undefined || data.hour === undefined ||
+            data.minute === undefined || data.second === undefined) {
+            return `
+                <h3>⚠️ Time Settings Response</h3>
+                <div class="data-grid">
+                    <div><strong>Error:</strong> Invalid response data</div>
                 </div>
             `;
         }
@@ -81,8 +93,8 @@ export class TimeSettings extends BasePayload {
             <div class="data-grid">
                 <div><strong>Date:</strong> ${data.year}-${data.month.toString().padStart(2, '0')}-${data.day.toString().padStart(2, '0')}</div>
                 <div><strong>Time:</strong> ${data.hour.toString().padStart(2, '0')}:${data.minute.toString().padStart(2, '0')}:${data.second.toString().padStart(2, '0')}</div>
-                <div><strong>Day of Week:</strong> ${data.dayName} (${data.dayOfWeek})</div>
-                <div><strong>Full Timestamp:</strong> ${data.timestamp}</div>
+                <div><strong>Day of Week:</strong> ${data.dayName || 'Unknown'} (${data.dayOfWeek || 0})</div>
+                <div><strong>Full Timestamp:</strong> ${data.timestamp || 'N/A'}</div>
             </div>
             <div style="margin-top: 10px; padding: 10px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
                 <strong>ℹ️ Note:</strong> Device clock has been updated. This may affect daily/monthly energy counter resets and event log timestamps.
