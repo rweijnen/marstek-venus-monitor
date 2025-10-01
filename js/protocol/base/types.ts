@@ -45,6 +45,8 @@ export interface IRuntimeInfo {
     calTag2: number;         // 255
     calTag3: number;         // 1010
     reservedCounter: number; // Reserved/Counter value
+    parallelStatus: number;  // 0=OFF, 1=READY, 2=ON
+    generatorEnabled: number; // 0=OFF, 1=ON
     apiPort: number;         // 30000
     epsEnabled?: boolean;    // EPS/Backup Power status (undefined if cannot be determined)
     statusFlags?: {          // Detailed status flag interpretation

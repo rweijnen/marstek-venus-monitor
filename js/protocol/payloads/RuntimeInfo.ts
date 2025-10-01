@@ -49,11 +49,13 @@ export class RuntimeInfoPayload extends BasePayload {
         // Parse firmware timestamp (12 ASCII bytes)
         const firmwareBuild = this.parseFirmwareTimestamp(0x51); // Timestamp at payload offset 0x51 (raw 0x55)
 
-        // Parse calibration tags with bounds checking
+        // Parse calibration tags and device settings with bounds checking
         const reservedCounter = this.safeReadUint16LE(0x5E); // Reserved/Counter at payload offset 0x5E
-        const calTag1 = this.safeReadUint16LE(0x60);        // Cal/Variant tag 1 at payload offset 0x60
-        const calTag2 = this.safeReadUint16BE(0x62);        // Cal/Variant tag 2 at payload offset 0x62 (BE)
-        const calTag3 = this.safeReadUint16LE(0x64);        // Cal/Variant tag 3 at payload offset 0x64
+        const parallelStatus = this.safeReadUint8(0x5F);     // Parallel machine status at payload offset 0x5F (0=OFF, 1=READY, 2=ON)
+        const generatorEnabled = this.safeReadUint8(0x60);   // Generator enable status at payload offset 0x60 (0=OFF, 1=ON)
+        const calTag1 = this.safeReadUint16LE(0x62);        // Cal/Variant tag 1 at payload offset 0x62
+        const calTag2 = this.safeReadUint16LE(0x64);        // Cal/Variant tag 2 at payload offset 0x64
+        const calTag3 = this.safeReadUint8(0x65);           // Cal/Variant tag 3 at payload offset 0x65
         const apiPort = this.safeReadUint16LE(0x66);        // Local API port at payload offset 0x66
 
         // Parse EPS/Backup Power status from status flags
@@ -85,6 +87,8 @@ export class RuntimeInfoPayload extends BasePayload {
             calTag2,
             calTag3,
             reservedCounter,
+            parallelStatus,
+            generatorEnabled,
             apiPort,
             epsEnabled,
             statusFlags
@@ -233,6 +237,16 @@ export class RuntimeInfoPayload extends BasePayload {
             if (data.reservedCounter !== undefined) {
                 html += `<div><strong>Reserved/Counter:</strong> ${data.reservedCounter}</div>`;
             }
+
+            // Parallel machine and generator status
+            const parallelModes = ['OFF', 'READY', 'ON'];
+            const parallelMode = parallelModes[data.parallelStatus] || `Unknown (${data.parallelStatus})`;
+            html += `<div><strong>Parallel Machine:</strong> ${parallelMode} (${data.parallelStatus})</div>`;
+
+            const generatorStatus = data.generatorEnabled === 1 ?
+                '<span style="color: #28a745;">ON (1)</span>' :
+                '<span style="color: #6c757d;">OFF (0)</span>';
+            html += `<div><strong>Generator:</strong> ${generatorStatus}</div>`;
             
             // EPS/Backup Power Status
             if (data.epsEnabled !== undefined) {
