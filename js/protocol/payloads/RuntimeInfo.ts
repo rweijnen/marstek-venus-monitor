@@ -13,11 +13,11 @@ export class RuntimeInfoPayload extends BasePayload {
         }
 
         // Parse power readings (signed 16-bit, can be negative for import/export)
-        const gridPower = this.readInt16LE(0x00);  // Grid/line power (W)
-        const solarPower = this.readInt16LE(0x02); // PV/solar power (W)
+        const gridPower = this.readInt16LE(0x00);  // Grid/backup power (W)
+        const solarPower = this.readInt16LE(0x02); // Battery power (W)
 
         // Parse status flags
-        const workMode = this.readUint8(0x04);     // Work/server mode
+        const workMode = this.readUint8(0x04);     // Work mode (0-7)
         const statusB = this.readUint8(0x05);      // Status flag B
         const statusC = this.readUint8(0x06);      // Status flag C
         const statusD = this.readUint8(0x07);      // Status flag D
@@ -25,14 +25,15 @@ export class RuntimeInfoPayload extends BasePayload {
         // Parse product identification
         const productCode = this.readUint16LE(0x0C); // Model/product code
 
-        // Parse telemetry/meter values
-        const meter1 = this.readUint16LE(0x12);    // Voltage or energy counter
-        const meter2 = this.readUint16LE(0x16);    // Secondary meter value
-        const meter3 = this.readUint16LE(0x1A);    // Tertiary meter value
+        // Parse daily/monthly energy buckets (kWh)
+        const dailyCharge = this.readUint32LE(0x0E) / 100;      // Daily charging kWh (÷100)
+        const monthlyCharge = this.readUint32LE(0x12) / 1000;   // Monthly charging kWh (÷1000, firmware quirk)
+        const dailyDischarge = this.readUint32LE(0x16) / 100;   // Daily discharging kWh (÷100)
+        const monthlyDischarge = this.readUint32LE(0x1A) / 100; // Monthly discharging kWh (÷100)
 
-        // Parse energy accumulators (32-bit LE)
-        const energyTotal1 = this.readUint32LE(0x2E); // Energy counter 1 at 0x2E
-        const energyTotal2 = this.readUint32LE(0x32); // Energy counter 2 at 0x32
+        // Parse lifetime energy totals (kWh)
+        const totalCharge = this.readUint32LE(0x29) / 100;      // Total charging kWh (÷100)
+        const totalDischarge = this.readUint32LE(0x2D) / 100;   // Total discharging kWh (÷100)
 
         // Parse device specifications
         const powerRatingRaw = this.safeReadUint16LE(0x4A); // Power rating at payload offset 0x4A (raw 0x4E)
@@ -50,13 +51,12 @@ export class RuntimeInfoPayload extends BasePayload {
         const firmwareBuild = this.parseFirmwareTimestamp(0x51); // Timestamp at payload offset 0x51 (raw 0x55)
 
         // Parse calibration tags and device settings with bounds checking
-        const reservedCounter = this.safeReadUint16LE(0x5E); // Reserved/Counter at payload offset 0x5E
+        const reservedCounter = this.safeReadUint16LE(0x5E); // Reserved/Counter at payload offset 0x5E (raw 0x62)
         const parallelStatus = this.safeReadUint8(0x5F);     // Parallel machine status at payload offset 0x5F (0=OFF, 1=READY, 2=ON)
         const generatorEnabled = this.safeReadUint8(0x60);   // Generator enable status at payload offset 0x60 (0=OFF, 1=ON)
-        const calTag1 = this.safeReadUint16LE(0x62);        // Cal/Variant tag 1 at payload offset 0x62
-        const calTag2 = this.safeReadUint16LE(0x64);        // Cal/Variant tag 2 at payload offset 0x64
-        const calTag3 = this.safeReadUint8(0x65);           // Cal/Variant tag 3 at payload offset 0x65
-        const apiPort = this.safeReadUint16LE(0x66);        // Local API port at payload offset 0x66
+        const calTag1 = this.safeReadUint16LE(0x62);        // Cal/Variant tag 1 at payload offset 0x62 (raw 0x66)
+        const calTag2 = this.safeReadUint16LE(0x64);        // Cal/Variant tag 2 at payload offset 0x64 (raw 0x68)
+        const apiPort = this.safeReadUint16LE(0x66);        // Local API port at payload offset 0x66 (raw 0x6A)
 
         // Parse EPS/Backup Power status from status flags
         // Based on firmware analysis, EPS flag might be encoded in one of the status bytes
@@ -75,17 +75,17 @@ export class RuntimeInfoPayload extends BasePayload {
             statusD,
             productCode,
             powerRating,
-            meter1,
-            meter2,
-            meter3,
-            energyTotal1,
-            energyTotal2,
+            dailyCharge,
+            monthlyCharge,
+            dailyDischarge,
+            monthlyDischarge,
+            totalCharge,
+            totalDischarge,
             firmwareVersion,
             buildCode,
             firmwareBuild,
             calTag1,
             calTag2,
-            calTag3,
             reservedCounter,
             parallelStatus,
             generatorEnabled,
@@ -215,15 +215,16 @@ export class RuntimeInfoPayload extends BasePayload {
             // Device info
             html += `<div><strong>Product Code:</strong> 0x${data.productCode.toString(16).padStart(4, '0')}</div>`;
             html += `<div><strong>Power Rating:</strong> ${data.powerRating} W</div>`;
-            
-            // Telemetry
-            html += `<div><strong>Meter 1:</strong> ${data.meter1}</div>`;
-            html += `<div><strong>Discharged Energy:</strong> ${(data.meter2 / 100).toFixed(2)} kWh</div>`;
-            html += `<div><strong>Meter 3:</strong> ${data.meter3}</div>`;
-            
-            // Energy accumulators (likely Wh)
-            html += `<div><strong>Energy Total 1:</strong> ${data.energyTotal1} Wh</div>`;
-            html += `<div><strong>Energy Total 2:</strong> ${data.energyTotal2} Wh</div>`;
+
+            // Daily/Monthly Energy
+            html += `<div><strong>Daily Charge:</strong> ${data.dailyCharge.toFixed(2)} kWh</div>`;
+            html += `<div><strong>Daily Discharge:</strong> ${data.dailyDischarge.toFixed(2)} kWh</div>`;
+            html += `<div><strong>Monthly Charge:</strong> ${data.monthlyCharge.toFixed(3)} kWh</div>`;
+            html += `<div><strong>Monthly Discharge:</strong> ${data.monthlyDischarge.toFixed(2)} kWh</div>`;
+
+            // Lifetime Totals
+            html += `<div><strong>Total Charge:</strong> ${data.totalCharge.toFixed(2)} kWh</div>`;
+            html += `<div><strong>Total Discharge:</strong> ${data.totalDischarge.toFixed(2)} kWh</div>`;
             
             // Firmware
             html += `<div><strong>Firmware Version:</strong> ${data.firmwareVersion}</div>`;
@@ -233,7 +234,6 @@ export class RuntimeInfoPayload extends BasePayload {
             // Calibration/variant tags (unitless)
             html += `<div><strong>Cal/Variant Tag 1:</strong> ${data.calTag1}</div>`;
             html += `<div><strong>Cal/Variant Tag 2:</strong> ${data.calTag2}</div>`;
-            html += `<div><strong>Cal/Variant Tag 3:</strong> ${data.calTag3}</div>`;
             if (data.reservedCounter !== undefined) {
                 html += `<div><strong>Reserved/Counter:</strong> ${data.reservedCounter}</div>`;
             }

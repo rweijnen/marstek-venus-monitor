@@ -25,15 +25,16 @@ export interface IRuntimeInfo {
     // Device identification
     productCode: number;
     powerRating: number;    // W (800 or 2500)
-    
-    // Telemetry
-    meter1: number;
-    meter2: number;
-    meter3: number;
-    
-    // Energy accumulators
-    energyTotal1: number;
-    energyTotal2: number;
+
+    // Daily/Monthly energy (kWh)
+    dailyCharge: number;
+    monthlyCharge: number;
+    dailyDischarge: number;
+    monthlyDischarge: number;
+
+    // Lifetime energy totals (kWh)
+    totalCharge: number;
+    totalDischarge: number;
     
     // Firmware info
     firmwareVersion: string;  // "v3.2"
@@ -41,9 +42,8 @@ export interface IRuntimeInfo {
     firmwareBuild: string;    // "2024-09-09 01:59"
     
     // Calibration tags
-    calTag1: number;         // 1
-    calTag2: number;         // 255
-    calTag3: number;         // 1010
+    calTag1: number;         // Calibration/variant tag 1
+    calTag2: number;         // Calibration/variant tag 2
     reservedCounter: number; // Reserved/Counter value
     parallelStatus: number;  // 0=OFF, 1=READY, 2=ON
     generatorEnabled: number; // 0=OFF, 1=ON
