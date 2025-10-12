@@ -2277,6 +2277,85 @@ function showPatchStatus(type, message) {
     }, 10000);
 }
 
+// ========================================
+// HEX DATA PARSER
+// ========================================
+
+/**
+ * Parse hex data from textarea input
+ * Accepts various formats:
+ * - Raw hex: "73 55 23 14 d7 00 3b 02..."
+ * - Hex dump: "0000: 73 55 23 14 d7 00 3b 02  e8 03..."
+ */
+function parseHexData() {
+    const input = document.getElementById('hexInput').value.trim();
+    const output = document.getElementById('hexParserOutput');
+
+    if (!input) {
+        output.innerHTML = '<div class="hex-parser-error">Please enter hex data to parse.</div>';
+        output.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        // Clean up input - remove hex dump formatting
+        let hexString = input
+            .replace(/^[0-9a-fA-F]+:/gm, '') // Remove offset prefixes like "0000:"
+            .replace(/\|.*?\|/g, '')          // Remove ASCII representation like "|sU#...|"
+            .replace(/\s+/g, ' ')             // Normalize whitespace
+            .trim();
+
+        // Convert to byte array
+        const hexBytes = hexString.split(' ').filter(b => b.length > 0);
+        const byteArray = new Uint8Array(hexBytes.map(b => parseInt(b, 16)));
+
+        if (byteArray.length < 4) {
+            output.innerHTML = '<div class="hex-parser-error">Data too short - need at least 4 bytes (header).</div>';
+            output.classList.remove('hidden');
+            return;
+        }
+
+        // Show hex dump info
+        const cmdByte = byteArray[3];
+        const cmdName = getCommandName(cmdByte);
+        let infoHtml = `<div class="hex-parser-info">`;
+        infoHtml += `<strong>Parsing ${byteArray.length} bytes:</strong><br>`;
+        infoHtml += `Command: 0x${cmdByte.toString(16).padStart(2, '0').toUpperCase()} (${cmdName})<br>`;
+        infoHtml += `Start: 0x${byteArray[0].toString(16).padStart(2, '0')}, `;
+        infoHtml += `Length: ${byteArray[1]}, `;
+        infoHtml += `Identifier: 0x${byteArray[2].toString(16).padStart(2, '0')}`;
+        infoHtml += `</div>`;
+
+        // Use existing protocol parsing
+        if (window.protocolHandler && window.protocolHandler.parseResponse) {
+            const result = window.protocolHandler.parseResponse(byteArray);
+
+            if (result && result.html) {
+                output.innerHTML = infoHtml + '<div class="hex-parser-result">' + result.html + '</div>';
+            } else {
+                output.innerHTML = infoHtml + '<div class="hex-parser-error">Parsed successfully but no HTML output generated.</div>';
+            }
+        } else {
+            output.innerHTML = infoHtml + '<div class="hex-parser-error">Protocol handler not available. Showing raw parse only.</div>';
+        }
+
+        output.classList.remove('hidden');
+    } catch (error) {
+        output.innerHTML = `<div class="hex-parser-error"><strong>Parse Error:</strong><br>${error.message}</div>`;
+        output.classList.remove('hidden');
+    }
+}
+
+/**
+ * Clear hex parser input and output
+ */
+function clearHexParser() {
+    document.getElementById('hexInput').value = '';
+    const output = document.getElementById('hexParserOutput');
+    output.classList.add('hidden');
+    output.innerHTML = '';
+}
+
 // Export functions for global access
 if (typeof window !== 'undefined') {
     // Connection functions
@@ -2309,4 +2388,8 @@ if (typeof window !== 'undefined') {
     window.sendPatchPing = sendPatchPing;
     window.sendPatchReset = sendPatchReset;
     window.showPatchStatus = showPatchStatus;
+
+    // Hex parser functions
+    window.parseHexData = parseHexData;
+    window.clearHexParser = clearHexParser;
 }

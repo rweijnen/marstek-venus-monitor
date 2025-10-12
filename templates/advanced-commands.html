@@ -53,3 +53,21 @@
         <!-- Patch command status will be displayed here -->
     </div>
 </div>
+
+<!-- Hex Data Parser Section -->
+<div class="section-caption" style="background: #d1ecf1; border-left-color: #17a2b8; margin-top: 30px;">
+    🔍 <strong>HEX DATA PARSER:</strong> Parse and display hex data as if it were received from the device. Useful for debugging and testing.
+</div>
+<div class="hex-parser-section">
+    <div class="hex-parser-input">
+        <label for="hexInput">Paste hex data (e.g., from logs):</label>
+        <textarea id="hexInput" placeholder="Paste hex data in any format:&#10;&#10;Raw: 73 55 23 14 d7 00 3b 02 e8 03...&#10;&#10;Or full log output:&#10;[21:11:55] Received Command 0x14 (85 bytes):&#10;  0000: 73 55 23 14 d7 00 3b 02  e8 03 e8 03 0c 00 63 00  |sU#...;.......c.|&#10;  0010: 00 14 21 14 00 00 14 00  c0 00 3d 00 00 00 00 00  |..!.......=.....|" rows="8"></textarea>
+    </div>
+    <div class="hex-parser-buttons">
+        <button onclick="parseHexData()" class="btn-primary">📊 Parse Data</button>
+        <button onclick="clearHexParser()" class="btn-secondary">🗑️ Clear</button>
+    </div>
+    <div id="hexParserOutput" class="hex-parser-output hidden">
+        <!-- Parsed output will be displayed here -->
+    </div>
+</div>

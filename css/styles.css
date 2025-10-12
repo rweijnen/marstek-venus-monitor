@@ -875,3 +875,111 @@
                 transform: translateY(0);
             }
         }
+
+/* ============================================
+   HEX DATA PARSER SECTION
+   ============================================ */
+
+.hex-parser-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.hex-parser-input {
+    margin-bottom: 15px;
+}
+
+.hex-parser-input label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.hex-parser-input textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    resize: vertical;
+    transition: border-color 0.3s;
+}
+
+.hex-parser-input textarea:focus {
+    outline: none;
+    border-color: #17a2b8;
+}
+
+.hex-parser-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.hex-parser-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.hex-parser-buttons .btn-primary {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+}
+
+.hex-parser-buttons .btn-primary:hover {
+    background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+}
+
+.hex-parser-buttons .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.hex-parser-buttons .btn-secondary:hover {
+    background: #5a6268;
+}
+
+.hex-parser-output {
+    border-top: 2px solid #dee2e6;
+    padding-top: 20px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.hex-parser-output.hidden {
+    display: none;
+}
+
+.hex-parser-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 15px;
+    color: #721c24;
+    margin-bottom: 15px;
+}
+
+.hex-parser-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 4px;
+    padding: 15px;
+    color: #0c5460;
+    margin-bottom: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.hex-parser-result {
+    margin-top: 15px;
+}
