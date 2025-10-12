@@ -2299,12 +2299,16 @@ function parseHexData() {
 
     try {
         // Clean up input - remove hex dump formatting
-        let hexString = input
-            .replace(/^\[.*?\].*$/gm, '')     // Remove timestamp header lines like "[21:11:55] Received..."
-            .replace(/^[0-9a-fA-F]+:/gm, '')  // Remove offset prefixes like "0000:"
-            .replace(/\|.*?\|/g, '')          // Remove ASCII representation like "|sU#...|"
-            .replace(/\s+/g, ' ')             // Normalize whitespace
-            .trim();
+        // Extract only valid hex bytes (00-FF)
+        const hexMatches = input.match(/\b[0-9a-fA-F]{2}\b/g);
+
+        if (!hexMatches || hexMatches.length === 0) {
+            output.innerHTML = '<div class="hex-parser-error">No valid hex bytes found in input.</div>';
+            output.classList.remove('hidden');
+            return;
+        }
+
+        let hexString = hexMatches.join(' ');
 
         // Convert to byte array
         const hexBytes = hexString.split(' ').filter(b => b.length > 0);
