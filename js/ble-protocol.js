@@ -2298,9 +2298,17 @@ function parseHexData() {
     }
 
     try {
-        // Clean up input - remove hex dump formatting
-        // Extract only valid hex bytes (00-FF)
-        const hexMatches = input.match(/\b[0-9a-fA-F]{2}\b/g);
+        // Clean up input - remove non-hex lines first
+        let cleanedInput = input
+            .split('\n')
+            .filter(line => {
+                // Keep only lines that contain hex dump (have ":" offset marker or multiple hex bytes with spaces)
+                return /[0-9a-fA-F]{2}\s+[0-9a-fA-F]{2}/.test(line);
+            })
+            .join('\n');
+
+        // Extract only valid hex bytes (00-FF) from cleaned input
+        const hexMatches = cleanedInput.match(/\b[0-9a-fA-F]{2}\b/g);
 
         if (!hexMatches || hexMatches.length === 0) {
             output.innerHTML = '<div class="hex-parser-error">No valid hex bytes found in input.</div>';
