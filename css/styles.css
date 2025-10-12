@@ -901,6 +901,7 @@
 
 .hex-parser-input textarea {
     width: 100%;
+    box-sizing: border-box;
     padding: 12px;
     border: 2px solid #ddd;
     border-radius: 4px;
