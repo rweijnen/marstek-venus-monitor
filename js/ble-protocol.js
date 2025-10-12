@@ -2326,17 +2326,19 @@ function parseHexData() {
         infoHtml += `Identifier: 0x${byteArray[2].toString(16).padStart(2, '0')}`;
         infoHtml += `</div>`;
 
-        // Use existing protocol parsing
-        if (window.protocolHandler && window.protocolHandler.parseResponse) {
-            const result = window.protocolHandler.parseResponse(byteArray);
+        // Use existing protocol parsing (same as handleHMFrame)
+        if (window.createPayload) {
+            try {
+                const payload = window.createPayload(byteArray);
+                const parsedData = payload.parse();
+                const html = payload.toHTML(parsedData);
 
-            if (result && result.html) {
-                output.innerHTML = infoHtml + '<div class="hex-parser-result">' + result.html + '</div>';
-            } else {
-                output.innerHTML = infoHtml + '<div class="hex-parser-error">Parsed successfully but no HTML output generated.</div>';
+                output.innerHTML = infoHtml + '<div class="hex-parser-result">' + html + '</div>';
+            } catch (error) {
+                output.innerHTML = infoHtml + `<div class="hex-parser-error"><strong>Parse Error:</strong><br>${error.message}</div>`;
             }
         } else {
-            output.innerHTML = infoHtml + '<div class="hex-parser-error">Protocol handler not available. Showing raw parse only.</div>';
+            output.innerHTML = infoHtml + '<div class="hex-parser-error">Protocol parser not loaded. Please ensure the page has fully loaded.</div>';
         }
 
         output.classList.remove('hidden');
