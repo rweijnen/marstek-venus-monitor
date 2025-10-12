@@ -2300,7 +2300,8 @@ function parseHexData() {
     try {
         // Clean up input - remove hex dump formatting
         let hexString = input
-            .replace(/^[0-9a-fA-F]+:/gm, '') // Remove offset prefixes like "0000:"
+            .replace(/^\[.*?\].*$/gm, '')     // Remove timestamp header lines like "[21:11:55] Received..."
+            .replace(/^[0-9a-fA-F]+:/gm, '')  // Remove offset prefixes like "0000:"
             .replace(/\|.*?\|/g, '')          // Remove ASCII representation like "|sU#...|"
             .replace(/\s+/g, ' ')             // Normalize whitespace
             .trim();
