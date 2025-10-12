@@ -97,7 +97,13 @@ export enum CommandType {
     NETWORK_INFO = 0x24,
     LOCAL_API_STATUS = 0x28,
     DEVICE_CONFIG = 0x50,
-    URL_BROKER_RESPONSE = 0x51
+    URL_BROKER_RESPONSE = 0x51,
+
+    // Firmware patch commands (Build 154 only)
+    PATCH_RESET = 0xF0,      // Reset stored date and counters
+    PATCH_READ = 0xF1,       // Read memory (debug)
+    PATCH_WRITE = 0xF2,      // Write memory (debug)
+    PATCH_PING = 0xF3        // Ping/version check
 }
 
 export const PROTOCOL_CONSTANTS = {

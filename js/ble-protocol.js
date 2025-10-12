@@ -1226,9 +1226,11 @@ function getCommandName(cmdCode) {
         0x08: 'WiFi Info',
         0x0D: 'System Data',
         0x13: 'BLE Event Log',
+        0x14: 'BMS Data',
         0x1A: 'HM Summary',
         0x1C: 'HM Event Log',
         0x1B: 'URL Config',
+        0x21: 'Meter IP Address',
         0x80: 'Write Config'
     };
     return commandNames[cmdCode] || `Command 0x${cmdCode.toString(16).toUpperCase()}`;
@@ -2217,6 +2219,64 @@ function cancelRetry() {
     }
 }
 
+// ========================================
+// FIRMWARE PATCH COMMANDS (Build 154)
+// ========================================
+
+/**
+ * Send patch ping command to verify patch is installed
+ * Command: 0xF3
+ * Response: [0xF3, 'P','A','T','C','H','_','0','0','1'] if installed
+ */
+async function sendPatchPing() {
+    if (!window.uiController?.isConnected()) {
+        showPatchStatus('error', 'Not connected to device');
+        return;
+    }
+
+    log('🔍 Pinging firmware patch (0xF3)...');
+    await sendCommand(0xF3, 'Patch Ping', []);
+}
+
+/**
+ * Send patch reset command to fix counter rollover bug
+ * Command: 0xF0
+ * Response: [0xF0, 0x01] if successful
+ */
+async function sendPatchReset() {
+    if (!window.uiController?.isConnected()) {
+        showPatchStatus('error', 'Not connected to device');
+        return;
+    }
+
+    // Confirmation dialog
+    if (!confirm('Reset energy counters and clear stored date?\n\nThis will fix the counter rollover bug but will reset daily and monthly energy totals.')) {
+        return;
+    }
+
+    log('🔄 Sending patch reset command (0xF0)...');
+    await sendCommand(0xF0, 'Patch Reset', []);
+}
+
+/**
+ * Show patch command status in UI
+ * @param {string} type - 'success', 'error', or 'info'
+ * @param {string} message - Status message to display
+ */
+function showPatchStatus(type, message) {
+    const statusDiv = document.getElementById('patchStatus');
+    if (!statusDiv) return;
+
+    statusDiv.className = `patch-status ${type}`;
+    statusDiv.textContent = message;
+    statusDiv.classList.remove('hidden');
+
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+        statusDiv.classList.add('hidden');
+    }, 10000);
+}
+
 // Export functions for global access
 if (typeof window !== 'undefined') {
     // Connection functions
@@ -2225,23 +2285,28 @@ if (typeof window !== 'undefined') {
     window.disconnectAll = disconnectAll;
     window.retryConnection = retryConnection;
     window.cancelRetry = cancelRetry;
-    
+
     // Command sending functions
     window.sendCommand = sendCommand;
     window.sendMeterIPCommand = sendMeterIPCommand;
     window.sendConfigWriteCommand = sendConfigWriteCommand;
     window.readDeviceIdentifiers = readDeviceIdentifiers;
-    
+
     // Utility functions
     window.formatBytes = formatBytes;
     window.createCommandMessage = createCommandMessage;
-    
+
     // OTA functions
     window.handleFirmwareFile = handleFirmwareFile;
     window.performOTAUpdate = performOTAUpdate;
-    
+
     // Test functions
     window.runAllTests = runAllTests;
     window.setCurrentDateTime = setCurrentDateTime;
     window.setLocalApiPort = setLocalApiPort;
+
+    // Patch command functions
+    window.sendPatchPing = sendPatchPing;
+    window.sendPatchReset = sendPatchReset;
+    window.showPatchStatus = showPatchStatus;
 }
