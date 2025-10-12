@@ -2298,11 +2298,19 @@ function parseHexData() {
     }
 
     try {
-        // Clean up input - remove non-hex lines first
+        // Clean up input - remove ASCII column and non-hex lines
         let cleanedInput = input
             .split('\n')
+            .map(line => {
+                // Remove ASCII representation column (everything after pipe character)
+                const pipeIndex = line.indexOf('|');
+                if (pipeIndex !== -1) {
+                    line = line.substring(0, pipeIndex);
+                }
+                return line;
+            })
             .filter(line => {
-                // Keep only lines that contain hex dump (have ":" offset marker or multiple hex bytes with spaces)
+                // Keep only lines that contain hex dump (multiple hex bytes with spaces)
                 return /[0-9a-fA-F]{2}\s+[0-9a-fA-F]{2}/.test(line);
             })
             .join('\n');
