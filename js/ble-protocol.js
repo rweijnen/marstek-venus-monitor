@@ -293,7 +293,13 @@ async function connect() {
                 const stabilizeDelay = attempt === 1 ? 2000 : attempt === 2 ? 4000 : 6000;
                 log(`⏳ Waiting for device to stabilize (${stabilizeDelay/1000}s)...`);
                 await new Promise(resolve => createTrackedTimeout(resolve, stabilizeDelay));
-                
+
+                // Check if device disconnected during stabilization wait
+                if (!server.connected) {
+                    log('⚠️ Device disconnected during stabilization wait - retrying connection');
+                    throw new Error('Device disconnected during stabilization');
+                }
+
                 // Get service with retry on failure
                 let service;
                 try {
