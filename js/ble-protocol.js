@@ -2301,12 +2301,18 @@ function parseHexData() {
         // Clean up input - remove ASCII column and non-hex lines
         let cleanedInput = input
             .split('\n')
+            .filter(line => {
+                // Skip timestamp/header lines (lines starting with [ or not containing hex dumps)
+                return !line.trim().startsWith('[');
+            })
             .map(line => {
                 // Remove ASCII representation column (everything after pipe character)
                 const pipeIndex = line.indexOf('|');
                 if (pipeIndex !== -1) {
                     line = line.substring(0, pipeIndex);
                 }
+                // Remove offset column (e.g., "0000: " at the start)
+                line = line.replace(/^\s*[0-9a-fA-F]+:\s*/, '');
                 return line;
             })
             .filter(line => {
