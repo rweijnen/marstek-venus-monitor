@@ -1140,60 +1140,316 @@ function analyzeFirmware(firmwareArrayBuffer) {
     // Calculate ones' complement checksum as expected by Marstek bootloader
     const bytes = new Uint8Array(firmwareArrayBuffer);
     let sum = 0;
-    
+
     // Sum all bytes (JavaScript handles 32-bit overflow automatically)
     for (let i = 0; i < bytes.length; i++) {
         sum += bytes[i];
     }
-    
+
     // Apply 32-bit mask and ones' complement
     sum = sum >>> 0; // Convert to unsigned 32-bit
     const checksum = (~sum) >>> 0; // Ones' complement and convert to unsigned 32-bit
-    
-    // Detect firmware type by checking for VenusC signature at offset 0x50004
+
+    // Detect firmware type by searching for VenusC signature anywhere in binary
     let firmwareType = 'Unknown';
     let sizeWarning = '';
-    const signatureOffset = 0x50004;
-    
-    if (bytes.length > signatureOffset + 10) {
-        // Large firmware files - check for EMS signature
-        const signatureBytes = bytes.slice(signatureOffset, signatureOffset + 10);
-        const signatureStr = new TextDecoder('utf-8', { fatal: false }).decode(signatureBytes);
-        
-        if (signatureStr.includes('VenusC')) {
-            firmwareType = 'EMS/Control Firmware (VenusC signature found)';
-        } else {
-            // Check if the area contains mostly null bytes or valid data
-            const hasData = signatureBytes.some(b => b !== 0x00 && b !== 0xFF);
-            if (hasData) {
-                firmwareType = 'BMS Firmware (no VenusC signature)';
-            } else {
-                firmwareType = 'Unknown (signature area empty)';
+    let versionInfo = null;
+
+    // Search for "VenusC" string anywhere in the firmware binary
+    const venusSignature = [0x56, 0x65, 0x6E, 0x75, 0x73, 0x43]; // "VenusC" as bytes
+    let venusOffset = -1;
+
+    for (let i = 0; i <= bytes.length - venusSignature.length; i++) {
+        let match = true;
+        for (let j = 0; j < venusSignature.length; j++) {
+            if (bytes[i + j] !== venusSignature[j]) {
+                match = false;
+                break;
             }
         }
-    } else if (bytes.length >= 32768) {
-        // Smaller firmware files - likely BMS firmware
-        firmwareType = 'BMS Firmware (size suggests BMS)';
-    } else if (bytes.length >= 1024) {
-        // Small files - could be firmware but unusual
-        firmwareType = 'Unknown (small size - proceed with caution)';
-        sizeWarning = '⚠️ File size is unusually small for firmware';
-    } else {
-        // Very small files - likely not firmware but allow user to proceed
-        firmwareType = 'Unknown (very small - likely not firmware)';
-        sizeWarning = '⚠️ File size is very small - this may not be valid firmware';
+        if (match) {
+            venusOffset = i;
+            break;
+        }
     }
-    
-    log(`📊 Firmware analysis:`);
+
+    if (venusOffset !== -1) {
+        // EMS/Control firmware - found VenusC signature
+        firmwareType = 'EMS/Control Firmware';
+
+        // Extract version string (VenusC-xxx format)
+        let versionEnd = venusOffset;
+        while (versionEnd < bytes.length && bytes[versionEnd] !== 0) {
+            versionEnd++;
+        }
+        const versionBytes = bytes.slice(venusOffset, Math.min(versionEnd, venusOffset + 32));
+        const versionStr = new TextDecoder('utf-8', { fatal: false }).decode(versionBytes);
+
+        // Try to extract version, build date, and build time from ARM instructions
+        versionInfo = extractVersionInfo(bytes, venusOffset);
+        if (versionInfo) {
+            firmwareType = `EMS/Control Firmware v${versionInfo.version}`;
+        }
+
+        log(`   VenusC signature found at offset 0x${venusOffset.toString(16)}`);
+    } else if (bytes.length >= 32768) {
+        // No VenusC signature - likely BMS firmware
+        firmwareType = 'BMS Firmware';
+    } else if (bytes.length >= 1024) {
+        firmwareType = 'Unknown (small size - proceed with caution)';
+        sizeWarning = 'File size is unusually small for firmware';
+    } else {
+        firmwareType = 'Unknown (very small - likely not firmware)';
+        sizeWarning = 'File size is very small - this may not be valid firmware';
+    }
+
+    log(`Firmware analysis:`);
     log(`   Size: ${bytes.length} bytes`);
     log(`   Type: ${firmwareType}`);
     log(`   Sum: 0x${sum.toString(16).padStart(8, '0')}`);
     log(`   Checksum: 0x${checksum.toString(16).padStart(8, '0')} (~sum)`);
+    if (versionInfo) {
+        log(`   Version: ${versionInfo.version}`);
+        if (versionInfo.buildDate) log(`   Build Date: ${versionInfo.buildDate}`);
+        if (versionInfo.buildTime) log(`   Build Time: ${versionInfo.buildTime}`);
+    }
     if (sizeWarning) {
         log(`   ${sizeWarning}`);
     }
-    
-    return { checksum, type: firmwareType, size: bytes.length, warning: sizeWarning };
+
+    return {
+        checksum,
+        type: firmwareType,
+        size: bytes.length,
+        warning: sizeWarning,
+        venusOffset: venusOffset,
+        versionInfo: versionInfo
+    };
+}
+
+/**
+ * Extract version, build date, and build time from firmware
+ * Uses multiple methods: VenusC string parsing, SOFT_VERSION search, and ARM instruction analysis
+ */
+function extractVersionInfo(bytes, venusOffset) {
+    let version = null;
+    let buildDate = null;
+    let buildTime = null;
+
+    // Method 1: Extract from VenusC string (format: VenusC-Vxxx)
+    let versionEnd = venusOffset;
+    while (versionEnd < bytes.length && bytes[versionEnd] !== 0) {
+        versionEnd++;
+    }
+    const venusStr = new TextDecoder('utf-8', { fatal: false }).decode(
+        bytes.slice(venusOffset, Math.min(versionEnd, venusOffset + 32))
+    );
+    const venusMatch = venusStr.match(/VenusC-V(\d+)/i);
+    if (venusMatch) {
+        version = venusMatch[1];
+    }
+
+    // Method 2: Search for SOFT_VERSION string in entire firmware
+    const softVersionMarker = [0x53, 0x4F, 0x46, 0x54, 0x5F, 0x56, 0x45, 0x52]; // "SOFT_VER"
+    let softVersionOffset = -1;
+
+    for (let i = 0; i <= bytes.length - softVersionMarker.length; i++) {
+        let match = true;
+        for (let j = 0; j < softVersionMarker.length; j++) {
+            if (bytes[i + j] !== softVersionMarker[j]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            softVersionOffset = i;
+            break;
+        }
+    }
+
+    if (softVersionOffset !== -1) {
+        // Found SOFT_VERSION, try to extract version using ARM instruction analysis
+        const armVersion = findVersionUsingArmAnalysis(bytes, softVersionOffset);
+        if (armVersion !== null) {
+            version = String(armVersion);
+        }
+
+        // Look for " time:" marker near SOFT_VERSION for date/time extraction
+        const timeMarker = [0x20, 0x74, 0x69, 0x6D, 0x65, 0x3A]; // " time:"
+        const searchStart = softVersionOffset;
+        const searchEnd = Math.min(bytes.length - timeMarker.length, softVersionOffset + 200);
+
+        for (let i = searchStart; i <= searchEnd; i++) {
+            let match = true;
+            for (let j = 0; j < timeMarker.length; j++) {
+                if (bytes[i + j] !== timeMarker[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // Found " time:", look for month names after it
+                const dateTime = extractDateTimeFromTimeMarker(bytes, i);
+                if (dateTime.date) buildDate = dateTime.date;
+                if (dateTime.time) buildTime = dateTime.time;
+                break;
+            }
+        }
+    }
+
+    if (!version && !buildDate && !buildTime) {
+        return null;
+    }
+
+    return { version, buildDate, buildTime };
+}
+
+/**
+ * Find version using ARM Thumb-2 instruction analysis
+ * Searches for MOV/MOVW instructions that load version number before referencing SOFT_VERSION
+ */
+function findVersionUsingArmAnalysis(bytes, softVersionPos) {
+    const searchStart = Math.max(0, softVersionPos - 0x1000);
+    const searchEnd = softVersionPos;
+
+    // Pattern 1: PUSH {R4,LR} + MOV.W/MOVW R1 + ADR R0
+    for (let offset = searchStart; offset < searchEnd - 8; offset++) {
+        if (bytes[offset] === 0x10 && bytes[offset + 1] === 0xB5) { // PUSH {R4,LR}
+            const movResult = decodeThumb2MovtMovw(bytes, offset + 2);
+            if (movResult.register === 1 && movResult.immediate !== null) { // R1
+                if (offset + 7 < bytes.length && bytes[offset + 7] === 0xA0) {
+                    const adrImm = bytes[offset + 6] & 0xFF;
+                    const adrPc = ((offset + 6 + 4) & ~3);
+                    for (const base of [0x08000000, 0x08020000, 0]) {
+                        const runtimePc = base + adrPc;
+                        const target = runtimePc + (adrImm * 4);
+                        const fileOffset = target - base;
+                        if (Math.abs(fileOffset - softVersionPos) < 50) {
+                            return movResult.immediate;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Pattern 2: MOVS R1 + ADR R0 (8-bit immediate)
+    for (let offset = searchStart; offset < searchEnd - 4; offset++) {
+        if (offset + 1 < bytes.length && bytes[offset + 1] === 0x21) { // MOVS R1, #imm8
+            const immediate = bytes[offset];
+            if (bytes[offset + 3] === 0xA0) { // ADR R0
+                const adrImm = bytes[offset + 2];
+                const adrPc = ((offset + 2 + 4) & ~3);
+                for (const base of [0x08000000, 0x08020000, 0]) {
+                    const runtimePc = base + adrPc;
+                    const target = runtimePc + (adrImm * 4);
+                    const fileOffset = target - base;
+                    if (Math.abs(fileOffset - softVersionPos) < 50) {
+                        return immediate;
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Decode ARM Thumb-2 MOV.W/MOVW instructions
+ */
+function decodeThumb2MovtMovw(bytes, offset) {
+    if (offset + 3 >= bytes.length) {
+        return { register: null, immediate: null, type: null };
+    }
+
+    const word1 = bytes[offset] | (bytes[offset + 1] << 8);
+    const word2 = bytes[offset + 2] | (bytes[offset + 3] << 8);
+
+    // Check for MOV.W immediate (T2 encoding)
+    if ((word1 & 0xFBEF) === 0xF04F) {
+        const i = (word1 >> 10) & 1;
+        const imm3 = (word2 >> 12) & 0x7;
+        const rd = (word2 >> 8) & 0xF;
+        const imm8 = word2 & 0xFF;
+        const imm12 = (i << 11) | (imm3 << 8) | imm8;
+
+        let immediate;
+        if ((imm12 & 0xC00) === 0) {
+            if ((imm12 & 0x300) === 0x000) {
+                immediate = imm8;
+            } else if ((imm12 & 0x300) === 0x100) {
+                immediate = (imm8 << 16) | imm8;
+            } else if ((imm12 & 0x300) === 0x200) {
+                immediate = (imm8 << 24) | (imm8 << 8);
+            } else {
+                immediate = (imm8 << 24) | (imm8 << 16) | (imm8 << 8) | imm8;
+            }
+        } else {
+            const unrotatedValue = 0x80 | (imm8 & 0x7F);
+            const rotation = (imm12 >> 7) & 0x1F;
+            immediate = ((unrotatedValue >>> rotation) | (unrotatedValue << (32 - rotation))) >>> 0;
+        }
+        return { register: rd, immediate: immediate, type: 'MOV.W' };
+    }
+
+    // Check for MOVW (T3 encoding)
+    if ((word1 & 0xFB50) === 0xF040) {
+        const i = (word1 >> 10) & 1;
+        const imm4 = word1 & 0xF;
+        const imm3 = (word2 >> 12) & 0x7;
+        const rd = (word2 >> 8) & 0xF;
+        const imm8 = word2 & 0xFF;
+        const immediate = (imm4 << 12) | (i << 11) | (imm3 << 8) | imm8;
+        return { register: rd, immediate: immediate, type: 'MOVW' };
+    }
+
+    return { register: null, immediate: null, type: null };
+}
+
+/**
+ * Extract date and time from " time:" marker position
+ */
+function extractDateTimeFromTimeMarker(bytes, timeMarkerPos) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let dateStr = null;
+    let timeStr = null;
+
+    for (const month of months) {
+        const monthBytes = new TextEncoder().encode(month);
+        for (let i = timeMarkerPos; i <= timeMarkerPos + 50 - monthBytes.length && i < bytes.length - monthBytes.length; i++) {
+            let found = true;
+            for (let j = 0; j < monthBytes.length; j++) {
+                if (bytes[i + j] !== monthBytes[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                // Extract date string (format: "MMM DD YYYY")
+                let dateEnd = i;
+                while (dateEnd < bytes.length && dateEnd < i + 20 && bytes[dateEnd] !== 0) {
+                    dateEnd++;
+                }
+                try {
+                    dateStr = new TextDecoder('ascii').decode(bytes.slice(i, dateEnd));
+                } catch (e) { /* ignore */ }
+
+                // Look for time string (HH:MM:SS pattern)
+                const timeSearchEnd = Math.min(bytes.length, dateEnd + 20);
+                const timeSearch = bytes.slice(dateEnd, timeSearchEnd);
+                const timeSearchStr = new TextDecoder('ascii', { fatal: false }).decode(timeSearch);
+                const timeMatch = timeSearchStr.match(/\d{1,2}:\d{2}:\d{2}/);
+                if (timeMatch) {
+                    timeStr = timeMatch[0];
+                }
+                break;
+            }
+        }
+        if (dateStr) break;
+    }
+
+    return { date: dateStr, time: timeStr };
 }
 
 /**
@@ -1227,16 +1483,24 @@ function handleUnifiedNotification(event) {
  */
 function getCommandName(cmdCode) {
     const commandNames = {
+        0x00: 'Generic Response',
         0x03: 'Runtime Info',
         0x04: 'Device Info',
         0x08: 'WiFi Info',
         0x0D: 'System Data',
+        0x10: 'OTA Activation',
         0x13: 'BLE Event Log',
         0x14: 'BMS Data',
         0x1A: 'HM Summary',
-        0x1C: 'HM Event Log',
         0x1B: 'URL Config',
+        0x1C: 'HM Event Log',
+        0x1F: 'Upgrade Mode',
         0x21: 'Meter IP Address',
+        0x3A: 'OTA Start',
+        0x50: 'OTA Size',
+        0x51: 'OTA Data',
+        0x52: 'OTA Finalize',
+        0x54: 'OTA Prepare',
         0x80: 'Write Config'
     };
     return commandNames[cmdCode] || `Command 0x${cmdCode.toString(16).toUpperCase()}`;
@@ -1305,8 +1569,9 @@ function handleHMFrame(value) {
     }
     
     // Valid checksum - response will be processed below
-    
-    // Resolve pending HM ACK promise
+
+    // Resolve pending HM ACK promise (used by OTA and other synchronous operations)
+    let ackResolved = false;
     if (pendingAckResolve) {
         pendingAckResolve({
             ok: true,
@@ -1314,8 +1579,21 @@ function handleHMFrame(value) {
             payload: payload
         });
         pendingAckResolve = null;
+        ackResolved = true;
     }
-    // Handle ALL incoming command responses - parse everything
+
+    // Skip asyncResponseHandler processing for ACK responses and transition HM frames
+    // ACK responses are handled by waitForAck() and shouldn't be displayed in UI
+    // Transition HM frames have different structure that createPayload can't handle
+    if (ackResolved || isTransitionHM) {
+        // Log that we're skipping display for this frame
+        if (isTransitionHM) {
+            console.log(`Transition HM frame (cmd=0x${cmd.toString(16)}) - ACK only, skipping UI display`);
+        }
+        return;
+    }
+
+    // Handle regular HM command responses - parse and display
     try {
         // Log response received
         if (window.logCommandActivity) {
@@ -1330,10 +1608,10 @@ function handleHMFrame(value) {
             console.error('AsyncResponseHandler not available - this should not happen');
         }
     } catch (error) {
-        log(`❌ Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message || 'Unknown error'}`);
-        log(`❌ Error object: ${JSON.stringify(error)}`);
+        log(`Failed to parse response for command 0x${cmd.toString(16).toUpperCase()}: ${error.message || 'Unknown error'}`);
+        log(`Error object: ${JSON.stringify(error)}`);
         if (error.stack) {
-            log(`❌ Stack trace: ${error.stack}`);
+            log(`Stack trace: ${error.stack}`);
         }
         log(`Raw response: ${formatBytes(value)}`);
     }
@@ -1687,37 +1965,42 @@ async function sendFirmwareChunk(chunkData, offset, chunkIndex, totalChunks) {
  */
 async function sendOTAFinalize() {
     if (!txCharacteristic) {
-        log('❌ TX characteristic not ready');
+        log('TX characteristic not ready');
         return false;
     }
 
     try {
-        log('🏁 Sending OTA finalization command...');
+        log('Sending OTA finalization command...');
         // Step 4: Send finalize command with cmd=0x52 in BLE OTA format
         const frame = buildFinishFrame();
         logOutgoing(frame, 'Finalize Command');
         await txCharacteristic.writeValueWithoutResponse(frame);
-        log('✅ OTA finalize command sent to FF01, waiting for confirmation on FF02...');
-        
+        log('OTA finalize command sent to FF01, waiting for confirmation on FF02...');
+
         // Wait for ACK (cmd=0x52) with payload indicating success (0x01) or failure
         const ack = await waitForAck(0x52, 3000);
         if (!ack.ok) {
-            log(`❌ Finalize ACK failed: ${ack.reason}`);
+            log(`Finalize ACK failed: ${ack.reason}`);
             return false;
         }
-        
+
         // For 0x52 ACK: payload[0]=DIR(0x00), payload[1]=status (0x01=success, 0x00=failure)
         if (ack.payload.length >= 2 && ack.payload[0] === 0x00 && ack.payload[1] === 0x01) {
-            log('✅ OTA finalization successful - device will restart');
+            log('OTA finalization successful - device will restart');
             return true;
         } else {
             const dir = ack.payload.length >= 1 ? `0x${ack.payload[0].toString(16)}` : 'none';
             const status = ack.payload.length >= 2 ? `0x${ack.payload[1].toString(16)}` : 'none';
-            log(`❌ OTA finalization failed - dir: ${dir}, status: ${status}`);
+            log(`OTA finalization FAILED - dir: ${dir}, status: ${status}`);
+            log(`Possible causes of status=0x00 failure:`);
+            log(`  1. CRC mismatch - device calculated checksum differs from sent checksum`);
+            log(`  2. VenusC check failed - device firmware checks for "Venu" at fixed offset 0xE004`);
+            log(`     Note: If currently running firmware has VenusC at different offset, this check fails`);
+            log(`Sent checksum: 0x${(firmwareChecksum >>> 0).toString(16).padStart(8, '0')}`);
             return false;
         }
     } catch (error) {
-        log(`❌ Failed to finalize OTA update: ${error.message}`);
+        log(`Failed to finalize OTA update: ${error.message}`);
         return false;
     }
 }
@@ -1804,28 +2087,30 @@ async function performOTAUpdate() {
         }
         
         // Step 3: Send firmware data in chunks
-        log('📤 Starting firmware data transfer...');
+        log('Starting firmware data transfer...');
         let offset = 0;
         let chunkIndex = 0;
-        
+        let totalBytesSent = 0;
+
         while (offset < firmwareData.byteLength) {
             const end = Math.min(offset + otaChunkSize, firmwareData.byteLength);
             const chunk = new Uint8Array(firmwareData.slice(offset, end));
-            
+
             let retryCount = 0;
             let chunkSent = false;
-            
+
             while (!chunkSent && retryCount < 3) {
                 try {
                     if (!await sendFirmwareChunk(chunk, offset, chunkIndex + 1, otaTotalChunks)) {
                         throw new Error(`Failed to send chunk ${chunkIndex + 1}`);
                     }
                     chunkSent = true;
+                    totalBytesSent += chunk.length;
                     offset += chunk.length;
                     chunkIndex++;
                 } catch (error) {
                     retryCount++;
-                    log(`⚠️ Retry ${retryCount}/3 for chunk ${chunkIndex + 1}: ${error.message}`);
+                    log(`Retry ${retryCount}/3 for chunk ${chunkIndex + 1}: ${error.message}`);
                     if (retryCount >= 3) {
                         throw new Error(`Failed to send chunk ${chunkIndex + 1} after 3 retries`);
                     }
@@ -1833,9 +2118,16 @@ async function performOTAUpdate() {
                 }
             }
         }
-        
+
+        // Verify all data was sent before finalization
+        log(`Data transfer complete: ${totalBytesSent} bytes sent in ${chunkIndex} chunks`);
+        if (totalBytesSent !== firmwareData.byteLength) {
+            log(`WARNING: Bytes sent (${totalBytesSent}) != firmware size (${firmwareData.byteLength})`);
+        }
+        log(`Firmware checksum sent: 0x${(firmwareChecksum >>> 0).toString(16).padStart(8, '0')}`);
+
         // Step 4: Finalize OTA update
-        log('🏁 Finalizing OTA update...');
+        log('Finalizing OTA update...');
         if (!await sendOTAFinalize()) {
             throw new Error('Failed to finalize OTA update');
         }
@@ -1876,16 +2168,32 @@ function handleFirmwareFile(event) {
         
         // Analyze firmware to get type and checksum info
         const analysis = analyzeFirmware(firmwareData);
-        
+
         // Update UI with detailed firmware info
         if (document.getElementById('otaFileInfo')) {
             let warningHtml = '';
             if (analysis.warning) {
                 warningHtml = `<br><span style="color: #ff6b35; font-weight: bold;">${analysis.warning}</span>`;
             }
+
+            // Build version info display if available
+            let versionHtml = '';
+            if (analysis.versionInfo) {
+                const vi = analysis.versionInfo;
+                if (vi.version) {
+                    versionHtml += `<br><strong>Version:</strong> ${vi.version}`;
+                }
+                if (vi.buildDate) {
+                    versionHtml += `<br><strong>Build Date:</strong> ${vi.buildDate}`;
+                }
+                if (vi.buildTime) {
+                    versionHtml += `<br><strong>Build Time:</strong> ${vi.buildTime}`;
+                }
+            }
+
             document.getElementById('otaFileInfo').innerHTML = `
                 <strong>File:</strong> ${file.name} (${file.size.toLocaleString()} bytes)<br>
-                <strong>Type:</strong> ${analysis.type}<br>
+                <strong>Type:</strong> ${analysis.type}${versionHtml}<br>
                 <strong>Checksum:</strong> 0x${analysis.checksum.toString(16).padStart(8, '0').toUpperCase()}${warningHtml}
             `;
         }
