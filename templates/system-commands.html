@@ -78,4 +78,16 @@
         <span class="cmd-button-text">🔋 Battery Mode 1</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('batmode1')">i</span>
     </button>
+    <button onclick="sendCommand(0x53, 'Get BLE Lock Status', [0x0B])" disabled class="btn-primary cmd-button" data-tooltip="Get current BLE lock status (v156+)" data-requires-connection="true">
+        <span class="cmd-button-text">Get BLE Lock</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('blelock')">i</span>
+    </button>
+    <button onclick="sendCommand(0x53, 'Enable BLE Lock', [0x0A, 0x01])" disabled class="btn-warning cmd-button" data-tooltip="Lock BLE connections (v156+)" data-requires-connection="true">
+        <span class="cmd-button-text">Enable BLE Lock</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('blelockset')">i</span>
+    </button>
+    <button onclick="sendCommand(0x53, 'Disable BLE Lock', [0x0A, 0x00])" disabled class="btn-warning cmd-button" data-tooltip="Unlock BLE connections (v156+)" data-requires-connection="true">
+        <span class="cmd-button-text">Disable BLE Lock</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('blelockset')">i</span>
+    </button>
 </div>
