@@ -616,50 +616,60 @@
         .dod-slider-container {
             margin: 20px 0;
         }
+        .dod-input-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .dod-input-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        .dod-slider-wrapper {
+            margin-bottom: 16px;
+        }
         .dod-slider-labels {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 12px;
+            margin-top: 8px;
+            font-size: 11px;
             font-weight: 500;
         }
         .dod-label-discharge {
-            color: #dc3545;
+            color: #5a6fd6;
         }
         .dod-label-reserve {
-            color: #28a745;
-        }
-        .dod-slider-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            color: #e67e22;
         }
         .dod-slider {
-            flex: 1;
+            width: 100%;
             -webkit-appearance: none;
-            height: 8px;
-            border-radius: 4px;
-            background: linear-gradient(to right, #dc3545 0%, #ffc107 50%, #28a745 100%);
+            height: 10px;
+            border-radius: 5px;
             outline: none;
+            background: linear-gradient(to right, #5a6fd6 0%, #5a6fd6 50%, #e67e22 50%, #e67e22 100%);
         }
         .dod-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             background: #fff;
-            border: 3px solid #667eea;
+            border: 3px solid #333;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
         .dod-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             background: #fff;
-            border: 3px solid #667eea;
+            border: 3px solid #333;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
         .dod-input-group {
             display: flex;
@@ -667,16 +677,17 @@
             gap: 4px;
         }
         .dod-input {
-            width: 55px;
-            padding: 6px 8px;
-            border: 2px solid #ddd;
+            width: 60px;
+            padding: 8px 10px;
+            border: 2px solid #5a6fd6;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             text-align: center;
+            color: #5a6fd6;
         }
         .dod-input:focus {
-            border-color: #667eea;
+            border-color: #333;
             outline: none;
         }
         .dod-input-suffix {
@@ -685,9 +696,9 @@
         }
         .dod-values-display {
             display: flex;
-            justify-content: space-between;
+            justify-content: space-around;
             margin-top: 16px;
-            padding: 12px;
+            padding: 14px;
             background: #f8f9fa;
             border-radius: 8px;
         }
@@ -697,17 +708,17 @@
         .dod-value-label {
             font-size: 11px;
             color: #666;
-            margin-bottom: 4px;
+            margin-top: 4px;
         }
         .dod-value-number {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 700;
         }
         .dod-value-discharge {
-            color: #dc3545;
+            color: #5a6fd6;
         }
         .dod-value-reserve {
-            color: #28a745;
+            color: #e67e22;
         }
         .dod-modal-buttons {
             display: flex;

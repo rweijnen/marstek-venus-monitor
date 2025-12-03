@@ -2301,7 +2301,7 @@ function setLocalApiPort() {
  * Valid range: 30-88%
  * DoD determines how much of the battery capacity can be used
  */
-function setDepthOfDischarge() {
+async function setDepthOfDischarge() {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
 
     const modal = document.getElementById('dodModal');
@@ -2319,11 +2319,19 @@ function setDepthOfDischarge() {
         return;
     }
 
+    // Read current runtime info to get latest DoD value
+    log('Reading current DoD value...');
+    sendCommand(0x03, 'Runtime Info', []);
+
+    // Wait a moment for the response to update lastKnownDoD
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Set initial value from last known DoD
     const initialValue = lastKnownDoD !== null ? lastKnownDoD : 80;
     slider.value = initialValue;
     input.value = initialValue;
     updateDoDDisplay(initialValue);
+    updateSliderBackground(initialValue);
 
     // Show modal
     modal.classList.add('show');
@@ -2331,7 +2339,9 @@ function setDepthOfDischarge() {
     // Sync slider and input
     slider.oninput = function() {
         input.value = this.value;
-        updateDoDDisplay(parseInt(this.value));
+        const val = parseInt(this.value);
+        updateDoDDisplay(val);
+        updateSliderBackground(val);
     };
 
     input.oninput = function() {
@@ -2341,12 +2351,19 @@ function setDepthOfDischarge() {
         if (val > 88) val = 88;
         slider.value = val;
         updateDoDDisplay(val);
+        updateSliderBackground(val);
     };
 
     function updateDoDDisplay(dod) {
         const reserve = 100 - dod;
         if (dischargeDisplay) dischargeDisplay.textContent = dod + '%';
         if (reserveDisplay) reserveDisplay.textContent = reserve + '%';
+    }
+
+    function updateSliderBackground(dod) {
+        // Calculate percentage position on slider (30-88 range)
+        const percent = ((dod - 30) / (88 - 30)) * 100;
+        slider.style.background = `linear-gradient(to right, #5a6fd6 0%, #5a6fd6 ${percent}%, #e67e22 ${percent}%, #e67e22 100%)`;
     }
 }
 
