@@ -79,6 +79,82 @@ let otaInProgress = false;
 let lastKnownDoD = null;
 
 // ========================================
+// BLE KEEPALIVE
+// ========================================
+// Firmware has 60-second idle timeout - send keepalive every 45 seconds to stay within limit
+
+let keepaliveTimer = null;
+let keepaliveEnabled = true;
+const KEEPALIVE_INTERVAL_MS = 45000;  // 45 seconds
+
+/**
+ * Start the keepalive timer (called on connect)
+ */
+function startKeepalive() {
+    stopKeepalive();  // Clear any existing timer
+    if (!keepaliveEnabled) return;
+
+    keepaliveTimer = setInterval(() => {
+        // Skip if OTA in progress or not connected
+        if (otaInProgress || !server || !server.connected) {
+            return;
+        }
+
+        log('Sending keepalive (Runtime Info)...');
+        sendCommand(0x03, 'Keepalive', []);
+    }, KEEPALIVE_INTERVAL_MS);
+
+    log('Keepalive enabled (45s interval)');
+}
+
+/**
+ * Stop the keepalive timer (called on disconnect)
+ */
+function stopKeepalive() {
+    if (keepaliveTimer) {
+        clearInterval(keepaliveTimer);
+        keepaliveTimer = null;
+    }
+}
+
+/**
+ * Reset the keepalive timer (called after any command is sent)
+ */
+function resetKeepaliveTimer() {
+    if (keepaliveEnabled && server && server.connected && !otaInProgress) {
+        stopKeepalive();
+        startKeepalive();
+    }
+}
+
+/**
+ * Toggle keepalive on/off from UI checkbox
+ */
+function toggleKeepalive(enabled) {
+    keepaliveEnabled = enabled;
+    if (enabled && server && server.connected) {
+        startKeepalive();
+    } else {
+        stopKeepalive();
+    }
+    log(`Keepalive ${enabled ? 'enabled' : 'disabled'}`);
+}
+
+/**
+ * Show info popup explaining keepalive feature
+ */
+function showKeepaliveInfo() {
+    alert(
+        'Keep Connection Alive\n\n' +
+        'The Marstek device has a 60-second idle timeout. ' +
+        'If no commands are sent within this time, the device will disconnect.\n\n' +
+        'When enabled, this option automatically sends a status query every 45 seconds ' +
+        'to keep the connection active.\n\n' +
+        'This is automatically disabled during OTA firmware updates.'
+    );
+}
+
+// ========================================
 // LOGGING FUNCTION COMPATIBILITY
 // ========================================
 
@@ -464,7 +540,10 @@ async function connect() {
 
         // Handle disconnection
         device.addEventListener('gattserverdisconnected', () => {
-            log('❌ Device disconnected');
+            log('Device disconnected');
+
+            // Stop keepalive timer on disconnect
+            stopKeepalive();
 
             // Clean up event listeners when device initiates disconnect
             if (characteristics && characteristics['0000ff02-0000-1000-8000-00805f9b34fb']) {
@@ -491,11 +570,14 @@ async function connect() {
         // Determine device type from name
         if (device.name.includes('ACCP')) {
             if (window.uiController) window.uiController.setDeviceType('battery');
-            log('🔋 Detected: Battery device (Venus E)');
+            log('Detected: Battery device (Venus E)');
         } else if (device.name.includes('TPM')) {
             if (window.uiController) window.uiController.setDeviceType('meter');
-            log('📊 Detected: CT meter device');
+            log('Detected: CT meter device');
         }
+
+        // Start keepalive timer to prevent 60s idle disconnect
+        startKeepalive();
 
     } catch (error) {
         // Check if user didn't select a device (timeout or cancel)
@@ -979,19 +1061,24 @@ async function sendCommand(commandType, commandName, payload = null, retryCount 
         if (window.logProtocolCommand) {
             window.logProtocolCommand(commandName, commandType, command, 'TX');
         }
-        
-        const writeChars = Object.values(characteristics).filter(char => 
+
+        const writeChars = Object.values(characteristics).filter(char =>
             char.properties.write || char.properties.writeWithoutResponse
         );
-        
+
         if (writeChars.length === 0) {
-            log('❌ No writable characteristics found');
+            log('No writable characteristics found');
             return;
         }
-        
+
         const writeChar = writeChars[0];
         await writeChar.writeValueWithoutResponse(command);
-        
+
+        // Reset keepalive timer after any command (except keepalive itself)
+        if (commandName !== 'Keepalive') {
+            resetKeepaliveTimer();
+        }
+
         // Set up timeout to clear command if no response
         setTimeout(() => {
             // Clear command if still pending (no retry, just cleanup)

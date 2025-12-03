@@ -169,10 +169,53 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .connected { color: #28a745; font-weight: bold; }
         .disconnected { color: #dc3545; font-weight: bold; }
         .connecting { color: #ffc107; font-weight: bold; }
+
+        /* Keepalive option */
+        .keepalive-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #555;
+            width: 100%;
+            justify-content: flex-end;
+            margin-top: 5px;
+        }
+        .keepalive-option label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .keepalive-option input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #6c757d;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            font-style: italic;
+            cursor: pointer;
+            font-family: Georgia, serif;
+        }
+        .info-icon:hover {
+            background: #5a6268;
+        }
         .command-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

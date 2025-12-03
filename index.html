@@ -106,10 +106,17 @@
                     <button onclick="connect()" id="connectBtn" class="btn-connect">Connect to Marstek</button>
                     <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
                     <button onclick="disconnectAll()" id="disconnectAllBtn">Disconnect All</button>
-                    <button onclick="forgetBluetoothDevices()" id="forgetDevicesBtn" class="btn-warning" 
+                    <button onclick="forgetBluetoothDevices()" id="forgetDevicesBtn" class="btn-warning"
                             data-tooltip="Clear stale Bluetooth pairings that may prevent connections">🗑️ Forget Devices</button>
                     <button onclick="runAllTests()" id="runAllBtn" disabled>🧪 Run All Tests</button>
                     <button onclick="clearAll()">Clear All</button>
+                </div>
+                <div class="keepalive-option">
+                    <label>
+                        <input type="checkbox" id="keepaliveEnabled" checked onchange="toggleKeepalive(this.checked)">
+                        Keep connection alive
+                    </label>
+                    <span class="info-icon" onclick="showKeepaliveInfo()" title="Click for more info">i</span>
                 </div>
             </div>
             
