@@ -2055,9 +2055,10 @@ async function performOTAUpdate() {
         
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // Use exact Wireshark payload since it's from the same BMS 215 device
-                // Payload: [0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb] from working session
-                const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x03, 0xaa, 0xbb]));
+                // OTA init payload: position 7 in frame becomes byte_2000E941 (OTA type flag)
+                // Setting byte_2000E941 = 0 makes finalize v1 check pass without firmware signature dependency
+                // Payload positions: [DIR, word_lo, word_hi, byte_2000E941, reserved, reserved]
+                const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x00, 0xaa, 0xbb]));
                 logOutgoing(otaProbeFrame, `OTA Discovery Probe (0x3A) - Attempt ${attempt}/${maxRetries}`);
                 log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF01 (write), expecting response on FF02 (notify)`);
                 await txCharacteristic.writeValueWithoutResponse(otaProbeFrame);
