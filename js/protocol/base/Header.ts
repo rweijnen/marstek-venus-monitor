@@ -79,7 +79,8 @@ export class FrameHeader implements IFrameHeader {
             [CommandType.CT_POLLING_RATE]: 'CT Polling Rate',
             [CommandType.NETWORK_INFO]: 'Network Info',
             [CommandType.LOCAL_API_STATUS]: 'Local API Status',
-            [CommandType.URL_BROKER_RESPONSE]: 'URL Broker Response'
+            [CommandType.URL_BROKER_RESPONSE]: 'URL Broker Response',
+            [CommandType.BLE_LOCK]: 'BLE Lock'
         };
 
         return commandNames[this.command] || `Unknown Command (0x${this.command.toString(16).padStart(2, '0').toUpperCase()})`;

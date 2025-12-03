@@ -754,91 +754,6 @@
             }
         }
 
-        /* Firmware Patch Commands Styling */
-        .patch-commands-section {
-            margin-top: 10px;
-            padding: 15px;
-            border: 2px dashed #ff9800;
-            border-radius: 8px;
-            background: #fff9e6;
-        }
-
-        .warning-badge {
-            background: #ff9800;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 0.9em;
-            font-weight: 500;
-            display: inline-block;
-        }
-
-        .btn-patch {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 12px 16px;
-            margin: 8px 0;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-patch:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-patch:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-patch.btn-warning {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .btn-description {
-            font-size: 0.75em;
-            opacity: 0.9;
-            margin-top: 4px;
-            font-weight: normal;
-        }
-
-        .patch-status {
-            margin-top: 15px;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 0.95em;
-            animation: slideIn 0.3s ease;
-        }
-
-        .patch-status.hidden {
-            display: none;
-        }
-
-        .patch-status.success {
-            background: #4caf50;
-            color: white;
-            border-left: 4px solid #2e7d32;
-        }
-
-        .patch-status.error {
-            background: #f44336;
-            color: white;
-            border-left: 4px solid #c62828;
-        }
-
-        .patch-status.info {
-            background: #2196f3;
-            color: white;
-            border-left: 4px solid #1565c0;
-        }
-
         .status-success {
             color: #4caf50;
             font-weight: 600;
@@ -847,14 +762,6 @@
         .status-error {
             color: #f44336;
             font-weight: 600;
-        }
-
-        .patch-info {
-            margin-top: 10px;
-            padding: 10px;
-            background: #e3f2fd;
-            border-radius: 4px;
-            font-size: 0.9em;
         }
 
         .info-text {

@@ -1510,6 +1510,7 @@ function getCommandName(cmdCode) {
         0x50: 'Device Config',
         0x51: 'URL Broker Response',
         0x52: 'OTA Finalize',
+        0x53: 'BLE Lock',
         0x54: 'OTA Prepare',
         0x80: 'Write Config'
     };
@@ -2542,64 +2543,6 @@ function cancelRetry() {
             // Ignore disconnection errors
         }
     }
-}
-
-// ========================================
-// FIRMWARE PATCH COMMANDS (Build 154)
-// ========================================
-
-/**
- * Send patch ping command to verify patch is installed
- * Command: 0xF3
- * Response: [0xF3, 'P','A','T','C','H','_','0','0','1'] if installed
- */
-async function sendPatchPing() {
-    if (!window.uiController?.isConnected()) {
-        showPatchStatus('error', 'Not connected to device');
-        return;
-    }
-
-    log('🔍 Pinging firmware patch (0xF3)...');
-    await sendCommand(0xF3, 'Patch Ping', []);
-}
-
-/**
- * Send patch reset command to fix counter rollover bug
- * Command: 0xF0
- * Response: [0xF0, 0x01] if successful
- */
-async function sendPatchReset() {
-    if (!window.uiController?.isConnected()) {
-        showPatchStatus('error', 'Not connected to device');
-        return;
-    }
-
-    // Confirmation dialog
-    if (!confirm('Reset energy counters and clear stored date?\n\nThis will fix the counter rollover bug but will reset daily and monthly energy totals.')) {
-        return;
-    }
-
-    log('🔄 Sending patch reset command (0xF0)...');
-    await sendCommand(0xF0, 'Patch Reset', []);
-}
-
-/**
- * Show patch command status in UI
- * @param {string} type - 'success', 'error', or 'info'
- * @param {string} message - Status message to display
- */
-function showPatchStatus(type, message) {
-    const statusDiv = document.getElementById('patchStatus');
-    if (!statusDiv) return;
-
-    statusDiv.className = `patch-status ${type}`;
-    statusDiv.textContent = message;
-    statusDiv.classList.remove('hidden');
-
-    // Auto-hide after 10 seconds
-    setTimeout(() => {
-        statusDiv.classList.add('hidden');
-    }, 10000);
 }
 
 // ========================================

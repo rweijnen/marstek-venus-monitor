@@ -28,32 +28,6 @@
     </button>
 </div>
 
-<!-- Firmware Patch Commands Section -->
-<div class="section-caption" style="background: #fff3cd; border-left-color: #ff9800; margin-top: 30px;">
-    📦 <strong>FIRMWARE PATCH COMMANDS:</strong> Custom commands for patched Build 154 firmware. Test ping first to verify patch is installed.
-</div>
-<div class="patch-commands-section">
-    <div class="warning-badge">
-        ⚠️ Build 154 patched firmware only - Experimental features
-    </div>
-
-    <div class="command-grid">
-        <button onclick="sendPatchPing()" disabled class="btn-patch cmd-button" data-tooltip="Verify firmware patch is installed" data-requires-connection="true">
-            <span class="cmd-button-text">🔍 Ping Patch</span>
-            <span class="btn-description">Check patch version</span>
-        </button>
-
-        <button onclick="sendPatchReset()" disabled class="btn-patch btn-warning cmd-button" data-tooltip="Reset stored date and energy counters to fix rollover bug" data-requires-connection="true">
-            <span class="cmd-button-text">🔄 Reset Counters</span>
-            <span class="btn-description">Fix rollover bug</span>
-        </button>
-    </div>
-
-    <div id="patchStatus" class="patch-status hidden">
-        <!-- Patch command status will be displayed here -->
-    </div>
-</div>
-
 <!-- Hex Data Parser Section -->
 <div class="section-caption" style="background: #d1ecf1; border-left-color: #17a2b8; margin-top: 30px;">
     🔍 <strong>HEX DATA PARSER:</strong> Parse and display hex data as if it were received from the device. Useful for debugging and testing.

@@ -24,8 +24,7 @@ import { HMEventLog } from './HMEventLog.js';
 import { URLBrokerConfig } from './URLBrokerConfig.js';
 import { HMSummary } from './HMSummary.js';
 import { MeterIP } from './MeterIP.js';
-import { PatchPing } from './PatchPing.js';
-import { PatchReset } from './PatchReset.js';
+import { BLELockPayload } from './BLELock.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -92,12 +91,9 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.HM_SUMMARY:
             return new HMSummary(data);
 
-        // Firmware patch commands (Build 154)
-        case CommandType.PATCH_PING:
-            return new PatchPing(data);
-
-        case CommandType.PATCH_RESET:
-            return new PatchReset(data);
+        // v156+ commands
+        case CommandType.BLE_LOCK:
+            return new BLELockPayload(data);
 
         // Add other payload types as we implement them
 
@@ -152,6 +148,5 @@ export {
     URLBrokerConfig,
     HMSummary,
     MeterIP,
-    PatchPing,
-    PatchReset
+    BLELockPayload
 };

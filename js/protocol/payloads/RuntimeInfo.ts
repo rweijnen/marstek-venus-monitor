@@ -66,6 +66,16 @@ export class RuntimeInfoPayload extends BasePayload {
         // Parse detailed status flag information
         const statusFlags = this.parseStatusFlags(statusB, statusC, statusD);
 
+        // v156+ fields: BLE Lock and Depth of Discharge
+        // Only parse if payload is long enough (111 bytes for full v156 response)
+        let bleLock: number | undefined;
+        let depthOfDischarge: number | undefined;
+
+        if (this.payloadLength >= 111) {
+            bleLock = this.safeReadUint8(0x6D);           // BLE Lock at offset 109
+            depthOfDischarge = this.safeReadUint8(0x6E); // DoD at offset 110
+        }
+
         return {
             gridPower,
             solarPower,
@@ -91,6 +101,8 @@ export class RuntimeInfoPayload extends BasePayload {
             generatorEnabled,
             apiPort,
             epsEnabled,
+            bleLock,
+            depthOfDischarge,
             statusFlags
         };
     }
@@ -257,11 +269,23 @@ export class RuntimeInfoPayload extends BasePayload {
             }
 
             // API Status based on port value
-            const apiStatus = data.apiPort === 0 ? 
-                '<span style="color: #dc3545;">🔒 DISABLED</span>' : 
-                `<span style="color: #28a745;">🔓 ENABLED (Port: ${data.apiPort})</span>`;
+            const apiStatus = data.apiPort === 0 ?
+                '<span style="color: #dc3545;">DISABLED</span>' :
+                `<span style="color: #28a745;">ENABLED (Port: ${data.apiPort})</span>`;
             html += `<div><strong>Local API:</strong> ${apiStatus}</div>`;
-            
+
+            // v156+ fields: BLE Lock and Depth of Discharge
+            if (data.bleLock !== undefined) {
+                const bleLockStatus = data.bleLock === 1 ?
+                    '<span style="color: #dc3545;">LOCKED</span>' :
+                    '<span style="color: #28a745;">UNLOCKED</span>';
+                html += `<div><strong>BLE Lock:</strong> ${bleLockStatus}</div>`;
+            }
+
+            if (data.depthOfDischarge !== undefined) {
+                html += `<div><strong>Depth of Discharge:</strong> ${data.depthOfDischarge}%</div>`;
+            }
+
             html += `<div><strong>Device Type:</strong> ${data.powerRating}W Battery System</div>`;
             html += '</div>';
             

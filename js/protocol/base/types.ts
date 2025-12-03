@@ -49,6 +49,10 @@ export interface IRuntimeInfo {
     generatorEnabled: number; // 0=OFF, 1=ON
     apiPort: number;         // 30000
     epsEnabled?: boolean;    // EPS/Backup Power status (undefined if cannot be determined)
+
+    // v156+ fields (optional for backwards compatibility)
+    bleLock?: number;            // BLE Lock status: 0=unlocked, 1=locked (v156+)
+    depthOfDischarge?: number;   // Depth of Discharge percentage: 30-90% (v156+)
     statusFlags?: {          // Detailed status flag interpretation
         epsEnabled?: boolean;    // EPS status (undefined if not reliably encoded)
         p1MeterConnected: boolean;
@@ -99,11 +103,8 @@ export enum CommandType {
     DEVICE_CONFIG = 0x50,
     URL_BROKER_RESPONSE = 0x51,
 
-    // Firmware patch commands (Build 154 only)
-    PATCH_RESET = 0xF0,      // Reset stored date and counters
-    PATCH_READ = 0xF1,       // Read memory (debug)
-    PATCH_WRITE = 0xF2,      // Write memory (debug)
-    PATCH_PING = 0xF3        // Ping/version check
+    // v156+ commands
+    BLE_LOCK = 0x53              // BLE Lock control (v156+)
 }
 
 export const PROTOCOL_CONSTANTS = {
