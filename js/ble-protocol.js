@@ -81,11 +81,13 @@ let lastKnownDoD = null;
 // ========================================
 // BLE KEEPALIVE
 // ========================================
-// Firmware has 60-second idle timeout - send keepalive every 45 seconds to stay within limit
+// Firmware idle timeout appears to be ~30-35 seconds based on testing
+// Use silent GATT read every 25 seconds - no command/response, just BLE activity
+// Timer resets on any send OR receive, so keepalive only fires after true idle
 
 let keepaliveTimer = null;
 let keepaliveEnabled = true;
-const KEEPALIVE_INTERVAL_MS = 45000;  // 45 seconds
+const KEEPALIVE_INTERVAL_MS = 25000;  // 25 seconds
 
 /**
  * Start the keepalive timer (called on connect)
@@ -94,17 +96,25 @@ function startKeepalive() {
     stopKeepalive();  // Clear any existing timer
     if (!keepaliveEnabled) return;
 
-    keepaliveTimer = setInterval(() => {
+    keepaliveTimer = setInterval(async () => {
         // Skip if OTA in progress or not connected
         if (otaInProgress || !server || !server.connected) {
             return;
         }
 
-        log('Sending keepalive (Runtime Info)...');
-        sendCommand(0x03, 'Keepalive', []);
+        // Silent keepalive: just read characteristic to generate BLE activity
+        // No command sent, no response to parse, no UI update
+        try {
+            const rxChar = characteristics[RX_CHAR_UUID];
+            if (rxChar) {
+                await rxChar.readValue();
+            }
+        } catch (e) {
+            // Ignore read errors - connection may have dropped
+        }
     }, KEEPALIVE_INTERVAL_MS);
 
-    log('Keepalive enabled (45s interval)');
+    log('Keepalive enabled (25s interval)');
 }
 
 /**
@@ -1548,10 +1558,13 @@ function extractDateTimeFromTimeMarker(bytes, timeMarkerPos) {
  */
 function handleUnifiedNotification(event) {
     const value = new Uint8Array(event.target.value.buffer);
-    
-    
+
+    // Reset keepalive timer on any received data (along with send resets)
+    // This ensures keepalive only fires after true idle in both directions
+    resetKeepaliveTimer();
+
     // Enhanced protocol logging will be handled in handleHMFrame
-    
+
     // Check basic frame requirements
     if (value.length < 6 || value[0] !== 0x73) {
         logError(`Bad notification header: ${Array.from(value).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
