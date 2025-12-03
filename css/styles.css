@@ -198,7 +198,7 @@
             height: 14px;
             cursor: pointer;
         }
-        .info-icon {
+        .keepalive-option .info-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -213,7 +213,7 @@
             cursor: pointer;
             font-family: Georgia, serif;
         }
-        .info-icon:hover {
+        .keepalive-option .info-icon:hover {
             background: #5a6268;
         }
         .command-grid {
