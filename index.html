@@ -195,5 +195,42 @@
         console.log('✅ TypeScript parser loaded');
     </script>
     <script src="js/integration-test.js"></script>
+
+    <!-- DoD Setting Modal -->
+    <div id="dodModal" class="dod-modal">
+        <div class="dod-modal-content">
+            <div class="dod-modal-header">Set Depth of Discharge</div>
+            <div class="dod-modal-description">
+                The setting range for the maximum discharge capacity is 30% to 88%.
+            </div>
+            <div class="dod-slider-container">
+                <div class="dod-slider-labels">
+                    <span class="dod-label-discharge">Discharge Capacity</span>
+                    <span class="dod-label-reserve">Backup Reserve</span>
+                </div>
+                <div class="dod-slider-row">
+                    <input type="range" id="dodSlider" class="dod-slider" min="30" max="88" value="80">
+                    <div class="dod-input-group">
+                        <input type="number" id="dodInput" class="dod-input" min="30" max="88" value="80">
+                        <span class="dod-input-suffix">%</span>
+                    </div>
+                </div>
+                <div class="dod-values-display">
+                    <div class="dod-value-item">
+                        <div class="dod-value-label">Discharge Capacity</div>
+                        <div class="dod-value-number dod-value-discharge" id="dodDischargeValue">80%</div>
+                    </div>
+                    <div class="dod-value-item">
+                        <div class="dod-value-label">Backup Reserve</div>
+                        <div class="dod-value-number dod-value-reserve" id="dodReserveValue">20%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="dod-modal-buttons">
+                <button class="dod-btn-cancel" onclick="closeDoDModal()">Cancel</button>
+                <button class="dod-btn-apply" onclick="applyDoD()">Apply</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

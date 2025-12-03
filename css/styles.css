@@ -575,7 +575,170 @@
             overflow-x: auto;
             font-size: 12px;
         }
-        
+
+        /* DoD Setting Modal */
+        .dod-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .dod-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dod-modal-content {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .dod-modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .dod-modal-description {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .dod-slider-container {
+            margin: 20px 0;
+        }
+        .dod-slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .dod-label-discharge {
+            color: #dc3545;
+        }
+        .dod-label-reserve {
+            color: #28a745;
+        }
+        .dod-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .dod-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #dc3545 0%, #ffc107 50%, #28a745 100%);
+            outline: none;
+        }
+        .dod-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .dod-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .dod-input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .dod-input {
+            width: 55px;
+            padding: 6px 8px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .dod-input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        .dod-input-suffix {
+            color: #666;
+            font-weight: 500;
+        }
+        .dod-values-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .dod-value-item {
+            text-align: center;
+        }
+        .dod-value-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .dod-value-number {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .dod-value-discharge {
+            color: #dc3545;
+        }
+        .dod-value-reserve {
+            color: #28a745;
+        }
+        .dod-modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .dod-modal-buttons button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dod-btn-cancel {
+            background: #e9ecef;
+            color: #495057;
+        }
+        .dod-btn-cancel:hover {
+            background: #dee2e6;
+        }
+        .dod-btn-apply {
+            background: #667eea;
+            color: #fff;
+        }
+        .dod-btn-apply:hover {
+            background: #5a6fd6;
+        }
+
         /* Tooltip styles */
         [data-tooltip] {
             position: relative;

@@ -2304,22 +2304,76 @@ function setLocalApiPort() {
 function setDepthOfDischarge() {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
 
-    const currentValue = lastKnownDoD !== null ? lastKnownDoD.toString() : '80';
-    const promptMsg = lastKnownDoD !== null
-        ? `Enter Depth of Discharge percentage (30-88):\nCurrent value: ${lastKnownDoD}%`
-        : 'Enter Depth of Discharge percentage (30-88):';
+    const modal = document.getElementById('dodModal');
+    const slider = document.getElementById('dodSlider');
+    const input = document.getElementById('dodInput');
+    const dischargeDisplay = document.getElementById('dodDischargeValue');
+    const reserveDisplay = document.getElementById('dodReserveValue');
 
-    const dodInput = prompt(promptMsg, currentValue);
-    if (!dodInput) return;
-
-    const dod = parseInt(dodInput);
-    if (isNaN(dod) || dod < 30 || dod > 88) {
-        log('Invalid DoD value. Must be between 30 and 88.');
+    if (!modal || !slider || !input) {
+        // Fallback to prompt if modal not found
+        const dod = prompt('Enter Depth of Discharge percentage (30-88):', lastKnownDoD || '80');
+        if (dod && !isNaN(parseInt(dod)) && parseInt(dod) >= 30 && parseInt(dod) <= 88) {
+            sendCommand(0x54, `Set DoD ${dod}%`, [parseInt(dod)]);
+        }
         return;
     }
 
-    log(`Setting Depth of Discharge to ${dod}%`);
-    sendCommand(0x54, `Set DoD ${dod}%`, [dod]);
+    // Set initial value from last known DoD
+    const initialValue = lastKnownDoD !== null ? lastKnownDoD : 80;
+    slider.value = initialValue;
+    input.value = initialValue;
+    updateDoDDisplay(initialValue);
+
+    // Show modal
+    modal.classList.add('show');
+
+    // Sync slider and input
+    slider.oninput = function() {
+        input.value = this.value;
+        updateDoDDisplay(parseInt(this.value));
+    };
+
+    input.oninput = function() {
+        let val = parseInt(this.value);
+        if (isNaN(val)) return;
+        if (val < 30) val = 30;
+        if (val > 88) val = 88;
+        slider.value = val;
+        updateDoDDisplay(val);
+    };
+
+    function updateDoDDisplay(dod) {
+        const reserve = 100 - dod;
+        if (dischargeDisplay) dischargeDisplay.textContent = dod + '%';
+        if (reserveDisplay) reserveDisplay.textContent = reserve + '%';
+    }
+}
+
+/**
+ * Close the DoD modal without applying
+ */
+function closeDoDModal() {
+    const modal = document.getElementById('dodModal');
+    if (modal) modal.classList.remove('show');
+}
+
+/**
+ * Apply the DoD setting from the modal
+ */
+function applyDoD() {
+    const input = document.getElementById('dodInput');
+    const modal = document.getElementById('dodModal');
+
+    if (input) {
+        const dod = parseInt(input.value);
+        if (!isNaN(dod) && dod >= 30 && dod <= 88) {
+            log(`Setting Depth of Discharge to ${dod}%`);
+            sendCommand(0x54, `Set DoD ${dod}%`, [dod]);
+        }
+    }
+
+    if (modal) modal.classList.remove('show');
 }
 
 /**
