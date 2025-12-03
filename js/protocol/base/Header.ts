@@ -79,7 +79,7 @@ export class FrameHeader implements IFrameHeader {
             [CommandType.CT_POLLING_RATE]: 'CT Polling Rate',
             [CommandType.NETWORK_INFO]: 'Network Info',
             [CommandType.LOCAL_API_STATUS]: 'Local API Status',
-            [CommandType.URL_BROKER_RESPONSE]: 'URL Broker Response',
+            [CommandType.READ_DEVICE_CONFIG]: 'Read Device Config',
             [CommandType.BLE_LOCK]: 'BLE Lock'
         };
 

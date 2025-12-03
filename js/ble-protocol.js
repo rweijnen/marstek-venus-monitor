@@ -2567,24 +2567,25 @@ async function readDeviceIdentifiers() {
         log('❌ Not connected to device');
         return;
     }
-    
+
     log('📖 Reading device identifiers (VID, GID, XID)...');
-    
+
     try {
-        // Read VID Info
+        // Read VID Info - Command 0x51, sub-command 0x0C
+        // NOTE: Command 0x50 with 0x0D is DELETE, not read!
         log('🏷️ Reading VID (Vendor ID)...');
-        await sendCommand(0x50, 'Read VID Info', [0x0D, 0x01]);
+        await sendCommand(0x51, 'Read VID Info', [0x0C]);
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Read GID Info
+
+        // Read GID Info - Command 0x51, sub-command 0x0D with ID param
         log('👥 Reading GID (Group ID)...');
-        await sendCommand(0x50, 'Read GID Info', [0x0D, 0x02]);
+        await sendCommand(0x51, 'Read GID Info', [0x0D, 0x00]);
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Read XID Config
+
+        // Read XID Config - Command 0x51, sub-command 0x0E
         log('⚙️ Reading XID (Extended ID)...');
-        await sendCommand(0x50, 'Read XID Config', [0x0D, 0x03]);
-        
+        await sendCommand(0x51, 'Read XID Config', [0x0E]);
+
         log('✅ Device identifier read complete');
     } catch (error) {
         logError(`Failed to read device identifiers: ${error.message}`);

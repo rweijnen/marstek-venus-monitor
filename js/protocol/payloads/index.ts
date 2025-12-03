@@ -22,6 +22,7 @@ import { BackupPowerResponse } from './BackupPowerResponse.js';
 import { EventLog } from './EventLog.js';
 import { HMEventLog } from './HMEventLog.js';
 import { URLBrokerConfig } from './URLBrokerConfig.js';
+import { DeviceConfigRead } from './DeviceConfigRead.js';
 import { HMSummary } from './HMSummary.js';
 import { MeterIP } from './MeterIP.js';
 import { BLELockPayload } from './BLELock.js';
@@ -41,8 +42,8 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.DEVICE_INFO:
             return new DeviceInfoPayload(data);
             
-        case CommandType.URL_BROKER_RESPONSE:
-            return new URLBrokerConfig(data);
+        case CommandType.READ_DEVICE_CONFIG:
+            return new DeviceConfigRead(data);
             
         case CommandType.FACTORY_RESET:
             return new FactoryResetResponse(data);
@@ -144,6 +145,7 @@ export {
     OTAActivation,
     DeveloperModeInfo,
     DeviceConfig,
+    DeviceConfigRead,
     SettingsInfo,
     PowerModeResponse,
     BackupPowerResponse,

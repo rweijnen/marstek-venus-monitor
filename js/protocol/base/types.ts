@@ -101,7 +101,7 @@ export enum CommandType {
     NETWORK_INFO = 0x24,
     LOCAL_API_STATUS = 0x28,
     DEVICE_CONFIG = 0x50,
-    URL_BROKER_RESPONSE = 0x51,
+    READ_DEVICE_CONFIG = 0x51,  // VID/GID/XID read responses (NOT URL broker!)
 
     // v156+ commands
     BLE_LOCK = 0x53,             // BLE Lock control (v156+)
