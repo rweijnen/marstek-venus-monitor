@@ -75,6 +75,9 @@ function clearAllActiveTimeouts() {
 // OTA-specific globals
 let otaInProgress = false;
 
+// Last known Depth of Discharge value (updated when RuntimeInfo is parsed)
+let lastKnownDoD = null;
+
 // ========================================
 // LOGGING FUNCTION COMPATIBILITY
 // ========================================
@@ -1612,6 +1615,11 @@ function handleHMFrame(value) {
             window.logCommandActivity(commandName, cmd, false);
         }
 
+        // Extract DoD from Runtime Info (cmd 0x03) if payload is long enough (v156+)
+        if (cmd === 0x03 && payload.length >= 111) {
+            lastKnownDoD = payload[0x6E];  // DoD at payload offset 110
+        }
+
         // Use the AsyncResponseHandler for all response processing
         if (window.asyncResponseHandler) {
             window.asyncResponseHandler.processNotification(value, 'HM Frame');
@@ -2289,26 +2297,29 @@ function setLocalApiPort() {
 }
 
 /**
- * Set Depth of Discharge via Backup Reserve percentage
- * Backup Reserve: 12-70% (what the battery keeps in reserve)
- * Discharge Capacity: 30-88% (what gets sent to device)
- * Discharge Capacity = 100 - Backup Reserve
+ * Set Depth of Discharge percentage
+ * Valid range: 30-88%
+ * DoD determines how much of the battery capacity can be used
  */
 function setDepthOfDischarge() {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
 
-    const reserveInput = prompt('Enter Backup Reserve percentage (12-70):', '20');
-    if (!reserveInput) return;
+    const currentValue = lastKnownDoD !== null ? lastKnownDoD.toString() : '80';
+    const promptMsg = lastKnownDoD !== null
+        ? `Enter Depth of Discharge percentage (30-88):\nCurrent value: ${lastKnownDoD}%`
+        : 'Enter Depth of Discharge percentage (30-88):';
 
-    const reserve = parseInt(reserveInput);
-    if (isNaN(reserve) || reserve < 12 || reserve > 70) {
-        log('Invalid Backup Reserve value. Must be between 12 and 70.');
+    const dodInput = prompt(promptMsg, currentValue);
+    if (!dodInput) return;
+
+    const dod = parseInt(dodInput);
+    if (isNaN(dod) || dod < 30 || dod > 88) {
+        log('Invalid DoD value. Must be between 30 and 88.');
         return;
     }
 
-    const dischargeCapacity = 100 - reserve;
-    log(`Setting Backup Reserve to ${reserve}% (Discharge Capacity: ${dischargeCapacity}%)`);
-    sendCommand(0x54, `Set Backup Reserve ${reserve}%`, [dischargeCapacity]);
+    log(`Setting Depth of Discharge to ${dod}%`);
+    sendCommand(0x54, `Set DoD ${dod}%`, [dod]);
 }
 
 /**
