@@ -25,6 +25,7 @@ import { URLBrokerConfig } from './URLBrokerConfig.js';
 import { HMSummary } from './HMSummary.js';
 import { MeterIP } from './MeterIP.js';
 import { BLELockPayload } from './BLELock.js';
+import { DoDSetPayload } from './DoDSet.js';
 
 export function createPayload(data: Uint8Array): BasePayload {
     if (data.length < 4) {
@@ -95,6 +96,9 @@ export function createPayload(data: Uint8Array): BasePayload {
         case CommandType.BLE_LOCK:
             return new BLELockPayload(data);
 
+        case CommandType.DOD_SET:
+            return new DoDSetPayload(data);
+
         // Add other payload types as we implement them
 
         default:
@@ -148,5 +152,6 @@ export {
     URLBrokerConfig,
     HMSummary,
     MeterIP,
-    BLELockPayload
+    BLELockPayload,
+    DoDSetPayload
 };

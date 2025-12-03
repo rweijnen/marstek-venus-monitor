@@ -104,7 +104,8 @@ export enum CommandType {
     URL_BROKER_RESPONSE = 0x51,
 
     // v156+ commands
-    BLE_LOCK = 0x53              // BLE Lock control (v156+)
+    BLE_LOCK = 0x53,             // BLE Lock control (v156+)
+    DOD_SET = 0x54               // Depth of Discharge setter (v156+)
 }
 
 export const PROTOCOL_CONSTANTS = {

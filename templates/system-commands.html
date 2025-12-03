@@ -90,4 +90,8 @@
         <span class="cmd-button-text">Disable BLE Lock</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('blelockset')">i</span>
     </button>
+    <button onclick="setDepthOfDischarge()" disabled class="btn-warning cmd-button" data-tooltip="Set Backup Reserve percentage (12-70%, v156+)" data-requires-connection="true">
+        <span class="cmd-button-text">Set Backup Reserve</span>
+        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('backupreserve')">i</span>
+    </button>
 </div>

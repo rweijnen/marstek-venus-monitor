@@ -283,7 +283,8 @@ export class RuntimeInfoPayload extends BasePayload {
             }
 
             if (data.depthOfDischarge !== undefined) {
-                html += `<div><strong>Depth of Discharge:</strong> ${data.depthOfDischarge}%</div>`;
+                const backupReserve = 100 - data.depthOfDischarge;
+                html += `<div><strong>Backup Reserve:</strong> ${backupReserve}%</div>`;
             }
 
             html += `<div><strong>Device Type:</strong> ${data.powerRating}W Battery System</div>`;

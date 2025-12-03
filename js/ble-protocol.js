@@ -1511,7 +1511,7 @@ function getCommandName(cmdCode) {
         0x51: 'URL Broker Response',
         0x52: 'OTA Finalize',
         0x53: 'BLE Lock',
-        0x54: 'OTA Prepare',
+        0x54: 'Backup Reserve',
         0x80: 'Write Config'
     };
     return commandNames[cmdCode] || `Command 0x${cmdCode.toString(16).toUpperCase()}`;
@@ -2284,8 +2284,31 @@ function setLocalApiPort() {
         (port >> 8) & 0xFF     // Port high byte
     ];
     
-    log(`🌐 Setting local API port to ${port}`);
+    log(`Setting local API port to ${port}`);
     sendCommand(0x28, `Set Local API Port ${port}`, payload);
+}
+
+/**
+ * Set Depth of Discharge via Backup Reserve percentage
+ * Backup Reserve: 12-70% (what the battery keeps in reserve)
+ * Discharge Capacity: 30-88% (what gets sent to device)
+ * Discharge Capacity = 100 - Backup Reserve
+ */
+function setDepthOfDischarge() {
+    if (!(window.uiController ? window.uiController.isConnected() : false)) return;
+
+    const reserveInput = prompt('Enter Backup Reserve percentage (12-70):', '20');
+    if (!reserveInput) return;
+
+    const reserve = parseInt(reserveInput);
+    if (isNaN(reserve) || reserve < 12 || reserve > 70) {
+        log('Invalid Backup Reserve value. Must be between 12 and 70.');
+        return;
+    }
+
+    const dischargeCapacity = 100 - reserve;
+    log(`Setting Backup Reserve to ${reserve}% (Discharge Capacity: ${dischargeCapacity}%)`);
+    sendCommand(0x54, `Set Backup Reserve ${reserve}%`, [dischargeCapacity]);
 }
 
 /**
