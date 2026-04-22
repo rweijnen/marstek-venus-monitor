@@ -317,18 +317,10 @@ function withTimeout(promise, ms, label) {
 }
 
 async function pickDevice() {
-    // Silent-reconnect fast path: reuse a previously-authorized device if one exists
-    // (Chrome 113+ with enable-web-bluetooth-new-permissions-backend).
-    if (navigator.bluetooth.getDevices) {
-        try {
-            const known = await navigator.bluetooth.getDevices();
-            const mst = known.find(d => d.name?.startsWith('MST'));
-            if (mst) {
-                log(`⚡ Reusing authorized device: ${mst.name}`);
-                return mst;
-            }
-        } catch {}
-    }
+    // Always show the picker on manual Connect. A "silent reconnect" path via
+    // navigator.bluetooth.getDevices() sounds appealing but returns devices
+    // that may no longer be advertising — leading to a 10s hang on gatt.connect()
+    // before failing. Keep it simple: user clicks Connect, user picks a device.
     log('🔍 Searching for Marstek devices...');
     return navigator.bluetooth.requestDevice({
         filters: [{ namePrefix: 'MST' }],
