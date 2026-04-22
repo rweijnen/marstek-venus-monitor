@@ -305,11 +305,15 @@ async function hardResetBle({ forget = true } = {}) {
 // GATT init done), so there's no "stabilization" phase to wait for. Services are either
 // immediately discoverable or the device is gone.
 const CONNECT_TIMEOUT_MS = 10_000;
-const DISCOVER_TIMEOUT_MS = 3_000;
-// Marstek devices drop the GATT link if getPrimaryService is called too quickly
-// after gatt.connect() resolves. A small post-connect wait fixes it. Empirically
-// 500 ms is enough; anything longer is superstition.
-const POST_CONNECT_SETTLE_MS = 500;
+// Web Bluetooth's getPrimaryService can take several seconds on Windows,
+// especially with stale caches. 7s is a middle ground between "fail fast"
+// (old 3s — too aggressive per field test) and "fail only eventually"
+// (old code's 15s/20s/30s ladder).
+const DISCOVER_TIMEOUT_MS = 7_000;
+// Marstek devices need a post-connect settle before GATT operations; field
+// testing showed 500ms is sometimes too short (device drops during settle on
+// first attempt). 2s was the old first-attempt stabilize value and it worked.
+const POST_CONNECT_SETTLE_MS = 2_000;
 const FF02_UUID = '0000ff02-0000-1000-8000-00805f9b34fb';
 
 function withTimeout(promise, ms, label) {
@@ -332,12 +336,18 @@ async function pickDevice() {
     });
 }
 
+// True while connect() is intentionally tearing down (e.g. after a timeout).
+// Used to label the subsequent gattserverdisconnected event correctly.
+let selfInitiatedDisconnect = false;
+
 function onGattDisconnected() {
-    // If we're still inside connect() (e.g. the device dropped during service
-    // discovery), don't touch the UI — the connect() catch handles that and the
-    // caller hasn't been told we're "connected" yet. Just clean plugin state.
     const midConnect = connectionInProgress;
-    log(midConnect ? '⚠️ Device dropped link during connect' : 'Device disconnected');
+    let reason;
+    if (selfInitiatedDisconnect) reason = '(we closed it)';
+    else if (midConnect) reason = '(device-initiated, mid-connect)';
+    else reason = '';
+    log(`Device disconnected ${reason}`.trim());
+    selfInitiatedDisconnect = false;
     stopKeepalive();
     const rxChar = characteristics[FF02_UUID];
     if (rxChar) {
@@ -414,7 +424,10 @@ async function connect() {
             } catch (e) {
                 lastError = e;
                 log(`⚠️ Connect attempt ${attempt}/${MAX_ATTEMPTS} failed: ${e.message}`);
-                try { if (server?.connected) server.disconnect(); } catch {}
+                if (server?.connected) {
+                    selfInitiatedDisconnect = true;
+                    try { server.disconnect(); } catch {}
+                }
                 server = null;
                 if (connectionCancelled) return;
                 if (attempt < MAX_ATTEMPTS) {
