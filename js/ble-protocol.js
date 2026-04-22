@@ -306,6 +306,10 @@ async function hardResetBle({ forget = true } = {}) {
 // immediately discoverable or the device is gone.
 const CONNECT_TIMEOUT_MS = 10_000;
 const DISCOVER_TIMEOUT_MS = 3_000;
+// Marstek devices drop the GATT link if getPrimaryService is called too quickly
+// after gatt.connect() resolves. A small post-connect wait fixes it. Empirically
+// 500 ms is enough; anything longer is superstition.
+const POST_CONNECT_SETTLE_MS = 500;
 const FF02_UUID = '0000ff02-0000-1000-8000-00805f9b34fb';
 
 function withTimeout(promise, ms, label) {
@@ -329,7 +333,11 @@ async function pickDevice() {
 }
 
 function onGattDisconnected() {
-    log('Device disconnected');
+    // If we're still inside connect() (e.g. the device dropped during service
+    // discovery), don't touch the UI — the connect() catch handles that and the
+    // caller hasn't been told we're "connected" yet. Just clean plugin state.
+    const midConnect = connectionInProgress;
+    log(midConnect ? '⚠️ Device dropped link during connect' : 'Device disconnected');
     stopKeepalive();
     const rxChar = characteristics[FF02_UUID];
     if (rxChar) {
@@ -337,7 +345,41 @@ function onGattDisconnected() {
     }
     // Reject any in-flight retry waiters so sendCommandWithRetry callers unblock.
     try { window.asyncResponseHandler?.reset(); } catch {}
-    if (window.uiController?.updateStatus) window.uiController.updateStatus(false);
+    if (!midConnect && window.uiController?.updateStatus) window.uiController.updateStatus(false);
+}
+
+async function connectAndDiscoverOnce(dev) {
+    log('🔗 Connecting to GATT...');
+    server = await withTimeout(dev.gatt.connect(), CONNECT_TIMEOUT_MS,
+        `GATT connect timed out after ${CONNECT_TIMEOUT_MS / 1000}s`);
+
+    // Re-attach the disconnect listener. Chrome reuses BluetoothDevice JS objects
+    // across requestDevice() calls for permitted devices, so any previous listener
+    // is still live — remove first so we don't stack duplicates.
+    dev.removeEventListener('gattserverdisconnected', onGattDisconnected);
+    dev.addEventListener('gattserverdisconnected', onGattDisconnected);
+
+    // Marstek firmware drops the link if getPrimaryService is hit too soon after
+    // the link is up. 500ms is empirically enough.
+    await new Promise(r => createTrackedTimeout(r, POST_CONNECT_SETTLE_MS));
+    if (!server.connected) throw new Error('Device disconnected before service discovery');
+
+    log('🔍 Discovering service...');
+    const service = await withTimeout(server.getPrimaryService(SERVICE_UUID),
+        DISCOVER_TIMEOUT_MS, `Service discovery timed out after ${DISCOVER_TIMEOUT_MS / 1000}s`);
+    if (!server.connected) throw new Error('Device disconnected during service discovery');
+
+    const chars = await service.getCharacteristics();
+    characteristics = {};
+    for (const char of chars) {
+        characteristics[char.uuid] = char;
+        if (char.properties.notify && char.uuid === FF02_UUID) {
+            await char.startNotifications();
+            char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
+            char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
+            log('📡 Notifications enabled for FF02');
+        }
+    }
 }
 
 /**
@@ -360,27 +402,27 @@ async function connect() {
         if (connectionCancelled) { log('🚫 Connection cancelled by user'); return; }
         logActivity(`📱 Found device: ${device.name}`);
 
-        log('🔗 Connecting to GATT...');
-        server = await withTimeout(device.gatt.connect(), CONNECT_TIMEOUT_MS,
-            `GATT connect timed out after ${CONNECT_TIMEOUT_MS / 1000}s`);
-
-        log('🔍 Discovering service...');
-        const service = await withTimeout(server.getPrimaryService(SERVICE_UUID),
-            DISCOVER_TIMEOUT_MS, `Service discovery timed out after ${DISCOVER_TIMEOUT_MS / 1000}s`);
-
-        const chars = await service.getCharacteristics();
-        characteristics = {};
-        for (const char of chars) {
-            characteristics[char.uuid] = char;
-            if (char.properties.notify && char.uuid === FF02_UUID) {
-                await char.startNotifications();
-                char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
-                char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
-                log('📡 Notifications enabled for FF02');
+        // Marstek sometimes drops mid-connect on transient GATT flakiness.
+        // Auto-retry once before bothering the user with the failure dialog.
+        const MAX_ATTEMPTS = 2;
+        let lastError;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                await connectAndDiscoverOnce(device);
+                lastError = null;
+                break;
+            } catch (e) {
+                lastError = e;
+                log(`⚠️ Connect attempt ${attempt}/${MAX_ATTEMPTS} failed: ${e.message}`);
+                try { if (server?.connected) server.disconnect(); } catch {}
+                server = null;
+                if (connectionCancelled) return;
+                if (attempt < MAX_ATTEMPTS) {
+                    await new Promise(r => createTrackedTimeout(r, 800));
+                }
             }
         }
-
-        device.addEventListener('gattserverdisconnected', onGattDisconnected);
+        if (lastError) throw lastError;
 
         if (window.uiController?.updateStatus) window.uiController.updateStatus(true, device.name);
         logConnection(device.name, true);
