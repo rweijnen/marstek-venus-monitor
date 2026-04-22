@@ -300,327 +300,126 @@ async function hardResetBle({ forget = true } = {}) {
 // BLE CONNECTION MANAGEMENT
 // ========================================
 
+// Connect timings — calibrated against the Marstek MT Android app's behavior.
+// Web Bluetooth's gatt.connect() resolves after the link is fully ready (MTU negotiated,
+// GATT init done), so there's no "stabilization" phase to wait for. Services are either
+// immediately discoverable or the device is gone.
+const CONNECT_TIMEOUT_MS = 10_000;
+const DISCOVER_TIMEOUT_MS = 3_000;
+const FF02_UUID = '0000ff02-0000-1000-8000-00805f9b34fb';
+
+function withTimeout(promise, ms, label) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+            createTrackedTimeout(() => reject(new Error(label)), ms))
+    ]);
+}
+
+async function pickDevice() {
+    // Silent-reconnect fast path: reuse a previously-authorized device if one exists
+    // (Chrome 113+ with enable-web-bluetooth-new-permissions-backend).
+    if (navigator.bluetooth.getDevices) {
+        try {
+            const known = await navigator.bluetooth.getDevices();
+            const mst = known.find(d => d.name?.startsWith('MST'));
+            if (mst) {
+                log(`⚡ Reusing authorized device: ${mst.name}`);
+                return mst;
+            }
+        } catch {}
+    }
+    log('🔍 Searching for Marstek devices...');
+    return navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'MST' }],
+        optionalServices: [SERVICE_UUID]
+    });
+}
+
+function onGattDisconnected() {
+    log('Device disconnected');
+    stopKeepalive();
+    const rxChar = characteristics[FF02_UUID];
+    if (rxChar) {
+        try { rxChar.removeEventListener('characteristicvaluechanged', handleUnifiedNotification); } catch {}
+    }
+    // Reject any in-flight retry waiters so sendCommandWithRetry callers unblock.
+    try { window.asyncResponseHandler?.reset(); } catch {}
+    if (window.uiController?.updateStatus) window.uiController.updateStatus(false);
+}
+
 /**
- * Connect to a Marstek BLE device with retry logic
+ * Connect to a Marstek BLE device.
+ *
+ * One attempt, fail fast with a clear error. The user decides whether to retry
+ * via the retry dialog. No stabilization waits, no nested service-discovery
+ * retry ladder — Web Bluetooth either works promptly or the device is gone.
  */
 async function connect() {
+    if (connectionInProgress) {
+        log('⚠️ Connection already in progress, ignoring request');
+        return;
+    }
+    connectionCancelled = false;
+    connectionInProgress = true;
+
     try {
-        // Prevent overlapping connection attempts
-        if (connectionInProgress) {
-            log('⚠️ Connection already in progress, ignoring request');
-            return;
-        }
-
-        // Reset flags at start of new connection
-        connectionCancelled = false;
-        connectionInProgress = true;
-        
-        log('🔍 Searching for Marstek devices...');
-        
-        // Request device with MST prefix filter
-        device = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: 'MST' }],
-            optionalServices: [SERVICE_UUID]
-        });
-
-        // Check if connection was cancelled during device selection
-        if (connectionCancelled) {
-            log('🚫 Connection cancelled by user');
-            return;
-        }
-
+        device = await pickDevice();
+        if (connectionCancelled) { log('🚫 Connection cancelled by user'); return; }
         logActivity(`📱 Found device: ${device.name}`);
 
-        // Give device a moment to be ready after selection (Marstek-specific)
-        log('⏳ Preparing device connection...');
-        await new Promise(resolve => createTrackedTimeout(resolve, 1000));
+        log('🔗 Connecting to GATT...');
+        server = await withTimeout(device.gatt.connect(), CONNECT_TIMEOUT_MS,
+            `GATT connect timed out after ${CONNECT_TIMEOUT_MS / 1000}s`);
 
-        // Try to connect with retry logic
-        const maxRetries = 3;
-        let connected = false;
-        let lastError = null;
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            // Check for cancellation before each attempt
-            if (connectionCancelled) {
-                log('🚫 Connection cancelled by user');
-                return;
-            }
+        log('🔍 Discovering service...');
+        const service = await withTimeout(server.getPrimaryService(SERVICE_UUID),
+            DISCOVER_TIMEOUT_MS, `Service discovery timed out after ${DISCOVER_TIMEOUT_MS / 1000}s`);
 
-            // If device is null (after reset), get a fresh device
-            if (!device) {
-                log('🔍 Getting fresh device after reset...');
-                try {
-                    device = await navigator.bluetooth.requestDevice({
-                        filters: [{ namePrefix: 'MST' }],
-                        optionalServices: [SERVICE_UUID]
-                    });
-                    logActivity(`📱 Found device: ${device.name}`);
-                } catch (deviceError) {
-                    log(`⚠️ Failed to get fresh device: ${deviceError.message}`);
-                    throw deviceError;
-                }
-            }
-
-            try {
-                log(`🔄 Connection attempt ${attempt}/${maxRetries}...`);
-                
-                // Connect to GATT server with timeout
-                const connectPromise = device.gatt.connect();
-                const timeoutPromise = new Promise((_, reject) =>
-                    createTrackedTimeout(() => reject(new Error('Connection timeout')), 15000)
-                );
-                
-                server = await Promise.race([connectPromise, timeoutPromise]);
-
-                // Verify connection is actually established
-                if (!server || !server.connected) {
-                    throw new Error('GATT server connection failed');
-                }
-
-                // Variable delay based on attempt number (Marstek devices need time)
-                const stabilizeDelay = attempt === 1 ? 2000 : attempt === 2 ? 4000 : 6000;
-                log(`⏳ Waiting for device to stabilize (${stabilizeDelay/1000}s)...`);
-                await new Promise(resolve => createTrackedTimeout(resolve, stabilizeDelay));
-
-                // Check if device disconnected during stabilization wait
-                if (!server.connected) {
-                    log('⚠️ Device disconnected during stabilization wait - retrying connection');
-                    throw new Error('Device disconnected during stabilization');
-                }
-
-                // Get service with retry on failure
-                let service;
-                try {
-                    log('🔍 Discovering services...');
-                    log(`🔧 DEBUG: GATT server connected: ${server.connected}`);
-                    log(`🔧 DEBUG: GATT device ID: ${device.id}`);
-                    log(`🔧 DEBUG: Target service UUID: ${SERVICE_UUID}`);
-                    log(`🔧 DEBUG: Device name: ${device.name}`);
-                    log(`🔧 DEBUG: Browser: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
-
-                    // Try immediate service discovery with extended timeout
-                    const immediatePromise = server.getPrimaryService(SERVICE_UUID);
-                    const immediateTimeoutPromise = new Promise((_, reject) =>
-                        createTrackedTimeout(() => reject(new Error('Immediate service discovery timeout after 15s')), 15000)
-                    );
-
-                    service = await Promise.race([immediatePromise, immediateTimeoutPromise]);
-                    log('✅ Service discovered successfully on immediate attempt');
-                    log(`🔧 DEBUG: Service object: ${service.constructor.name}`);
-                    log(`🔧 DEBUG: Service UUID: ${service.uuid}`);
-                } catch (serviceError) {
-                    log(`⚠️ Service not immediately available: ${serviceError.message}`);
-                    log(`🔧 DEBUG: Service error type: ${serviceError.constructor.name}`);
-                    log(`🔧 DEBUG: Service error code: ${serviceError.code || 'undefined'}`);
-                    log(`🔧 DEBUG: GATT server still connected: ${server.connected}`);
-                    log(`🔧 DEBUG: Device still connected: ${device.gatt?.connected}`);
-
-                    // If error code 19 (disconnected) and server not connected, this is likely a stale connection
-                    if (serviceError.code === 19 && !server.connected) {
-                        log('⚠️ Detected stale connection after page refresh - failing fast to retry with fresh connection');
-                        throw new Error('Stale device connection detected - need fresh device selection');
-                    }
-
-                    // Try to get all available services for debugging
-                    try {
-                        log('🔧 DEBUG: Attempting to list all available services...');
-                        const allServices = await server.getPrimaryServices();
-                        log(`🔧 DEBUG: Found ${allServices.length} total services:`);
-                        for (const s of allServices) {
-                            log(`🔧 DEBUG: - Service UUID: ${s.uuid}`);
-                        }
-                    } catch (listError) {
-                        log(`🔧 DEBUG: Could not list services: ${listError.message}`);
-                    }
-
-                    log('⏳ Waiting 8s for device to fully initialize services...');
-                    await new Promise(resolve => createTrackedTimeout(resolve, 8000));
-
-                    try {
-                        log('🔄 First retry: attempting service discovery with 20s timeout...');
-                        log(`🔧 DEBUG: Server connected before retry: ${server.connected}`);
-
-                        const firstRetryPromise = server.getPrimaryService(SERVICE_UUID);
-                        const firstTimeoutPromise = new Promise((_, reject) =>
-                            createTrackedTimeout(() => reject(new Error('First retry timeout after 20s')), 20000)
-                        );
-                        service = await Promise.race([firstRetryPromise, firstTimeoutPromise]);
-                        log('✅ Service discovered on first retry');
-                    } catch (firstRetryError) {
-                        log(`⚠️ First retry failed: ${firstRetryError.message}`);
-                        log(`🔧 DEBUG: Server connected after first retry: ${server.connected}`);
-                        log('⏳ Waiting 12s for device services to fully stabilize...');
-                        await new Promise(resolve => createTrackedTimeout(resolve, 12000));
-
-                        // Final attempt with very long timeout
-                        log('🔄 Final attempt: service discovery with 30s timeout...');
-                        log(`🔧 DEBUG: Server connected before final attempt: ${server.connected}`);
-
-                        const finalPromise = server.getPrimaryService(SERVICE_UUID);
-                        const finalTimeoutPromise = new Promise((_, reject) =>
-                            createTrackedTimeout(() => reject(new Error('Service discovery timeout after 30s - device may not support this service')), 30000)
-                        );
-                        service = await Promise.race([finalPromise, finalTimeoutPromise]);
-                        log('✅ Service discovered on final attempt');
-                    }
-                }
-                
-                // Get all characteristics
-                log('🔍 Discovering characteristics...');
-                const chars = await service.getCharacteristics();
-                characteristics = {};
-                log(`✅ Found ${chars.length} characteristics`);
-
-                // Set up characteristics and notifications
-                for (const char of chars) {
-                    characteristics[char.uuid] = char;
-                    
-                    // Enable notifications for readable characteristics
-                    if (char.properties.notify) {
-                        await char.startNotifications();
-                        // Only set up unified handler for FF02, skip other characteristics
-                        if (char.uuid.includes('ff02')) {
-                            // Remove any existing listeners to prevent duplicates during retries
-                            char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
-                            // Store reference for the unified handler
-                            char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
-                            log(`📡 Notifications enabled for FF02`);
-                        }
-                        // Skip logging for other characteristics to reduce noise
-                    }
-                }
-                
-                connected = true;
-                connectionInProgress = false; // Reset flag on successful connection
-                log('✅ Connection attempt succeeded - service discovery completed');
-                break; // Success, exit retry loop
-                
-            } catch (attemptError) {
-                lastError = attemptError;
-                log(`⚠️ Attempt ${attempt} failed: ${attemptError.message}`);
-                
-                if (attempt < maxRetries) {
-                    // Disconnect if partially connected before retry
-                    if (server && server.connected) {
-                        try {
-                            server.disconnect();
-                        } catch (e) {}
-                    }
-
-                    // If this was a stale connection error, do hard reset and try again quickly
-                    if (attemptError.message.includes('Stale device connection') && attempt === 1) {
-                        try {
-                            await hardResetBle({ forget: true });
-                            connectionCancelled = false;
-                            connectionInProgress = true;
-
-                            // After reset, device is null, so get a fresh device on next attempt
-                            // Short wait after reset, then continue with next attempt
-                            log(`⏳ Quick retry after reset (1s)...`);
-                            await new Promise(resolve => createTrackedTimeout(resolve, 1000));
-
-                            // On next iteration, connect() will get a fresh device automatically
-                        } catch (resetError) {
-                            log(`⚠️ Hard reset failed: ${resetError.message}`);
-                            // Fall through to normal retry timing
-                            const waitTime = 2000;
-                            log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);
-                            await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
-                        }
-                    } else {
-                        // Progressive backoff: 2s, 5s, 8s for non-stale connection errors
-                        const waitTime = attempt === 1 ? 2000 : attempt === 2 ? 5000 : 8000;
-                        log(`⏳ Waiting ${waitTime/1000}s before retry (attempt ${attempt + 1})...`);
-                        await new Promise(resolve => createTrackedTimeout(resolve, waitTime));
-                    }
-                    
-                    // Check for cancellation after wait
-                    if (connectionCancelled) {
-                        log('🚫 Connection cancelled during retry wait');
-                        return;
-                    }
-                }
+        const chars = await service.getCharacteristics();
+        characteristics = {};
+        for (const char of chars) {
+            characteristics[char.uuid] = char;
+            if (char.properties.notify && char.uuid === FF02_UUID) {
+                await char.startNotifications();
+                char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
+                char.addEventListener('characteristicvaluechanged', handleUnifiedNotification);
+                log('📡 Notifications enabled for FF02');
             }
         }
-        
-        if (!connected) {
-            throw lastError || new Error('Failed to connect after multiple attempts');
-        }
 
-        // Handle disconnection
-        device.addEventListener('gattserverdisconnected', () => {
-            log('Device disconnected');
+        device.addEventListener('gattserverdisconnected', onGattDisconnected);
 
-            // Stop keepalive timer on disconnect
-            stopKeepalive();
-
-            // Clean up event listeners when device initiates disconnect
-            if (characteristics && characteristics['0000ff02-0000-1000-8000-00805f9b34fb']) {
-                try {
-                    const char = characteristics['0000ff02-0000-1000-8000-00805f9b34fb'];
-                    char.removeEventListener('characteristicvaluechanged', handleUnifiedNotification);
-                    log('🧹 Removed BLE event listeners after device disconnect');
-                } catch (e) {
-                    // Ignore cleanup errors
-                }
-            }
-
-            if (window.uiController && window.uiController.updateStatus) {
-                window.uiController.updateStatus(false);
-            }
-        });
-
-        // Update connection status
-        if (window.uiController && window.uiController.updateStatus) {
-            window.uiController.updateStatus(true, device.name);
-        }
+        if (window.uiController?.updateStatus) window.uiController.updateStatus(true, device.name);
         logConnection(device.name, true);
 
-        // Determine device type from name
         if (device.name.includes('ACCP')) {
-            if (window.uiController) window.uiController.setDeviceType('battery');
+            window.uiController?.setDeviceType('battery');
             log('Detected: Battery device (Venus E)');
         } else if (device.name.includes('TPM')) {
-            if (window.uiController) window.uiController.setDeviceType('meter');
+            window.uiController?.setDeviceType('meter');
             log('Detected: CT meter device');
         }
 
-        // Start keepalive timer to prevent 60s idle disconnect
         startKeepalive();
-
+        log('✅ Connected');
     } catch (error) {
-        // Check if user didn't select a device (timeout or cancel)
         if (!device) {
             log('ℹ️ No device selected');
-            connectionInProgress = false;
-            return; // Don't show retry dialog if no device was selected
+            return;
         }
-
         log(`❌ Connection failed: ${error.message}`);
-        logError(`Connection failed after 3 attempts: ${error.message}`);
+        logError(`Connection failed: ${error.message}`);
 
-        if (window.uiController && window.uiController.updateStatus) {
-            window.uiController.updateStatus(false);
-        }
-
-        // Clean up on failure
+        if (window.uiController?.updateStatus) window.uiController.updateStatus(false);
+        try { if (server?.connected) server.disconnect(); } catch {}
         device = null;
         server = null;
         characteristics = {};
-        connectionInProgress = false; // Reset flag on connection failure
 
-        // Only show retry dialog for actual connection failures (not picker timeout/cancel)
-        log('🔄 Showing retry dialog...');
         showRetryDialog();
-        
-        // Also suggest device forgetting for common issues
-        if (error.message.includes('timeout') || 
-            error.message.includes('Connection failed') ||
-            error.message.includes('GATT operation not permitted') ||
-            error.message.includes('Device is no longer in range')) {
-            log('💡 Tip: If connection keeps failing, try "Forget Devices" button to clear stale pairings');
-        }
+    } finally {
+        connectionInProgress = false;
     }
 }
 
@@ -1035,6 +834,69 @@ function buildFinishFrame() {
 // ========================================
 // COMMAND SENDING FUNCTIONS
 // ========================================
+
+// Defaults match Marstek MT Android app's CommonCommand.retryOnTimeoutWithNoTag
+// (retryTimes: 3, timeout: Duration(seconds: 5)).
+const DEFAULT_CMD_TIMEOUT_MS = 5_000;
+const DEFAULT_CMD_RETRIES = 3;
+
+/**
+ * Send a command and wait for its matching response, with automatic retry on
+ * timeout. Mirrors the Android app's per-frame retry pattern.
+ *
+ * Call this when you need to *consume* the response (read a value, verify a
+ * write). For fire-and-forget sends where the UI is updated asynchronously by
+ * the notification handler, `sendCommand` is fine.
+ *
+ * @param {number} commandType - Command byte
+ * @param {string} commandName - Human-readable name (for logs)
+ * @param {Array|Uint8Array|null} payload - Optional payload
+ * @param {{retries?: number, timeoutMs?: number, verifier?: (Uint8Array)=>boolean}} [opts]
+ * @returns {Promise<Uint8Array>} Reassembled response frame
+ */
+async function sendCommandWithRetry(commandType, commandName, payload = null, opts = {}) {
+    const retries = opts.retries ?? DEFAULT_CMD_RETRIES;
+    const timeoutMs = opts.timeoutMs ?? DEFAULT_CMD_TIMEOUT_MS;
+    const verifier = opts.verifier;
+
+    let lastError;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        if (!(window.uiController?.isConnected?.())) {
+            throw new Error(`Cannot send ${commandName}: not connected`);
+        }
+        if (otaInProgress) {
+            throw new Error(`Cannot send ${commandName}: OTA in progress`);
+        }
+        try {
+            // Register waiter BEFORE writing so we don't miss a fast response.
+            const responsePromise = window.asyncResponseHandler.waitFor(commandType, timeoutMs);
+            const frame = createCommandMessage(commandType, payload);
+            const writeChar = Object.values(characteristics).find(
+                c => c.properties.write || c.properties.writeWithoutResponse);
+            if (!writeChar) throw new Error('No writable characteristic available');
+
+            window.currentCommand = commandName;
+            window.lastCommandTime = Date.now();
+            window.asyncResponseHandler.setCommandContext(commandName);
+            if (window.logCommandActivity) window.logCommandActivity(commandName, commandType, true);
+            if (window.logProtocolCommand) window.logProtocolCommand(commandName, commandType, frame, 'TX');
+
+            await writeChar.writeValueWithoutResponse(frame);
+            if (commandName !== 'Keepalive') resetKeepaliveTimer();
+
+            const response = await responsePromise;
+            if (!verifier || verifier(response)) return response;
+            lastError = new Error(`Response verification failed for ${commandName}`);
+        } catch (err) {
+            lastError = err;
+            if (attempt < retries) {
+                log(`🔄 Retrying ${commandName} (attempt ${attempt + 1}/${retries}): ${err.message}`);
+            }
+        }
+    }
+    log(`❌ ${commandName} failed after ${retries} attempts: ${lastError?.message}`);
+    throw lastError ?? new Error(`${commandName} failed`);
+}
 
 /**
  * Send standard command to BLE device

@@ -18,6 +18,60 @@ class AsyncResponseHandler {
         // Command 0x51 specific state
         this.urlConfigBuffer = [];
         this.expectedUrlPackets = 0;
+
+        // Command-level retry support: promise waiters keyed by command byte.
+        // Each entry: { resolve, reject, timeoutId }
+        this.waiters = new Map();
+    }
+
+    /**
+     * Return a promise that resolves with the next reassembled response for
+     * the given command byte, or rejects after timeoutMs.
+     *
+     * Call this BEFORE writing the request frame so the waiter is registered
+     * before the device can reply.
+     *
+     * @param {number} commandByte - Command byte to match in response
+     * @param {number} timeoutMs - Timeout in milliseconds
+     * @returns {Promise<Uint8Array>} - Full reassembled response frame
+     */
+    waitFor(commandByte, timeoutMs) {
+        return new Promise((resolve, reject) => {
+            // Only one waiter per command byte — if a new one is registered, abort the old.
+            const existing = this.waiters.get(commandByte);
+            if (existing) {
+                clearTimeout(existing.timeoutId);
+                existing.reject(new Error(`waitFor(0x${commandByte.toString(16)}) superseded by new waiter`));
+            }
+            const timeoutId = setTimeout(() => {
+                this.waiters.delete(commandByte);
+                reject(new Error(`Response timeout for cmd 0x${commandByte.toString(16).padStart(2, '0')} after ${timeoutMs}ms`));
+            }, timeoutMs);
+            this.waiters.set(commandByte, { resolve, reject, timeoutId });
+        });
+    }
+
+    /**
+     * Resolve any waiter registered for this command byte. Called from
+     * parseAndDisplay once a complete response frame has been reassembled.
+     */
+    _resolveWaiter(commandByte, data) {
+        const waiter = this.waiters.get(commandByte);
+        if (!waiter) return;
+        clearTimeout(waiter.timeoutId);
+        this.waiters.delete(commandByte);
+        waiter.resolve(data);
+    }
+
+    /**
+     * Reject all outstanding waiters (e.g. on disconnect).
+     */
+    _rejectAllWaiters(reason) {
+        for (const [, waiter] of this.waiters) {
+            clearTimeout(waiter.timeoutId);
+            waiter.reject(new Error(reason));
+        }
+        this.waiters.clear();
     }
 
     /**
@@ -286,13 +340,16 @@ class AsyncResponseHandler {
 
         const command = data[3];
         const commandHex = '0x' + command.toString(16).padStart(2, '0');
-        
+
         console.log(`📥 Processing complete response for command ${commandHex} (${data.length} bytes)`);
 
         // Clear the currentCommand to prevent timeout retry
         if (window.currentCommand) {
             window.currentCommand = null;
         }
+
+        // Resolve any promise-waiter registered for this command byte
+        this._resolveWaiter(command, data);
 
         // Use the unified payload system (same as handleHMFrame)
         console.log(`🔍 DEBUG: AsyncResponseHandler about to parse cmd 0x${command.toString(16).toUpperCase()}`);
@@ -380,11 +437,12 @@ class AsyncResponseHandler {
         this.responseBuffer = [];
         this.urlConfigBuffer = [];
         this.lastCommand = null;
-        
+
         if (this.bufferTimeout) {
             clearTimeout(this.bufferTimeout);
             this.bufferTimeout = null;
         }
+        this._rejectAllWaiters('AsyncResponseHandler reset');
     }
 
     /**
