@@ -369,14 +369,21 @@ async function connectAndDiscoverOnce(dev) {
     dev.removeEventListener('gattserverdisconnected', onGattDisconnected);
     dev.addEventListener('gattserverdisconnected', onGattDisconnected);
 
-    // Marstek firmware drops the link if getPrimaryService is hit too soon after
-    // the link is up. 500ms is empirically enough.
+    // Marstek devices need time between link-up and GATT operations; getPrimaryService
+    // called too soon either hangs or the device drops the link entirely.
     await new Promise(r => createTrackedTimeout(r, POST_CONNECT_SETTLE_MS));
     if (!server.connected) throw new Error('Device disconnected before service discovery');
 
     log('🔍 Discovering service...');
-    const service = await withTimeout(server.getPrimaryService(SERVICE_UUID),
-        DISCOVER_TIMEOUT_MS, `Service discovery timed out after ${DISCOVER_TIMEOUT_MS / 1000}s`);
+    let service;
+    try {
+        service = await withTimeout(server.getPrimaryService(SERVICE_UUID),
+            DISCOVER_TIMEOUT_MS, `Service discovery timed out after ${DISCOVER_TIMEOUT_MS / 1000}s`);
+    } catch (e) {
+        // Diagnostic on timeout so we can tell "device disconnected" from "ATT hung".
+        log(`🔧 At timeout: server.connected=${server.connected}`);
+        throw e;
+    }
     if (!server.connected) throw new Error('Device disconnected during service discovery');
 
     const chars = await service.getCharacteristics();
