@@ -2,9 +2,11 @@
  * Runtime Info Payload Parser (Command 0x03)
  *
  * Field offsets verified against firmware v155 (sub_8008C30 / sub_8013D28).
- * v156+ adds 2 bytes at offsets 0x6D and 0x6E (BLE Lock, Depth of Discharge)
- * — those labels are inherited from earlier code and are NOT firmware-verified
- * against a v156 image.
+ * v156+ extends the payload; offsets 0x6B–0x6F cross-checked against the
+ * Marstek MT Android app v1.6.62 (parseBleRealTimeData in
+ * venus_realTime_controller.dart). See APP_CROSSCHECK_FINDINGS.md for the
+ * trace and evidence — in particular, 0x6D is NOT "BLE Lock" and 0x6E is
+ * NOT "Depth of Discharge" (prior labels were inherited guesses).
  */
 
 import { BasePayload } from '../base/Payload.js';
@@ -60,12 +62,17 @@ export class RuntimeInfoPayload extends BasePayload {
         const localApiEnabled = this.safeReadUint8(0x65);
         const apiPort = this.safeReadUint16LE(0x66);
 
-        // v156+ optional fields (existing labels, not firmware-verified)
-        let bleLock: number | undefined;
-        let depthOfDischarge: number | undefined;
+        // Battery pack + subscription cluster (verified via MT Android app v1.6.62).
+        // 0x6B and 0x6C are present on v155 too; 0x6D–0x6F are v156+ additions.
+        const batteryPackCount = this.safeReadUint8(0x6B);
+        const installedPackMask = this.safeReadUint8(0x6C);
+        let workingPackIndex: number | undefined;
+        let subscriptionStatus: number | undefined;
+        let subscriptionStatus2: number | undefined;
         if (this.payloadLength >= 111) {
-            bleLock = this.safeReadUint8(0x6D);
-            depthOfDischarge = this.safeReadUint8(0x6E);
+            workingPackIndex = this.safeReadUint8(0x6D);
+            subscriptionStatus = this.safeReadUint8(0x6E);
+            subscriptionStatus2 = this.safeReadUint8(0x6F);
         }
 
         // Derived status flags
@@ -89,8 +96,6 @@ export class RuntimeInfoPayload extends BasePayload {
             u13_0x68: this.safeReadUint8(0x68),
             u14_0x69: this.safeReadUint8(0x69),
             u15_0x6A: this.safeReadUint8(0x6A),
-            u16_0x6B: this.safeReadUint8(0x6B),
-            u17_0x6C: this.safeReadUint8(0x6C),
         };
 
         return {
@@ -124,8 +129,11 @@ export class RuntimeInfoPayload extends BasePayload {
             httpServerType,
             localApiEnabled,
             apiPort,
-            bleLock,
-            depthOfDischarge,
+            batteryPackCount,
+            installedPackMask,
+            workingPackIndex,
+            subscriptionStatus,
+            subscriptionStatus2,
             epsEnabled,
             statusFlags,
             unknowns,
@@ -198,8 +206,9 @@ export class RuntimeInfoPayload extends BasePayload {
     }
 
     private getCtTimingProfileString(v: number): string {
-        // Each unit of the multiplier adds 1200 ticks ≈ 1.2 s of extra cooldown
-        // after each successful CT read, on top of the fixed ~0.8 s base loop.
+        // Vendor label in the Marstek MT Android app: "Report Interval Setting".
+        // Each unit adds 1200 ticks ≈ 1.2 s of extra cooldown after each CT read,
+        // on top of the fixed ~0.8 s base loop.
         const extraMs = v * 1200;
         const totalMs = 800 + extraMs;
         const labels = ['fastest (no extra delay)', 'default', 'slowest'];
@@ -271,7 +280,7 @@ export class RuntimeInfoPayload extends BasePayload {
             html += `<div><strong>Battery Phase Position (0x4D):</strong> ${this.getPhasePosString(data.batteryPhasePos)}</div>`;
             html += `<div><strong>Parallel Mode flag (0x4E):</strong> ${data.parallelMode === 1 ? 'Enabled' : data.parallelMode === 0 ? 'Disabled' : `Raw ${data.parallelMode}`}</div>`;
             html += `<div><strong>Parallel Machine State (0x60):</strong> ${this.getParallelStateString(data.parallelMachineState)}</div>`;
-            html += `<div><strong>CT Timing Profile (0x5F):</strong> ${this.getCtTimingProfileString(data.ctTimingProfile)}</div>`;
+            html += `<div><strong>Report Interval Setting (0x5F):</strong> ${this.getCtTimingProfileString(data.ctTimingProfile)}</div>`;
             html += `<div><strong>Generator (0x61):</strong> ${data.generatorEnabled === 1 ? 'On' : data.generatorEnabled === 0 ? 'Off' : `Raw 0x${data.generatorEnabled.toString(16).padStart(2,'0')}`}</div>`;
             html += `<div><strong>Shelly CT Meter Port (0x62 BE):</strong> ${data.ctShellyPort} (default 1010 for CT002/CT003/Shelly EM Gen2)</div>`;
 
@@ -293,12 +302,23 @@ export class RuntimeInfoPayload extends BasePayload {
             html += `<div><strong>BMS Version (0x4F):</strong> ${data.bmsVersion}</div>`;
             html += `<div><strong>Firmware Build (0x51):</strong> ${data.firmwareBuild}</div>`;
 
-            // v156+ (unverified)
-            if (data.bleLock !== undefined) {
-                html += `<div><strong>BLE byte (0x6D):</strong> ${data.bleLock} <span style="font-style:italic; color:#a00; font-size:0.9em;">(existing "BLE Lock" label unverified — real-world data contradicts; send cmd 0x53 [0x0B] to compare)</span></div>`;
+            // Battery pack cluster (cross-checked against MT Android app v1.6.62)
+            if (data.batteryPackCount !== undefined && data.installedPackMask !== undefined) {
+                const maskBin = data.installedPackMask.toString(2).padStart(8, '0');
+                html += `<div><strong>Battery Pack Count (0x6B):</strong> ${data.batteryPackCount}</div>`;
+                html += `<div><strong>Installed Pack Mask (0x6C):</strong> 0b${maskBin} (0x${data.installedPackMask.toString(16).padStart(2,'0')})</div>`;
             }
-            if (data.depthOfDischarge !== undefined) {
-                html += `<div><strong>Depth of Discharge (0x6E):</strong> ${data.depthOfDischarge}% <span style="font-style:italic; color:#888; font-size:0.9em;">(plausible, unverified)</span></div>`;
+            if (data.workingPackIndex !== undefined) {
+                const lbl = data.workingPackIndex === 0 ? 'none' : `pack #${data.workingPackIndex}`;
+                html += `<div><strong>Working Pack Index (0x6D):</strong> ${data.workingPackIndex} — ${lbl}</div>`;
+            }
+            if (data.subscriptionStatus !== undefined) {
+                const mapped = data.subscriptionStatus <= 3 ? `status ${data.subscriptionStatus}` : `default (raw ${data.subscriptionStatus})`;
+                html += `<div><strong>Subscription Status (0x6E):</strong> ${mapped}</div>`;
+            }
+            if (data.subscriptionStatus2 !== undefined) {
+                const mapped2 = data.subscriptionStatus2 <= 3 ? `status ${data.subscriptionStatus2}` : `default (raw ${data.subscriptionStatus2})`;
+                html += `<div><strong>Subscription Status 2 (0x6F):</strong> ${mapped2}</div>`;
             }
 
             // Unknown bytes — raw values known, semantic not
@@ -319,8 +339,6 @@ export class RuntimeInfoPayload extends BasePayload {
             html += `<div>Unknown13 (0x68, u8): ${u.u13_0x68}</div>`;
             html += `<div>Unknown14 (0x69, u8): ${u.u14_0x69}</div>`;
             html += `<div>Unknown15 (0x6A, u8): ${u.u15_0x6A}</div>`;
-            html += `<div>Unknown16 (0x6B, u8): ${u.u16_0x6B}</div>`;
-            html += `<div>Unknown17 (0x6C, u8): ${u.u17_0x6C}</div>`;
             html += `</div></details>`;
 
             html += '</div>';

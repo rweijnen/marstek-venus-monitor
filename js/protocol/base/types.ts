@@ -56,9 +56,13 @@ export interface IRuntimeInfo {
     localApiEnabled: number;        // offset 0x65 — byte_2000302F (real enable flag, independent of port)
     apiPort: number;                // offset 0x66 — word_20003030
 
-    // v156+ (not verified from firmware trace — labels inherited)
-    bleLock?: number;               // offset 0x6D — existing label "BLE Lock" contradicted by real-world testing
-    depthOfDischarge?: number;      // offset 0x6E — plausible (range 30-88%), unverified
+    // Battery pack / subscription cluster (verified via Marstek MT Android app v1.6.62 —
+    // parseBleRealTimeData in venus_realTime_controller.dart; see APP_CROSSCHECK_FINDINGS.md)
+    batteryPackCount?: number;      // offset 0x6B — total number of battery packs (loop count arg of handleBatteryMask)
+    installedPackMask?: number;     // offset 0x6C — 8-bit bitmask of installed packs (bit i = pack i present)
+    workingPackIndex?: number;      // offset 0x6D — 1-based index of the currently active pack (0 = none). NOT BLE Lock.
+    subscriptionStatus?: number;    // offset 0x6E — cloud/subscription status byte (app maps 0/1/2/3 → distinct enum states, else default). NOT Depth of Discharge.
+    subscriptionStatus2?: number;   // offset 0x6F — sibling subscription slot (same enum mapping)
 
     // Derived status-flag interpretation (unchanged, not firmware-verified)
     epsEnabled?: boolean;
@@ -92,8 +96,6 @@ export interface IRuntimeInfo {
         u13_0x68: number;  // 1B — byte_2000401D
         u14_0x69: number;  // 1B — byte_20004040
         u15_0x6A: number;  // 1B — byte_2000401E[0]
-        u16_0x6B: number;  // 1B — byte_20004125
-        u17_0x6C: number;  // 1B — byte_20004126
     };
 }
 
