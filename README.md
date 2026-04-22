@@ -2,6 +2,13 @@
 
 🔋 **Web-based monitoring tool for Marstek Venus E batteries via Bluetooth Low Energy**
 
+## Support
+
+🧠 If you’d like to support this project, I would appreciate a donation to the Hersenstichting.  
+It’s a cause close to me personally.
+
+[Donate to the Hersenstichting](https://www.hersenstichting.nl/doe-mee/)
+
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://rweijnen.github.io/marstek-venus-monitor/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Experimental](https://img.shields.io/badge/Status-Experimental-orange.svg)](#warning)
