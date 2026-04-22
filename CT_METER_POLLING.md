@@ -10,7 +10,7 @@ How the Marstek Venus E battery (firmware v155, `202509161548003ff722863.bin`) d
 - The CT meter listens on **UDP port 12345**. The destination IP is **not** set over BLE — it is discovered via a `"hame"` 4-byte UDP probe on port 12345 (`ct_meter_discovery_state_machine`).
 - BLE cmd `0x21` is a separate feature — it sets the **HomeWizard P1 meter** IP (HTTP `/api/v1/data`), not the CT meter. Both meter types can be configured but only one is in active use at a time, and the P1 path is understood to be single-battery (not multi-battery / parallel-capable).
 - Two polling variants share the same state machine: a **binary CT002/CT003 frame** (SOH/STX/len/`|`-fields/ETX/checksum) or a **JSON-RPC** body for Shelly EM / EM Gen3 / Pro EM 50.
-- The base period is **hard-coded in the firmware** (≈ 300 ticks between dispatcher iterations). No command exposes this loop period. However, the **extra post-parse cooldown** (0 / ~1.2s / ~2.4s after each successful read) is tied to `g_timing_profile_idx` (`byte_2000302E`, 0..2), writable by BLE cmd `0x22` — see "Can the interval be changed?".
+- The base period is **hard-coded in the firmware** (≈ 300 ticks between dispatcher iterations). No command exposes this loop period. **However**, a single BLE-writable byte (`g_timing_profile_idx` = `byte_2000302E`, value 0..2, cmd `0x22`) acts as a **paired responsiveness dial**: it sets *both* the extra post-parse cooldown (0 / 1.2 / 2.4 s) *and* the stability window (0 / 1 / 2 s grace, with 3 / 4 / 5 s hard deadline) of the CT→inverter power-follow control loop. See "Can the interval be changed?".
 - The parsed response has 28 fields. The control loop consumes: total + A/B/C phase power (all paths), and — when at least one charge/discharge-power field is non-zero — a per-phase slice of charge/discharge-power fields picked via `ct_select_phase_power`.
 
 ## Model ↔ type-string mapping
@@ -119,15 +119,44 @@ The setter (`set_timing_profile_idx` at `0x8006368`) clamps input to 0..2, so th
 | `1` | `1` | 1200 ticks ≈ **1.2 s** |
 | `2` | `2` | 2400 ticks ≈ **2.4 s** |
 
-The same byte is also read by `sub_80142D4` → `sub_8005458`, which uses it as an index into a lookup table to pick timeout values for some float-compare debounce state machine (`1000 * v` and `1000 * (v+3)` ms grace/hard timeouts). **So changing this byte affects two different things**: the CT post-parse cooldown AND a debounce window somewhere else. The second path was not fully traced — change with care.
+The same byte is also read by `sub_80142D4`, which feeds `sub_8005458` — the **stability debouncer** for the CT-driven inverter-setpoint control loop. Sole caller of that debouncer is `sub_8022174` (the control loop itself), which reads each new CT sample from `g_ct_data_queue`, runs the debouncer, and only adjusts the inverter output setpoint `flt_200004A8` (in Watts) when the debouncer returns 1. The debouncer logic:
 
-To get the **fastest possible** CT poll, set `g_timing_profile_idx = 0` via **BLE cmd `0x22`** (dispatcher case 34 @ `0x8007852`), 1 byte = `0`. At that setting, the per-cycle delay drops from `300 + 5 + 500 + 1200 ≈ 2.0 s` to `300 + 5 + 500 + 0 ≈ 0.8 s` — a ~2.5× speedup.
+```
+err = |measured_grid_power  −  current_inverter_setpoint|     // both in Watts
+                                                              //  flt_2000272C − flt_200004A8
+if (err > 30 W  ||  current_setpoint == 0.0)
+    reset the "stable" timestamp          // output is still tracking, keep waiting
+else
+    continue the "stable" grace window
+
+commit / promote state when either:
+    stable window held for  N × 1000 ms               (grace: output has tracked within 30 W for N s)
+    hard deadline elapsed   (N+3) × 1000 ms           (commit anyway)
+```
+
+`sub_801FD1C` is a simple "ms elapsed since saved timestamp" check against the global tick counter `word_20000028`. So **N controls both the CT poll cooldown *and* the companion stability window for the power-follow loop** — they're paired intentionally:
+
+| N | CT poll extra cooldown | Loop stability grace | Loop hard deadline | Effective character |
+|---|---|---|---|---|
+| 0 | 0 s | 0 s (instant commit) | 3 s | snappy; risks hunting when grid load flaps > 30 W |
+| 1 | 1.2 s | 1 s | 4 s | **stock default** — balanced |
+| 2 | 2.4 s | 2 s | 5 s | slow and smooth; latest to react to load changes |
+
+### What each setting actually feels like
+
+- **N = 0 (fastest)**: the battery reacts to a new grid load almost immediately (CT poll ~0.8 s; control loop commits as soon as its output is within 30 W of the measured grid import). Good when your load profile has fast swings (kettle, induction hob) and you want minimum export/import spillover. Downside: the control loop and the CT updates can get into a short tug-of-war around the setpoint — small oscillation around the target is possible if the grid itself is changing faster than the loop can track. On a quiet load you won't notice.
+- **N = 1 (default)**: the stock Marstek tuning. CT poll every ~2 s, loop waits 1 s of stable tracking before committing, will commit regardless after 4 s. Fine for typical household patterns — refrigerator cycling, lights, idle periods.
+- **N = 2 (slowest)**: deliberately sluggish. CT poll every ~3.2 s, loop waits 2 s of stability. Reduces BLE / modem chatter and lets the controller over-smooth. Downside: any load spike is visible as grid import/export for noticeably longer before the battery catches up. Useful if you're tuning for minimum BLE traffic or you know your load profile is slow.
+
+For most people **N = 0** is the interesting setting — it's essentially "track the grid as fast as the firmware allows" — and on a normal household load profile the worst case is a bit of setpoint wobble, not instability.
+
+To set the fastest CT poll, send **BLE cmd `0x22`** (dispatcher case 34 @ `0x8007852`) with 1-byte payload `0x00`. Per-CT-cycle time drops from `300 + 5 + 500 + 1200 ≈ 2.0 s` to `300 + 5 + 500 + 0 ≈ 0.8 s`.
 
 **To change the base 300/500-tick loop** there is still no command path — firmware patch only, cleanest knob is `MOV.W R6, #0x12C` at `0x80055C4` (default-loop delay).
 
 ### Reading the current `g_timing_profile_idx`
 
-**Yes, it is readable** — via **BLE cmd `0x03`** ("Get work status info", dispatcher case 3). `sub_8008C30` at `0x8008D2C` stores `ct_post_parse_delay_multiplier()` into `byte_20003D8E`, which is offset `0x0E` within the 109-byte (`0x6D`) payload sent by `ble_build_frame(3, &word_20003D2F, 0x6D)`. For in-range values (0/1/2), multiplier == raw value, so you can read `g_timing_profile_idx` directly from the work-status response. The `>=3` branch is unreachable via normal command paths, so this equivalence holds in practice.
+**Yes, it is readable** — via **BLE cmd `0x03`** ("Get work status info", dispatcher case 3). `sub_8008C30` at `0x8008D2C` stores `ct_post_parse_delay_multiplier()` into `byte_20003D8E`, which is offset `0x5F` within the 109-byte (`0x6D`) payload sent by `ble_build_frame(3, &word_20003D2F, 0x6D)`. For in-range values (0/1/2), multiplier == raw value, so you can read `g_timing_profile_idx` directly from the work-status response. The `>=3` branch is unreachable via normal command paths, so this equivalence holds in practice.
 
 MQTT equivalent: the "Get work data" handler likely exposes the same field — not verified exact offset in MQTT payload.
 
@@ -141,7 +170,7 @@ g_timing_profile_idx = v57;
 The setter writes both slots together, so they normally match. On an uninitialised unit (both bytes = `0xFF`), `g_timing_profile_idx` ends up `0xFF` — the `>= 3` branch of `ct_post_parse_delay_multiplier` then returns `2` for HME-3/CT003 (the default `g_ct_meter_type`) or `1` otherwise. So a factory-fresh CT003-paired unit runs at the maximum 2.4 s cooldown until commissioned.
 
 **Practical recipe:**
-1. Send BLE cmd `0x03` (work status info), read byte `[0x0E]` of the response payload to observe the current multiplier.
+1. Send BLE cmd `0x03` (work status info), read byte `[0x5F]` of the response payload to observe the current multiplier.
 2. If you want to change: send BLE cmd `0x22` with value `0` (fastest) / `1` / `2` (slowest).
 3. Repeat step 1 to confirm the change took effect.
 
@@ -249,7 +278,7 @@ After parsing, only a small subset is actually fed into the control path:
 | `0x18` | 24 @ `0x80073A2` | **CT meter type** — calls `ct_reset_state()` first, then sets `g_ct_meter_type` (1 / 3 / 4 / 5 / 6), copies 12-byte meter MAC into `g_ct_meter_mac_ascii`, sets `byte_2000160E = 1` to force re-discovery. |
 | `0x21` | 33 @ `0x800779C` | **P1 meter (HomeWizard) IP** — read/write `g_p1_meter_ip` (`byte_2000366B`, EEPROM `0x3500`). Sub-cmd `10` writes, sub-cmd `11` reads. The value is consumed by `sub_800D338` (MQTT/HTTP handler, only xrefs at `0x800E898` and `0x800EC3C`) and used with `AT+QHTTPCFG="url","http://<ip>/api/v1/data"` (`0x800B6EC`). **Not** used by the CT poll path. Log strings confirming this: `[HTTP] Read P1 meter ip: %s` (`0x800AD7C`), `!!! [HTTP] Warning : P1 METER DISCONNECT!!!` (`0x800A414`), `[MQTT] Set P1 IP...` (`0x800EC6C`). Understood to be single-battery only. |
 | `0x02` | 2 @ `0x8006B80` | **HTTP server type** (subdomain selector for cloud telemetry) — writes `byte_20003092` at EEPROM `0x441`, clamped to 0..2. Log: `[BLE] Set server type: %d, real type: %d` (`0x8006EE0`). Response echoes the actually-stored value. |
-| `0x22` | 34 @ `0x8007852` | **Timing profile index** (unnamed by firmware; see caveat in "Post-parse cooldown" section). Calls `set_timing_profile_idx(frame[4])`, clamps to 0..2, persists at EEPROM `0x37B` and mirrored at `0x375`. Affects the CT post-parse cooldown AND an unrelated debounce window in `sub_8005458`. Response echoes the raw input (not the stored value). |
+| `0x22` | 34 @ `0x8007852` | **Timing profile index** (unnamed by firmware; see caveat in "Post-parse cooldown" section). Calls `set_timing_profile_idx(frame[4])`, clamps to 0..2, persists at EEPROM `0x37B` and mirrored at `0x375`. Paired knob: sets BOTH the CT post-parse cooldown AND the companion stability window of the CT→inverter control loop (`sub_8005458`). Response echoes the raw input (not the stored value). |
 | `0x24` | 36 @ `0x80078A6` | Read the dev-net-info string (`g_dev_net_info` / `byte_2000F188`) — useful for debugging what host the modem is currently using. |
 
 ### `ct_reset_state` (formerly `sub_8020AF4`)
@@ -297,13 +326,15 @@ The meter will respond with a 28-field `|`-separated frame. For a CT003, substit
 
 ## Caveats
 
-- All four functions flagged previously as untraced are now covered:
-  - `sub_80142B0` → `ct_post_parse_delay_multiplier` (full trace — drives the post-parse cooldown from `g_timing_profile_idx`)
-  - `sub_80049DC` → `ct_alt_handler` (wrapper — dispatches two subroutines `sub_80049C8` / `sub_80049B4` / `sub_8004BA0` whose own contents were not traced)
-  - `sub_802F700` → `xQueueGenericSend` (FreeRTOS identified by `queue.c` line numbers)
-  - `sub_8020AF4` → `ct_reset_state` (state-clear for CT type switch; the two subroutines it calls at the end, `sub_8005790` and `sub_8003378`, are not fully traced)
-- `ct_select_phase_power` (formerly `sub_8004C1C`) is fully traced — see the per-phase fan-out section.
-- Tick-to-ms conversion assumes `configTICK_RATE_HZ = 1000` (commonly the case on this class of STM32 firmware, but not confirmed from this binary).
+- Functions flagged previously as untraced, now resolved:
+  - `sub_80142B0` → `ct_post_parse_delay_multiplier` (drives the post-parse cooldown from `g_timing_profile_idx`).
+  - `sub_80142D4` → stability-window timeout provider (reads the same lookup as the multiplier; feeds `sub_8005458`).
+  - `sub_8005458` → **inverter-setpoint stability debouncer** (sole caller `sub_8022174`, the CT-driven power-follow control loop). Reads `|flt_2000272C − flt_200004A8| > 30 W` as the "unstable, keep tracking" check; promotes state when the output has tracked within 30 W for `N × 1000 ms`, or unconditionally at `(N+3) × 1000 ms`.
+  - `sub_801FD1C` → `ms_elapsed_since(saved_ts, timeout)` against the global tick counter `word_20000028`; used for both timers in `sub_8005458`.
+  - `sub_802F700` → `xQueueGenericSend` (FreeRTOS, identified by `queue.c` line numbers).
+  - `sub_8020AF4` → `ct_reset_state` (state-clear on CT type switch; tail calls `sub_8005790` / `sub_8003378` still opaque).
+  - `sub_80049DC` → `ct_alt_handler` (dispatches `sub_80049C8` / `sub_80049B4` / `sub_8004BA0`, those subroutine bodies still opaque).
+- `ct_select_phase_power` (formerly `sub_8004C1C`) fully traced — see the per-phase fan-out section.
+- Tick-to-ms conversion assumes `configTICK_RATE_HZ = 1000` (commonly the case on this class of STM32 firmware, not confirmed from this binary).
 - "Connectivity flag" `byte_2000095E` is assumed to be the Wi-Fi/LAN-up indicator because `sub_80055BC` gates on it before any CT work, but its exact semantics were not traced here.
 - The P1 meter path (HomeWizard, HTTP `/api/v1/data`) is documented in the BLE/MQTT tables but the full request/response flow and its interaction with the CT path were not traced. The user notes it is single-battery only.
-- `g_timing_profile_idx == 0` effect on cloud telemetry (empty subdomain prefix) is **not** tested — only the effect on the CT cooldown multiplier is proven by the code.
