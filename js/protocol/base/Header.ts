@@ -76,7 +76,7 @@ export class FrameHeader implements IFrameHeader {
             [CommandType.HM_SUMMARY]: 'HM Summary',
             [CommandType.HM_EVENT_LOG]: 'HM Event Log',
             [CommandType.METER_IP]: 'Meter IP',
-            [CommandType.CT_POLLING_RATE]: 'CT Polling Rate',
+            [CommandType.CT_TIMING_PROFILE]: 'Set CT Timing Profile',
             [CommandType.NETWORK_INFO]: 'Network Info',
             [CommandType.LOCAL_API_STATUS]: 'Local API Status',
             [CommandType.READ_DEVICE_CONFIG]: 'Read Device Config',

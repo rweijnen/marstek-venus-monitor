@@ -42,10 +42,6 @@
         <span class="cmd-button-text">🔗 Network Info</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('network')">i</span>
     </button>
-    <button onclick="sendCommand(0x22, 'CT Polling Rate')" disabled data-tooltip="Read current CT meter polling rate setting" class="cmd-button" data-requires-connection="true">
-        <span class="cmd-button-text">📊 CT Polling Rate</span>
-        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpollread')">i</span>
-    </button>
     <button onclick="sendCommand(0x03, 'Local API')" disabled data-tooltip="Check Local API status from runtime information" class="cmd-button" data-requires-connection="true">
         <span class="cmd-button-text">🌐 Local API</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apiread')">i</span>

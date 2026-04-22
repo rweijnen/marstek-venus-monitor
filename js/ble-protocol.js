@@ -1606,7 +1606,7 @@ function getCommandName(cmdCode) {
         0x1C: 'HM Event Log',
         0x1F: 'OTA Activation',
         0x21: 'Meter IP Address',
-        0x22: 'CT Polling Rate',
+        0x22: 'Set CT Timing Profile',
         0x24: 'Network Info',
         0x28: 'Local API Status',
         0x3A: 'OTA Start',

@@ -42,21 +42,17 @@
         <span class="cmd-button-text">Disable Local API</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('apidisable')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 0', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 0 (fastest)" data-requires-connection="true">
-        <span class="cmd-button-text">CT Polling: Rate 0 (Fastest)</span>
+    <button onclick="sendCommand(0x22, 'Set CT Timing Profile: 0 (~0.8 s/cycle)', [0x00])" disabled class="btn-warning cmd-button" data-tooltip="CT timing profile 0 — no extra cooldown, ~0.8 s per CT cycle" data-requires-connection="true">
+        <span class="cmd-button-text">CT Timing Profile: 0 — fastest (~0.8 s/cycle)</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll0')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 1', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 1 (medium)" data-requires-connection="true">
-        <span class="cmd-button-text">CT Polling: Rate 1 (Medium)</span>
+    <button onclick="sendCommand(0x22, 'Set CT Timing Profile: 1 (~2.0 s/cycle)', [0x01])" disabled class="btn-warning cmd-button" data-tooltip="CT timing profile 1 — default, ~1.2 s extra cooldown after each read" data-requires-connection="true">
+        <span class="cmd-button-text">CT Timing Profile: 1 — default (~2.0 s/cycle)</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll1')">i</span>
     </button>
-    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 2', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 2 (slowest)" data-requires-connection="true">
-        <span class="cmd-button-text">CT Polling: Rate 2 (Slowest)</span>
+    <button onclick="sendCommand(0x22, 'Set CT Timing Profile: 2 (~3.2 s/cycle)', [0x02])" disabled class="btn-warning cmd-button" data-tooltip="CT timing profile 2 — ~2.4 s extra cooldown after each read" data-requires-connection="true">
+        <span class="cmd-button-text">CT Timing Profile: 2 — slowest (~3.2 s/cycle)</span>
         <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll2')">i</span>
-    </button>
-    <button onclick="sendCommand(0x20, 'Set CT Polling Rate: 3', [0x03])" disabled class="btn-warning cmd-button" data-tooltip="Set CT meter polling rate to 3 (extended/custom)" data-requires-connection="true">
-        <span class="cmd-button-text">CT Polling: Rate 3 (Extended)</span>
-        <span class="info-icon" onclick="event.stopPropagation(); showCommandInfo('ctpoll3')">i</span>
     </button>
     <button onclick="sendConfigWriteCommand()" disabled class="btn-danger cmd-button" data-tooltip="Write configuration data with server credentials" data-requires-connection="true">
         <span class="cmd-button-text">💾 Write Configuration</span>

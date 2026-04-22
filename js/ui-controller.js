@@ -404,12 +404,12 @@ const commandInfo = {
         notes: '🌐 Full network configuration details for diagnostics.'
     },
     ctpollread: {
-        title: '📊 Read CT Polling Rate (0x22)',
-        description: 'Read current CT meter polling rate setting',
-        command: '0x73 0x04 0x23 0x22 [checksum]',
-        response: '1 byte: polling rate value (0=fastest, 1=medium, 2=slowest)',
-        sampleData: '0x01 = Medium polling rate',
-        notes: '📈 Current CT meter polling frequency. Lower values = faster polling but more power usage.'
+        title: '📊 Read CT Timing Profile (via Runtime Info)',
+        description: 'The CT timing profile index is not readable via a dedicated command — it is exposed as byte 0x5F of the Runtime Info (cmd 0x03) response.',
+        command: 'Send cmd 0x03 (Runtime Info); look at the "CT Timing Profile" line',
+        response: 'One of 0, 1, 2 (matches the value written by cmd 0x22).',
+        sampleData: 'See the Runtime Info display — "CT Timing Profile (0x5F): 1 — default (~2.0 s/cycle)"',
+        notes: '⚠️ The previous "Read CT Polling Rate" button sent cmd 0x22 with no payload. Firmware case 34 reads frame[4] unconditionally — with no payload that is the checksum byte, and if the checksum happens to be ≤ 2 the firmware silently corrupts the timing profile. Button removed. The set buttons (cmd 0x22 with explicit [0/1/2]) are the only safe path.'
     },
     apiread: {
         title: '🌐 Read Local API Status (0x28)',
@@ -524,28 +524,40 @@ const commandInfo = {
         notes: '⚠️ WARNING: Changes device clock permanently. May affect daily/monthly energy counter resets and event log timestamps. Payload is 7 bytes: year (LE, full year like 0xE9 0x07 for 2025), month (1-12), day (1-31), hour (0-23), minute (0-59), second (0-59). Example frame: 73 0C 23 0B E9 07 09 1E 0E 05 00 A5'
     },
     ctpoll0: {
-        title: '📊 Set CT Polling Rate 0 (0x20)',
-        description: 'Set CT meter polling rate to 0 (fastest setting)',
-        command: '0x73 0x06 0x23 0x20 0x00 [checksum]',
-        response: 'Echoed as command 0x22 with confirmation',
-        sampleData: 'Rate set to 0',
-        notes: '⚡ Value 0: Fastest polling rate setting. Uses command 0x20 per firmware case 32.'
+        title: '📊 Set CT Timing Profile = 0 — fastest (~0.8 s/cycle)',
+        description: 'Disable the post-CT-parse cooldown. Firmware inserts vTaskDelay(1200 × N) after each successful CT meter read. With N=0, no extra delay — each cycle is only the base loop (~0.8 s).',
+        command: '0x73 0x06 0x23 0x22 0x00 [checksum]',
+        response: 'Echoed: one byte, the value that the setter stored (0, 1, or 2 after clamp).',
+        sampleData: 'Response payload: 0x00',
+        notes: '⚡ Value 0 → 0 ticks extra cooldown. "CT polling rate" is a misnomer: the base 300/5/500-tick poll loop is hard-coded and cannot be changed from BLE/MQTT; only this extra cooldown is tunable.<br><br>' +
+               '<strong>Clamping / ranges:</strong> setter (firmware sub_8006368) accepts only 0..2. Any value ≥3 is silently rejected (stored byte unchanged). Response echoes the raw input — so an out-of-range response means the store was rejected.<br><br>' +
+               '<strong>Persistence:</strong> EEPROM 0x37B + mirror 0x375. Survives reboot.<br><br>' +
+               '<strong>Side effect:</strong> the same byte is used by firmware sub_8005458 as an index into a separate debounce-timeout lookup (2 entries in ms: N×1000 grace, (N+3)×1000 hard). That path was not fully traced — setting 0 may zero that grace window.<br><br>' +
+               '<strong>To read current value:</strong> send cmd 0x03 (Runtime Info), look at byte 0x5F / the "CT Timing Profile" line.'
     },
     ctpoll1: {
-        title: '📊 Set CT Polling Rate 1 (0x20)', 
-        description: 'Set CT meter polling rate to 1 (medium setting)',
-        command: '0x73 0x06 0x23 0x20 0x01 [checksum]',
-        response: 'Echoed as command 0x22 with confirmation',
-        sampleData: 'Rate set to 1',
-        notes: '⚖️ Value 1: Medium polling rate setting. Uses command 0x20 per firmware case 32.'
+        title: '📊 Set CT Timing Profile = 1 — default (~2.0 s/cycle)',
+        description: 'Default cooldown: ~1.2 s extra after each successful CT meter read (on top of the ~0.8 s base loop, for ~2.0 s per full cycle).',
+        command: '0x73 0x06 0x23 0x22 0x01 [checksum]',
+        response: 'Echoed: one byte, the value that the setter stored.',
+        sampleData: 'Response payload: 0x01',
+        notes: '⚖️ Value 1 → 1200 ticks ≈ 1.2 s extra cooldown (assuming 1 ms/tick, typical STM32 FreeRTOS config).<br><br>' +
+               '<strong>Clamping / ranges:</strong> setter accepts 0..2 only; values ≥3 silently rejected.<br><br>' +
+               '<strong>Persistence:</strong> EEPROM 0x37B + mirror 0x375.<br><br>' +
+               '<strong>Side effect:</strong> same byte also indexes sub_8005458 debounce timeouts (path not fully traced).<br><br>' +
+               '<strong>To read current value:</strong> cmd 0x03 response byte 0x5F.'
     },
     ctpoll2: {
-        title: '📊 Set CT Polling Rate 2 (0x20)',
-        description: 'Set CT meter polling rate to 2 (slowest setting)', 
-        command: '0x73 0x06 0x23 0x20 0x02 [checksum]',
-        response: 'Echoed as command 0x22 with confirmation',
-        sampleData: 'Rate set to 2',
-        notes: '🔋 Value 2: Slowest polling rate setting. Uses command 0x20 per firmware case 32.'
+        title: '📊 Set CT Timing Profile = 2 — slowest (~3.2 s/cycle)',
+        description: 'Extra ~2.4 s cooldown after each successful CT meter read. Useful for reducing BLE/modem chatter when CT updates are not time-critical.',
+        command: '0x73 0x06 0x23 0x22 0x02 [checksum]',
+        response: 'Echoed: one byte, the value that the setter stored.',
+        sampleData: 'Response payload: 0x02',
+        notes: '🔋 Value 2 → 2400 ticks ≈ 2.4 s extra cooldown.<br><br>' +
+               '<strong>Clamping / ranges:</strong> setter accepts 0..2 only; values ≥3 silently rejected.<br><br>' +
+               '<strong>Persistence:</strong> EEPROM 0x37B + mirror 0x375.<br><br>' +
+               '<strong>Side effect:</strong> same byte also indexes sub_8005458 debounce timeouts (path not fully traced) — at 2, those timeouts are the widest.<br><br>' +
+               '<strong>To read current value:</strong> cmd 0x03 response byte 0x5F.'
     },
     apienable30000: {
         title: '🌐 Enable Local API Port 30000 (0x28)',
