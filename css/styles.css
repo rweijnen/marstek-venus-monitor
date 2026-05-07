@@ -1108,3 +1108,201 @@
 .hex-parser-result {
     margin-top: 15px;
 }
+
+/* ============================================================
+   BLE explainer banner (Read tab)
+   ============================================================ */
+
+.ble-explainer {
+    background: #eef2ff;
+    border-left: 3px solid #667eea;
+    border-radius: 0 4px 4px 0;
+    padding: 10px 14px;
+    margin: 0 0 14px 0;
+    font-size: 13px;
+    color: #3d3d5c;
+    line-height: 1.55;
+}
+
+.lan-explainer {
+    background: #eefaf3;
+    border-left-color: #28a745;
+    color: #1d4a2a;
+}
+
+.lan-explainer a          { color: #1a7a3a; }
+.lan-explainer a:hover    { color: #145c2b; }
+
+.ble-explainer code {
+    background: #dde3f8;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* ============================================================
+   LAN Monitor Tab
+   ============================================================ */
+
+.lan-section {
+    padding: 10px 0;
+}
+
+.lan-config-block {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+.lan-config-block h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.lan-code {
+    background: #282c34;
+    color: #abb2bf;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    margin: 0 0 10px 0;
+    user-select: all;
+}
+
+.lan-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.lan-input {
+    padding: 7px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 13px;
+    flex: 1;
+    min-width: 140px;
+    background: #fff;
+    color: #333;
+}
+
+.lan-input-port  { flex: 0 0 90px;  min-width: 90px; }
+.lan-input-tiny  { flex: 0 0 55px;  min-width: 55px; padding: 3px 6px; }
+
+.lan-btn {
+    padding: 7px 14px;
+    font-size: 13px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+.lan-btn:hover   { opacity: 0.88; transform: none; }
+.lan-btn:disabled { background: #adb5bd; cursor: not-allowed; }
+
+.lan-mode-row { margin-top: 8px; }
+.lan-mode-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+}
+
+.lan-bridge-status {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 3px;
+}
+
+.lan-status-connecting  { background: #fff3cd; color: #856404; }
+.lan-status-connected   { background: #d4edda; color: #155724; }
+.lan-status-disconnected { background: #f8d7da; color: #721c24; }
+
+.lan-hint {
+    color: #6c757d;
+    font-size: 12px;
+    margin: 4px 0 0 0;
+    font-style: italic;
+}
+
+.lan-device-list {
+    margin-bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.lan-device-card {
+    background: #fff;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    min-width: 180px;
+    transition: border-color 0.15s;
+    position: relative;
+}
+
+.lan-device-card:hover   { border-color: #764ba2; }
+.lan-device-active       { border-color: #667eea !important; background: #f0f0ff; }
+
+.lan-device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.lan-device-name     { font-weight: 600; font-size: 14px; color: #333; }
+.lan-device-autoname { font-weight: 400; font-size: 12px; color: #888; margin-left: 6px; }
+.lan-device-detail { font-size: 12px; color: #6c757d; }
+
+.lan-remove-btn {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.lan-remove-btn:hover { color: #dc3545; transform: none; }
+
+.lan-poll-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    flex-wrap: wrap;
+}
+
+.lan-data-display {
+    margin-top: 4px;
+}
+
+.lan-data-display h3 {
+    margin: 0 0 10px 0;
+    color: #343a40;
+}
+
+.lan-data-display h4 {
+    margin: 16px 0 6px 0;
+    font-size: 14px;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 4px;
+}

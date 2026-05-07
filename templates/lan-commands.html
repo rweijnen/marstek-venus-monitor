@@ -1,0 +1,79 @@
+<!-- LAN Monitor Tab -->
+<div class="lan-section">
+
+  <!-- LAN explainer -->
+  <div class="ble-explainer lan-explainer">
+    <strong>Local Network (LAN) mode</strong> — communicates with your Marstek battery over your home WiFi using the device's built-in <em>Open API</em> (UDP JSON-RPC, default port 30000). This works from anywhere on the same network, with no Bluetooth required and no range limit. Because browsers cannot send raw UDP packets, a small local bridge script must be running on this computer (step 1 below).<br><br>
+    <strong>Limitations:</strong> the Open API exposes a smaller set of data than BLE — energy totals, battery state, solar input, WiFi status, and operating mode. Detailed diagnostics (BMS cell voltages, error logs, event history, firmware update) are only available over Bluetooth. The Local API must first be enabled on the device via the Marstek app or using BLE command 0x28 from this tool.<br><br>
+    Full command reference: <a href="https://static-eu.marstekcloud.com/ems/resource/agreement/MarstekDeviceOpenApi.pdf" target="_blank" rel="noopener">Marstek Device Open API (PDF)</a>.
+  </div>
+
+  <!-- Bridge Connection -->
+  <div class="lan-config-block">
+    <h4>1. Start the local UDP bridge</h4>
+    <pre class="lan-code">cd proxy &amp;&amp; npm install &amp;&amp; node udp-bridge.js</pre>
+    <div class="lan-row">
+      <input type="text" id="lanProxyUrl" value="ws://localhost:3001" placeholder="ws://localhost:3001" class="lan-input" />
+      <button onclick="lanConnectBridge()" class="btn-connect lan-btn">Connect</button>
+      <button onclick="lanDisconnectBridge()" class="lan-btn">Disconnect</button>
+    </div>
+    <div id="lanBridgeStatus" class="lan-bridge-status lan-status-disconnected">Not connected</div>
+  </div>
+
+  <!-- Device Entry -->
+  <div class="lan-config-block">
+    <h4>2. Add device(s)</h4>
+    <div class="lan-row">
+      <input type="text"   id="lanDeviceName" placeholder="My Battery (optional label)" class="lan-input" />
+      <input type="text"   id="lanDeviceIp"   placeholder="192.168.1.100" class="lan-input" />
+      <input type="number" id="lanDevicePort"  value="30000" min="1" max="65535" class="lan-input lan-input-port" />
+      <button onclick="lanAddDevice()" class="lan-btn">Add</button>
+      <button onclick="lanDiscoverDevices()" class="lan-btn" id="lanDiscoverBtn">🔍 Discover</button>
+    </div>
+    <p class="lan-hint">Label is optional — used as the display name. Port is set in the Marstek app when enabling the local API (default 30000).</p>
+  </div>
+
+  <!-- Device List -->
+  <div id="lanDeviceList" class="lan-device-list">
+    <p class="lan-hint">No devices yet. Add an IP or use Discover.</p>
+  </div>
+
+  <!-- Commands -->
+  <div class="lan-config-block">
+    <h4>3. Commands</h4>
+    <div class="command-grid">
+      <button onclick="lanGetFullStatus()"           class="cmd-btn">📊 Full Status</button>
+      <button onclick="lanSendCommand('ES.GetStatus')" class="cmd-btn">⚡ Energy System</button>
+      <button onclick="lanSendCommand('Bat.GetStatus')" class="cmd-btn">🔋 Battery</button>
+      <button onclick="lanSendCommand('PV.GetStatus')" class="cmd-btn">☀️ Solar (PV)</button>
+      <button onclick="lanSendCommand('Wifi.GetStatus')" class="cmd-btn">📶 WiFi</button>
+      <button onclick="lanSendCommand('BLE.GetStatus')" class="cmd-btn">📡 BLE Status</button>
+      <button onclick="lanSendCommand('ES.GetMode')"  class="cmd-btn">⚙️ Get Mode</button>
+      <button onclick="lanSendCommand('Marstek.GetDevice', {ble_mac:'0'})" class="cmd-btn">ℹ️ Device Info</button>
+    </div>
+
+    <!-- Mode control -->
+    <div class="lan-row lan-mode-row">
+      <label><strong>Set mode:</strong></label>
+      <button onclick="lanSetMode('Auto')"    class="lan-btn lan-mode-btn">Auto</button>
+      <button onclick="lanSetMode('AI')"      class="lan-btn lan-mode-btn">AI</button>
+      <button onclick="lanSetMode('Manual')"  class="lan-btn lan-mode-btn">Manual</button>
+      <button onclick="lanSetMode('Passive')" class="lan-btn lan-mode-btn">Passive</button>
+    </div>
+  </div>
+
+  <!-- Auto-poll -->
+  <div class="lan-config-block">
+    <label class="lan-poll-label">
+      <input type="checkbox" id="lanAutoPoll" onchange="lanToggleAutoPoll(this.checked)" />
+      Auto-poll ES + Battery every
+      <input type="number" id="lanPollInterval" value="5" min="1" max="300" class="lan-input lan-input-tiny" />
+      seconds
+    </label>
+  </div>
+
+  <!-- Data display area -->
+  <div id="lanDataDisplay" class="lan-data-display"></div>
+
+</div>
+<script>if (window.lanInitTab) lanInitTab();</script>

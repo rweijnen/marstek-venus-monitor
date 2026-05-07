@@ -9,6 +9,7 @@
 // ==========================================
 
 let isConnected = false;
+let isLanConnected = false;
 let deviceType = 'unknown'; // 'battery', 'meter', or 'unknown'
 
 // ==========================================
@@ -126,6 +127,27 @@ function updateStatus(connected, deviceName = null) {
     updateButtonStates(connected);
     
     isConnected = connected;
+}
+
+/**
+ * Called by lan-monitor.js when LAN devices are added/removed.
+ * Updates the global status bar and button states without touching the
+ * BLE connect/disconnect buttons (those remain BLE-only).
+ */
+function updateLanStatus(connected, deviceName = null) {
+    isLanConnected = connected;
+
+    // Only paint the status bar if BLE isn't already holding it.
+    if (!isConnected) {
+        const statusEl = document.getElementById('status');
+        if (statusEl) {
+            statusEl.textContent = connected
+                ? `LAN${deviceName ? ': ' + deviceName : ''}`
+                : 'Disconnected';
+            statusEl.className = connected ? 'connected' : 'disconnected';
+        }
+        updateButtonStates(connected);
+    }
 }
 
 // ==========================================
@@ -736,7 +758,9 @@ window.uiController = {
     formatHexDump,
     updateOTAProgress,
     clearAll,
-    isConnected: () => isConnected,
+    isConnected: () => isConnected || isLanConnected,
+    isBleConnected: () => isConnected,
+    updateLanStatus,
     setDeviceType: (type) => { deviceType = type; },
     getDeviceType: () => deviceType
 };

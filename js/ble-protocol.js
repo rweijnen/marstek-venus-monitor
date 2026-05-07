@@ -961,7 +961,15 @@ async function sendCommandWithRetry(commandType, commandName, payload = null, op
  */
 async function sendCommand(commandType, commandName, payload = null, retryCount = 0) {
     if (!(window.uiController ? window.uiController.isConnected() : false)) return;
-    
+
+    // isConnected() is true for both BLE and LAN. BLE commands require an actual
+    // BLE server connection — try a LAN fallback first, then warn if none exists.
+    if (!server?.connected) {
+        if (await (window.lanFallbackCommand?.(commandType) ?? false)) return;
+        log('⚠️ This command requires a BLE connection. Use the 🌐 LAN tab to interact with network-connected devices.');
+        return;
+    }
+
     // Block commands during OTA
     if (otaInProgress) {
         log('⚠️ Command blocked: OTA update in progress');
@@ -2481,6 +2489,11 @@ async function runAllTests() {
 async function readDeviceIdentifiers() {
     if (!(window.uiController ? window.uiController.isConnected() : false)) {
         log('❌ Not connected to device');
+        return;
+    }
+    if (!server?.connected) {
+        if (await (window.lanFallbackDeviceIds?.() ?? false)) return;
+        log('⚠️ Device IDs (VID/GID/XID) require a BLE connection.');
         return;
     }
 
