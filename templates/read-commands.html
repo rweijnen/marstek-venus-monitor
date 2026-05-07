@@ -1,6 +1,9 @@
 <div class="section-caption">
     📖 <strong>Read Commands:</strong> These commands safely read information from your device including power status, battery data, network configuration, and system logs. No settings are modified.
 </div>
+<div class="ble-explainer">
+    <strong>Bluetooth (BLE)</strong> — these commands communicate directly with the battery over <em>Bluetooth Low Energy</em>, the same short-range radio your phone uses to pair with headphones or a smartwatch. The battery must be within ~10 m of this computer and not already connected to another device (phone, tablet). Click <strong>Connect to Marstek</strong> above, choose your <code>MST_ACCP_…</code> device from the browser picker, and the buttons below will activate. If your battery is on your WiFi network instead, use the <strong>🌐 LAN tab</strong> to reach it over the local network without Bluetooth.
+</div>
 <div class="command-grid">
     <button onclick="sendCommand(0x03, 'Runtime Info')" disabled data-tooltip="Real-time power flow, temperatures, and system status" class="cmd-button" data-requires-connection="true">
         <span class="cmd-button-text">⚡ Runtime Info</span>

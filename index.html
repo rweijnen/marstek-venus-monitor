@@ -135,8 +135,9 @@
                     <button class="command-tab-button" onclick="switchCommandTab('network')">🕰 Network</button>
                     <button class="command-tab-button" onclick="switchCommandTab('advanced')">🔧 Advanced</button>
                     <button class="command-tab-button" onclick="switchCommandTab('ota')">🔥 OTA</button>
+                    <button class="command-tab-button" onclick="switchCommandTab('lan')">🌐 LAN</button>
                 </div>
-                
+
                 <!-- Command Tab Contents (Loaded Dynamically) -->
                 <div id="readTab" class="command-tab active"></div>
                 <div id="powerTab" class="command-tab"></div>
@@ -145,6 +146,7 @@
                 <div id="networkTab" class="command-tab"></div>
                 <div id="advancedTab" class="command-tab"></div>
                 <div id="otaTab" class="command-tab"></div>
+                <div id="lanTab" class="command-tab"></div>
             </div>
 
 
@@ -187,6 +189,8 @@
     <script src="js/response-handler.js"></script>
     <script src="js/ble-protocol.js"></script>
     <script src="js/ui-controller.js"></script>
+    <script src="js/lan-transport.js"></script>
+    <script src="js/lan-monitor.js"></script>
     <script type="module">
         // Import the new payload system from compiled output
         import { createPayload } from './js/dist/protocol/payloads/index.js';
