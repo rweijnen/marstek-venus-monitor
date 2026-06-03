@@ -234,6 +234,7 @@ let otaChunkSize = 132;       // Default, calculated from MTU
 let pendingAckResolve = null;
 let firmwareChecksum = 0;
 let firmwareData = null;
+let firmwareType = 'Unknown';
 
 // ========================================
 // WEB BLUETOOTH CLEANUP HELPERS (Chrome)
@@ -1778,6 +1779,7 @@ async function connectAndPrepareOTA() {
     // Analyze firmware: checksum + type detection
     const analysis = analyzeFirmware(firmwareData);
     firmwareChecksum = analysis.checksum;
+    firmwareType = analysis.type;
     log(`🔑 Firmware ready for upload`);
 }
 
@@ -2029,8 +2031,12 @@ async function sendOTAFinalize() {
             log(`OTA finalization FAILED - dir: ${dir}, status: ${status}`);
             log(`Possible causes of status=0x00 failure:`);
             log(`  1. CRC mismatch - device calculated checksum differs from sent checksum`);
-            log(`  2. VenusC check failed - device firmware checks for "Venu" at fixed offset 0xE004`);
-            log(`     Note: If currently running firmware has VenusC at different offset, this check fails`);
+            if (firmwareType.includes('BMS')) {
+                log(`  2. BMS signature check failed - device expected "0x3333" at the end of the binary`);
+            } else {
+                log(`  2. VenusC check failed - device firmware checks for "Venu" at fixed offset 0xE004`);
+                log(`     Note: If currently running firmware has VenusC at different offset, this check fails`);
+            }
             log(`Sent checksum: 0x${(firmwareChecksum >>> 0).toString(16).padStart(8, '0')}`);
             return false;
         }
@@ -2091,9 +2097,13 @@ async function performOTAUpdate() {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 // OTA init payload: position 7 in frame becomes byte_2000E941 (OTA type flag)
-                // Setting byte_2000E941 = 0 makes finalize v1 check pass without firmware signature dependency
+                // For BMS firmware: set byte_2000E941 = 0x03 (BMS update type checks for 0x3333 signature at the end)
+                // For EMS/Control firmware: set byte_2000E941 = 0x00 (EMS update type bypasses firmware signature check / checks VenusC at 0xE004)
+                const otaTypeFlag = firmwareType.includes('BMS') ? 0x03 : 0x00;
+                log(`🔧 DEBUG: Firmware type: ${firmwareType}, setting OTA type flag to 0x${otaTypeFlag.toString(16).padStart(2, '0')}`);
+                
                 // Payload positions: [DIR, word_lo, word_hi, byte_2000E941, reserved, reserved]
-                const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, 0x00, 0xaa, 0xbb]));
+                const otaProbeFrame = buildOtaFrame(0x3A, new Uint8Array([0x10, 0xd7, 0x00, otaTypeFlag, 0xaa, 0xbb]));
                 logOutgoing(otaProbeFrame, `OTA Discovery Probe (0x3A) - Attempt ${attempt}/${maxRetries}`);
                 log(`🔧 DEBUG: Sending 0x3A probe to characteristic FF01 (write), expecting response on FF02 (notify)`);
                 await txCharacteristic.writeValueWithoutResponse(otaProbeFrame);
