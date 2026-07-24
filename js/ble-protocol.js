@@ -1166,7 +1166,7 @@ function analyzeFirmware(firmwareArrayBuffer) {
     sum = sum >>> 0; // Convert to unsigned 32-bit
     const checksum = (~sum) >>> 0; // Ones' complement and convert to unsigned 32-bit
 
-    // Detect firmware type by searching for VenusC signature anywhere in binary
+    // Detect firmware type (see the 0x3333 trailer note below)
     let firmwareType = 'Unknown';
     let sizeWarning = '';
     let versionInfo = null;
@@ -1189,34 +1189,40 @@ function analyzeFirmware(firmwareArrayBuffer) {
         }
     }
 
-    if (venusOffset !== -1) {
-        // EMS/Control firmware - found VenusC signature
-        firmwareType = 'EMS/Control Firmware';
+    // BMS images end with a 0x3333 trailer. That trailer is the discriminator:
+    // it is present in all 13 BMS images in the firmware archive and absent from
+    // all 19 EMS/Control images.
+    //
+    // Do NOT infer the type from "VenusC". It is not a signature - the firmware
+    // selects between the literals "VenusC"/"VenusE"/"Venus" by device type to
+    // build the version string it reports over BLE. It is absent from 16 of the
+    // 19 archive Control images, and its offset moves every build (0xe004 ->
+    // 0x10898 -> 0x10c3c -> 0x113c4 across v153-v156), so its absence says
+    // nothing about firmware type. It is used below only for version extraction.
+    const hasBmsTrailer = bytes.length >= 2 &&
+        bytes[bytes.length - 2] === 0x33 &&
+        bytes[bytes.length - 1] === 0x33;
 
-        // Extract version string (VenusC-xxx format)
-        let versionEnd = venusOffset;
-        while (versionEnd < bytes.length && bytes[versionEnd] !== 0) {
-            versionEnd++;
-        }
-        const versionBytes = bytes.slice(venusOffset, Math.min(versionEnd, venusOffset + 32));
-        const versionStr = new TextDecoder('utf-8', { fatal: false }).decode(versionBytes);
-
-        // Try to extract version, build date, and build time from ARM instructions
-        versionInfo = extractVersionInfo(bytes, venusOffset);
-        if (versionInfo) {
-            firmwareType = `EMS/Control Firmware v${versionInfo.version}`;
-        }
-
-        log(`   VenusC signature found at offset 0x${venusOffset.toString(16)}`);
-    } else if (bytes.length >= 32768) {
-        // No VenusC signature - likely BMS firmware
-        firmwareType = 'BMS Firmware';
-    } else if (bytes.length >= 1024) {
-        firmwareType = 'Unknown (small size - proceed with caution)';
-        sizeWarning = 'File size is unusually small for firmware';
-    } else {
+    if (bytes.length < 1024) {
         firmwareType = 'Unknown (very small - likely not firmware)';
         sizeWarning = 'File size is very small - this may not be valid firmware';
+    } else if (bytes.length < 32768) {
+        firmwareType = 'Unknown (small size - proceed with caution)';
+        sizeWarning = 'File size is unusually small for firmware';
+    } else if (hasBmsTrailer) {
+        firmwareType = 'BMS Firmware';
+        log(`   BMS trailer (0x3333) found at end of binary`);
+    } else {
+        firmwareType = 'EMS/Control Firmware';
+
+        if (venusOffset !== -1) {
+            // Try to extract version, build date, and build time from ARM instructions
+            versionInfo = extractVersionInfo(bytes, venusOffset);
+            if (versionInfo) {
+                firmwareType = `EMS/Control Firmware v${versionInfo.version}`;
+            }
+            log(`   VenusC model string found at offset 0x${venusOffset.toString(16)}`);
+        }
     }
 
     log(`Firmware analysis:`);
